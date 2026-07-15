@@ -13,6 +13,7 @@
   --hair: rgba(10, 10, 10, 0.16);
   --accent: #e6ff3d; /* neon yellow — fill only */
   --accent-ink: #0a0a0a; /* text on accent */
+  --danger: #e5484d; /* destructive actions only */
 
   --font-display: "Space Grotesk", -apple-system, system-ui, sans-serif;
   --font-sans: "Space Grotesk", -apple-system, system-ui, sans-serif;
@@ -31,6 +32,7 @@
   --hair: rgba(245, 244, 239, 0.18);
   --accent: #e6ff3d;
   --accent-ink: #0a0a0a;
+  --danger: #ff5a5f;
 
   color-scheme: dark;
 }
@@ -147,6 +149,31 @@ button.icon {
 button.icon:hover {
   background: var(--accent);
   color: var(--accent-ink);
+}
+button.danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+button.danger:hover {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+button.icon.danger-icon:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.confirm-text {
+  margin-right: auto;
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 /* ---------- Forms ---------- */

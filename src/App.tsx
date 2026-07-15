@@ -15,6 +15,7 @@ export default function App() {
   const [editingCreds, setEditingCreds] = useState(false);
   const [tab, setTab] = useState<Tab>("log");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   async function refreshStatus() {
     setCreds(await api.credentialsStatus());
@@ -42,8 +43,8 @@ export default function App() {
     );
   }
 
-  async function signOut() {
-    if (!confirm("Remove stored credentials from this machine?")) return;
+  async function doSignOut() {
+    setConfirmSignOut(false);
     await api.clearCredentials();
     await refreshStatus();
   }
@@ -60,9 +61,21 @@ export default function App() {
           <button className="link" onClick={() => setEditingCreds(true)}>
             Settings
           </button>
-          <button className="link" onClick={signOut}>
-            Sign out
-          </button>
+          {confirmSignOut ? (
+            <>
+              <span className="confirm-text">Sign out?</span>
+              <button className="link" onClick={doSignOut}>
+                Yes
+              </button>
+              <button className="link" onClick={() => setConfirmSignOut(false)}>
+                No
+              </button>
+            </>
+          ) : (
+            <button className="link" onClick={() => setConfirmSignOut(true)}>
+              Sign out
+            </button>
+          )}
         </div>
       </header>
 

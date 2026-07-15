@@ -76,6 +76,7 @@ function StopModal({
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const seconds = parseDuration(duration);
 
@@ -94,10 +95,6 @@ function StopModal({
     } finally {
       setBusy(false);
     }
-  }
-
-  function discard() {
-    if (confirm("Discard this tracked time without logging?")) onClose();
   }
 
   return (
@@ -151,12 +148,26 @@ function StopModal({
         {error && <p className="error">{error}</p>}
 
         <div className="row">
-          <button className="secondary" onClick={discard}>
-            Discard
-          </button>
-          <button onClick={save} disabled={busy}>
-            {busy ? "Logging…" : "Log work"}
-          </button>
+          {confirmDiscard ? (
+            <>
+              <span className="confirm-text">Discard tracked time?</span>
+              <button className="secondary" onClick={() => setConfirmDiscard(false)}>
+                Keep
+              </button>
+              <button className="danger" onClick={onClose}>
+                Discard
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="secondary" onClick={() => setConfirmDiscard(true)}>
+                Discard
+              </button>
+              <button onClick={save} disabled={busy}>
+                {busy ? "Logging…" : "Log work"}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

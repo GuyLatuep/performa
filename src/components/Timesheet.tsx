@@ -22,6 +22,7 @@ export default function Timesheet({ refreshKey }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<WorklogEntry | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const { start, end } = weekRange(offset);
 
@@ -53,11 +54,9 @@ export default function Timesheet({ refreshKey }: Props) {
   const dates = [...byDate.keys()].sort((a, b) => b.localeCompare(a));
 
   async function remove(entry: WorklogEntry) {
-    if (!confirm(`Delete ${formatDuration(entry.timeSpentSeconds)} on ${entry.issueKey}?`)) {
-      return;
-    }
     try {
       await api.deleteWorklog(entry.issueKey, entry.id);
+      setConfirmDelete(null);
       await load();
     } catch (err) {
       setError(String(err));
@@ -117,12 +116,37 @@ export default function Timesheet({ refreshKey }: Props) {
                 {e.time && <span className="wl-time">{e.time}</span>}
                 <span className="duration">{formatDuration(e.timeSpentSeconds)}</span>
                 <div className="worklog-actions">
-                  <button className="icon" title="Edit" onClick={() => setEditing(e)}>
-                    ✎
-                  </button>
-                  <button className="icon" title="Delete" onClick={() => remove(e)}>
-                    🗑
-                  </button>
+                  {confirmDelete === e.id ? (
+                    <>
+                      <button
+                        className="icon"
+                        title="Cancel"
+                        onClick={() => setConfirmDelete(null)}
+                      >
+                        ✕
+                      </button>
+                      <button
+                        className="icon danger-icon"
+                        title="Confirm delete"
+                        onClick={() => remove(e)}
+                      >
+                        ✓
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="icon" title="Edit" onClick={() => setEditing(e)}>
+                        ✎
+                      </button>
+                      <button
+                        className="icon"
+                        title="Delete"
+                        onClick={() => setConfirmDelete(e.id)}
+                      >
+                        🗑
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
