@@ -234,6 +234,63 @@ header {
   border-bottom-color: var(--primary);
 }
 
+/* --- Running timer bar --- */
+.timer-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+.timer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex-shrink: 0;
+  animation: timer-pulse 1.4s ease-in-out infinite;
+}
+@keyframes timer-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.timer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.timer-info .summary {
+  font-size: 12px;
+  color: var(--muted);
+}
+.timer-clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+  font-weight: 700;
+}
+.timer-stop {
+  background: var(--danger);
+}
+.timer-stop:hover {
+  background: var(--danger);
+  filter: brightness(1.1);
+}
+.modal-sub {
+  margin: -8px 0 16px;
+  font-size: 13px;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -252,19 +309,48 @@ header {
   max-height: 340px;
   overflow-y: auto;
 }
-.issue-list li button {
+.issue-list li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.issue-list li:not(.empty) {
+  border-bottom: 1px solid var(--border);
+}
+.issue-select {
   display: flex;
   gap: 10px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   text-align: left;
   background: none;
   color: var(--text);
   padding: 10px;
   border-radius: 6px;
-  border-bottom: 1px solid var(--border);
 }
-.issue-list li button:hover {
+.issue-select:hover {
   background: var(--bg);
+}
+.timer-start {
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.timer-start:hover:not(:disabled) {
+  background: var(--bg);
+  color: var(--primary);
+}
+.timer-start:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.timer-start.running {
+  color: var(--danger);
+  opacity: 1;
 }
 .key {
   color: var(--primary);

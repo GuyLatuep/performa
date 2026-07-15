@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, IssueSummary } from "../api";
 import { parseDuration, formatDuration, today } from "../time";
+import { startTimer, useTimer } from "../timer";
 
 interface Props {
   onLogged: () => void;
@@ -21,6 +22,7 @@ export default function LogWork({ onLogged }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
 
+  const activeTimer = useTimer();
   const debounce = useRef<number | undefined>(undefined);
 
   // Load issues assigned to me on mount.
@@ -151,14 +153,31 @@ export default function LogWork({ onLogged }: Props) {
       {searching && <p className="muted">Searching…</p>}
 
       <ul className="issue-list">
-        {results.map((issue) => (
-          <li key={issue.key}>
-            <button onClick={() => setSelected(issue)}>
-              <span className="key">{issue.key}</span>
-              <span className="summary">{issue.summary}</span>
-            </button>
-          </li>
-        ))}
+        {results.map((issue) => {
+          const isRunning = activeTimer?.issueKey === issue.key;
+          return (
+            <li key={issue.key}>
+              <button className="issue-select" onClick={() => setSelected(issue)}>
+                <span className="key">{issue.key}</span>
+                <span className="summary">{issue.summary}</span>
+              </button>
+              <button
+                className={`timer-start${isRunning ? " running" : ""}`}
+                disabled={!!activeTimer}
+                title={
+                  isRunning
+                    ? "Timer running"
+                    : activeTimer
+                      ? "Stop the running timer first"
+                      : `Start timer for ${issue.key}`
+                }
+                onClick={() => startTimer(issue.key, issue.summary)}
+              >
+                {isRunning ? "● timing" : "▶ start"}
+              </button>
+            </li>
+          );
+        })}
         {!searching && results.length === 0 && (
           <li className="muted empty">No matching issues.</li>
         )}

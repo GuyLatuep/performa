@@ -3,6 +3,7 @@ import { api, CredentialsMeta } from "./api";
 import Setup from "./components/Setup";
 import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
+import TimerBar from "./components/TimerBar";
 import "./App.css";
 
 type Tab = "log" | "timesheet";
@@ -60,6 +61,8 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      <TimerBar onLogged={() => setRefreshKey((k) => k + 1)} />
 
       <nav className="tabs">
         <button
