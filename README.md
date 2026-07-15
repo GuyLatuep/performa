@@ -1,7 +1,82 @@
-# Tauri + React + Typescript
+# performa
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+A small cross-platform desktop app (macOS + Windows) for logging your Jira Cloud
+work hours. Built with [Tauri v2](https://tauri.app) — a Rust core plus a React
++ TypeScript frontend — so bundles are small (~5–10 MB) and the API token never
+touches the web layer.
 
-## Recommended IDE Setup
+Worklogs are written via the **native Jira Cloud worklog API**, so they show up
+in **ActivityTimeline** automatically (ActivityTimeline reflects Jira worklogs).
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Features
+
+- Connect to a Jira Cloud site with your email + API token (stored in the OS
+  keychain — macOS Keychain / Windows Credential Manager).
+- Search issues (assigned to you by default, or by text / issue key).
+- Log work with a Jira-style duration (`1h 30m`), date, and optional comment.
+- Weekly **timesheet** view with per-day totals; edit and delete worklogs.
+
+## Architecture
+
+- **Rust backend (`src-tauri/`)** performs all Jira HTTP via `reqwest`. This
+  keeps the API token out of the webview and avoids browser CORS restrictions.
+  - `creds.rs` — keychain-backed credential storage (`keyring` crate).
+  - `jira.rs` — typed async client over Jira REST API v3.
+  - `lib.rs` — `#[tauri::command]` handlers the frontend invokes.
+- **React frontend (`src/`)** calls those commands through `src/api.ts`.
+
+Jira endpoints used: `GET /myself`, `GET /search/jql` (the current search
+endpoint — the old `/search` was removed), and
+`POST|PUT|DELETE /issue/{key}/worklog`.
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org) 20+ and [pnpm](https://pnpm.io)
+- [Rust](https://rustup.rs) (stable)
+- Platform build tools: Xcode CLT on macOS; the Tauri prerequisites on Windows.
+
+## Develop
+
+```bash
+pnpm install
+pnpm tauri dev
+```
+
+## Build a distributable
+
+```bash
+pnpm tauri build
+```
+
+Artifacts land in `src-tauri/target/release/bundle/` (`.dmg`/`.app` on macOS,
+`.msi`/`.exe` on Windows). You can only build a given OS's bundle on that OS —
+use the included GitHub Actions workflow to build both.
+
+## Release (CI)
+
+`.github/workflows/release.yml` builds macOS (Apple Silicon + Intel) and Windows
+bundles and attaches them to a draft GitHub Release. Trigger it by pushing a tag:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+### Code signing (optional, recommended for distribution)
+
+Unsigned builds run locally but show OS security warnings on other machines. To
+sign, uncomment and set the secrets in the workflow:
+
+- **macOS**: Apple Developer cert + notarization (`APPLE_*` secrets).
+- **Windows**: a code-signing certificate.
+
+## Getting an API token
+
+Create one at
+<https://id.atlassian.com/manage-profile/security/api-tokens>, then paste it
+into the app's connect screen along with your Jira site and email.
+
+## Possible next steps
+
+- A start/stop **timer** that logs elapsed time.
+- Optional **read-only ActivityTimeline integration** (via an admin AT API
+  token) to pre-fill planned assignments.
