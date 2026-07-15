@@ -1,3 +1,5 @@
+/* Light palette (default). The explicit theme is set via data-theme on <html>,
+   so the user's choice always wins regardless of OS setting. */
 :root {
   --bg: #f7f8fa;
   --panel: #ffffff;
@@ -8,8 +10,22 @@
   --primary-hover: #0747a6;
   --danger: #de350b;
   --success: #216e4e;
+  color-scheme: light;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text);
+}
+
+:root[data-theme="dark"] {
+  --bg: #1a1b1e;
+  --panel: #25262b;
+  --border: #34353a;
+  --text: #e9ecef;
+  --muted: #909296;
+  --primary: #4c8dff;
+  --primary-hover: #6ba1ff;
+  --danger: #ff6b52;
+  --success: #4cc38a;
+  color-scheme: dark;
 }
 
 * {
@@ -19,18 +35,6 @@
 body {
   margin: 0;
   background: var(--bg);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1a1b1e;
-    --panel: #25262b;
-    --border: #34353a;
-    --text: #e9ecef;
-    --muted: #909296;
-    --primary: #4c8dff;
-    --primary-hover: #6ba1ff;
-  }
 }
 
 button {
@@ -146,6 +150,43 @@ textarea:focus {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 8px;
+}
+
+/* --- Appearance / theme toggle --- */
+.field-block {
+  margin-bottom: 20px;
+}
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.theme-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.theme-toggle button {
+  background: none;
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.theme-toggle button:hover {
+  background: none;
+  color: var(--text);
+}
+.theme-toggle button.active {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 /* --- App shell --- */

@@ -1,6 +1,7 @@
 import { useState, FormEvent } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, CredentialsMeta } from "../api";
+import ThemeToggle from "./ThemeToggle";
 
 interface Props {
   existing: CredentialsMeta | null;
@@ -39,6 +40,11 @@ export default function Setup({ existing, onSaved, onCancel }: Props) {
         Your token is stored securely in the OS keychain and never leaves this
         machine.
       </p>
+
+      <div className="field-block">
+        <span className="field-label">Appearance</span>
+        <ThemeToggle />
+      </div>
 
       <form onSubmit={submit}>
         <label>
