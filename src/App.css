@@ -701,6 +701,12 @@ header {
   margin: 0 0 20px;
   font-size: 13px;
 }
+.clock-inline {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
 .modal .row {
   display: flex;
   justify-content: flex-end;
