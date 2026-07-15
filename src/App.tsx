@@ -4,6 +4,7 @@ import Setup from "./components/Setup";
 import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
 import TimerBar from "./components/TimerBar";
+import Blockmark from "./components/Blockmark";
 import "./App.css";
 
 type Tab = "log" | "timesheet";
@@ -50,7 +51,10 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <div className="brand">performa</div>
+        <div className="brand">
+          <Blockmark />
+          performa
+        </div>
         <div className="account">
           <span className="muted">{creds.email}</span>
           <button className="link" onClick={() => setEditingCreds(true)}>

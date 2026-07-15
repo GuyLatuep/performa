@@ -2,6 +2,7 @@ import { useState, FormEvent } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, CredentialsMeta } from "../api";
 import ThemeToggle from "./ThemeToggle";
+import Blockmark from "./Blockmark";
 
 interface Props {
   existing: CredentialsMeta | null;
@@ -34,11 +35,14 @@ export default function Setup({ existing, onSaved, onCancel }: Props) {
 
   return (
     <div className="setup">
+      <div className="setup-mark">
+        <Blockmark />
+      </div>
+      <span className="eyebrow">Time ledger · Jira</span>
       <h1>performa</h1>
       <p className="muted">
-        Log your Jira work hours. Enter your Jira Cloud site and an API token.
-        Your token is stored securely in the OS keychain and never leaves this
-        machine.
+        Connect your Jira Cloud site to start logging hours. Your API token is
+        kept in the {navigator.platform.startsWith("Mac") ? "macOS Keychain" : "OS keychain"} and never leaves this machine.
       </p>
 
       <div className="field-block">
