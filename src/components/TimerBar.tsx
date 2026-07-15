@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
-import { formatDuration, parseDuration, toDateInput, today } from "../time";
+import { formatDuration, parseDuration, toDateInput, toTimeInput, today } from "../time";
 import {
   ActiveTimer,
   formatClock,
@@ -72,6 +72,7 @@ function StopModal({
 }) {
   const [duration, setDuration] = useState(formatDuration(data.seconds));
   const [date, setDate] = useState(toDateInput(new Date(data.timer.startedAt)));
+  const [time, setTime] = useState(toTimeInput(new Date(data.timer.startedAt)));
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +87,7 @@ function StopModal({
     setBusy(true);
     setError(null);
     try {
-      await api.logWork(data.timer.issueKey, seconds, date, comment);
+      await api.logWork(data.timer.issueKey, seconds, date, time, comment);
       onLogged();
     } catch (err) {
       setError(String(err));
@@ -118,15 +119,25 @@ function StopModal({
           )}
         </label>
 
-        <label>
-          Date
-          <input
-            type="date"
-            value={date}
-            max={today()}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </label>
+        <div className="field-row">
+          <label>
+            Date
+            <input
+              type="date"
+              value={date}
+              max={today()}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </label>
+          <label>
+            Start time
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </label>
+        </div>
 
         <label>
           Comment (optional)

@@ -50,10 +50,11 @@ async fn log_work(
     issue_key: String,
     time_spent_seconds: i64,
     date: String,
+    time: String,
     comment: String,
 ) -> Result<(), String> {
     client()?
-        .add_worklog(&issue_key, time_spent_seconds, &date, &comment)
+        .add_worklog(&issue_key, time_spent_seconds, &date, &time, &comment)
         .await
 }
 
@@ -63,10 +64,18 @@ async fn update_worklog(
     worklog_id: String,
     time_spent_seconds: i64,
     date: String,
+    time: String,
     comment: String,
 ) -> Result<(), String> {
     client()?
-        .update_worklog(&issue_key, &worklog_id, time_spent_seconds, &date, &comment)
+        .update_worklog(
+            &issue_key,
+            &worklog_id,
+            time_spent_seconds,
+            &date,
+            &time,
+            &comment,
+        )
         .await
 }
 

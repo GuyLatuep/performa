@@ -3,7 +3,7 @@
 //! stays out of the frontend and we sidestep browser CORS restrictions.
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use chrono::{Local, NaiveDate, TimeZone};
+use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
 use serde::{Deserialize, Serialize};
 
 use crate::creds::Credentials;
@@ -43,6 +43,8 @@ pub struct WorklogEntry {
     pub time_spent_seconds: i64,
     /// Date portion (yyyy-MM-dd) of the worklog start.
     pub date: String,
+    /// Time portion (HH:mm) of the worklog start.
+    pub time: String,
     pub comment: String,
 }
 
@@ -166,11 +168,12 @@ impl JiraClient {
         issue_key: &str,
         time_spent_seconds: i64,
         date: &str,
+        time: &str,
         comment: &str,
     ) -> Result<(), String> {
         let mut body = serde_json::json!({
             "timeSpentSeconds": time_spent_seconds,
-            "started": jira_started(date)?,
+            "started": jira_started(date, time)?,
         });
         if !comment.trim().is_empty() {
             body["comment"] = adf_paragraph(comment);
@@ -194,11 +197,12 @@ impl JiraClient {
         worklog_id: &str,
         time_spent_seconds: i64,
         date: &str,
+        time: &str,
         comment: &str,
     ) -> Result<(), String> {
         let mut body = serde_json::json!({
             "timeSpentSeconds": time_spent_seconds,
-            "started": jira_started(date)?,
+            "started": jira_started(date, time)?,
         });
         // Send an (empty) ADF doc to clear the comment when blank.
         body["comment"] = if comment.trim().is_empty() {
@@ -271,12 +275,14 @@ impl JiraClient {
                 if date.as_str() < start || date.as_str() > end {
                     continue;
                 }
+                let time = w.started.get(11..16).unwrap_or("").to_string();
                 entries.push(WorklogEntry {
                     id: w.id,
                     issue_key: issue.key.clone(),
                     issue_summary: issue.summary.clone(),
                     time_spent_seconds: w.time_spent_seconds,
                     date,
+                    time,
                     comment: w.comment.as_ref().map(adf_to_text).unwrap_or_default(),
                 });
             }
@@ -291,17 +297,17 @@ fn net_err(e: reqwest::Error) -> String {
 }
 
 /// Build a Jira `started` timestamp (`yyyy-MM-ddThh:mm:ss.SSSZ`, offset without
-/// a colon) for the given date at local noon.
-fn jira_started(date: &str) -> Result<String, String> {
+/// a colon) for the given local date (yyyy-MM-dd) and time (HH:mm).
+fn jira_started(date: &str, time: &str) -> Result<String, String> {
     let d = NaiveDate::parse_from_str(date, "%Y-%m-%d")
         .map_err(|_| format!("invalid date '{date}', expected yyyy-MM-dd"))?;
-    let naive = d
-        .and_hms_opt(12, 0, 0)
-        .ok_or_else(|| "invalid time".to_string())?;
+    let t = NaiveTime::parse_from_str(time, "%H:%M")
+        .map_err(|_| format!("invalid time '{time}', expected HH:mm"))?;
+    let naive = NaiveDateTime::new(d, t);
     let dt = Local
         .from_local_datetime(&naive)
-        .single()
-        .ok_or_else(|| "ambiguous local time".to_string())?;
+        .earliest()
+        .ok_or_else(|| "invalid local time".to_string())?;
     Ok(dt.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string())
 }
 

@@ -114,6 +114,7 @@ export default function Timesheet({ refreshKey }: Props) {
                   <span className="summary">{e.issueSummary}</span>
                   {e.comment && <span className="comment">{e.comment}</span>}
                 </div>
+                {e.time && <span className="wl-time">{e.time}</span>}
                 <span className="duration">{formatDuration(e.timeSpentSeconds)}</span>
                 <div className="worklog-actions">
                   <button className="icon" title="Edit" onClick={() => setEditing(e)}>
@@ -164,6 +165,7 @@ function EditModal({
 }) {
   const [duration, setDuration] = useState(formatDuration(entry.timeSpentSeconds));
   const [date, setDate] = useState(entry.date);
+  const [time, setTime] = useState(entry.time);
   const [comment, setComment] = useState(entry.comment);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -177,7 +179,7 @@ function EditModal({
     setBusy(true);
     setError(null);
     try {
-      await api.updateWorklog(entry.issueKey, entry.id, seconds, date, comment);
+      await api.updateWorklog(entry.issueKey, entry.id, seconds, date, time, comment);
       onSaved();
     } catch (err) {
       setError(String(err));
@@ -196,10 +198,16 @@ function EditModal({
           Time spent
           <input value={duration} onChange={(e) => setDuration(e.target.value)} autoFocus />
         </label>
-        <label>
-          Date
-          <input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
-        </label>
+        <div className="field-row">
+          <label>
+            Date
+            <input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
+          </label>
+          <label>
+            Start time
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          </label>
+        </div>
         <label>
           Comment
           <textarea rows={3} value={comment} onChange={(e) => setComment(e.target.value)} />

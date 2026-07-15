@@ -22,6 +22,7 @@ export interface WorklogEntry {
   issueSummary: string;
   timeSpentSeconds: number;
   date: string; // yyyy-MM-dd
+  time: string; // HH:mm
   comment: string;
 }
 
@@ -45,15 +46,17 @@ export const api = {
     issueKey: string,
     timeSpentSeconds: number,
     date: string,
+    time: string,
     comment: string,
   ): Promise<void> {
-    return invoke("log_work", { issueKey, timeSpentSeconds, date, comment });
+    return invoke("log_work", { issueKey, timeSpentSeconds, date, time, comment });
   },
   updateWorklog(
     issueKey: string,
     worklogId: string,
     timeSpentSeconds: number,
     date: string,
+    time: string,
     comment: string,
   ): Promise<void> {
     return invoke("update_worklog", {
@@ -61,6 +64,7 @@ export const api = {
       worklogId,
       timeSpentSeconds,
       date,
+      time,
       comment,
     });
   },

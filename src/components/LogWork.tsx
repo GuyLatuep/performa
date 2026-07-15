@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, IssueSummary } from "../api";
-import { parseDuration, formatDuration, today } from "../time";
+import { parseDuration, formatDuration, today, nowTime } from "../time";
 import { startTimer, useTimer } from "../timer";
 
 interface Props {
@@ -17,6 +17,7 @@ export default function LogWork({ onLogged }: Props) {
 
   const [duration, setDuration] = useState("");
   const [date, setDate] = useState(today());
+  const [time, setTime] = useState(nowTime());
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +70,7 @@ export default function LogWork({ onLogged }: Props) {
     setError(null);
     setOkMsg(null);
     try {
-      await api.logWork(selected.key, seconds, date, comment);
+      await api.logWork(selected.key, seconds, date, time, comment);
       setOkMsg(`Logged ${formatDuration(seconds)} on ${selected.key}`);
       setDuration("");
       setComment("");
@@ -107,15 +108,25 @@ export default function LogWork({ onLogged }: Props) {
           )}
         </label>
 
-        <label>
-          Date
-          <input
-            type="date"
-            value={date}
-            max={today()}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </label>
+        <div className="field-row">
+          <label>
+            Date
+            <input
+              type="date"
+              value={date}
+              max={today()}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </label>
+          <label>
+            Start time
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </label>
+        </div>
 
         <label>
           Comment (optional)

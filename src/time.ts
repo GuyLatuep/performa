@@ -55,6 +55,17 @@ export function today(): string {
   return toDateInput(new Date());
 }
 
+/** Local time-of-day as HH:mm. */
+export function toTimeInput(d: Date): string {
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+export function nowTime(): string {
+  return toTimeInput(new Date());
+}
+
 /** yyyy-MM-dd for the Monday of the week containing `d`. */
 export function startOfWeek(d: Date): string {
   const copy = new Date(d);
