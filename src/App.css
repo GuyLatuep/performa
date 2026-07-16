@@ -345,7 +345,9 @@ textarea {
 
 /* ---------- App shell ---------- */
 .app {
-  max-width: 680px;
+  /* Comfortable column in the default window, growing fluidly up to a
+     readable cap when the window is maximized or fullscreen. */
+  max-width: clamp(680px, 78vw, 1200px);
   margin: 0 auto;
   padding: 0 20px 48px;
 }
@@ -558,7 +560,8 @@ header {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 360px;
+  /* Use the extra vertical space of larger windows. */
+  max-height: clamp(360px, 55vh, 800px);
   overflow-y: auto;
 }
 .issue-list li {

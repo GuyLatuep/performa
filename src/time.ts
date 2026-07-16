@@ -1,7 +1,8 @@
 /** Parse a Jira-style duration ("1h 30m", "45m", "2h", "1.5h") into seconds.
+ *  Decimal commas ("0,25h") are accepted as well.
  *  Returns null if nothing parseable is found. */
 export function parseDuration(input: string): number | null {
-  const text = input.trim().toLowerCase();
+  const text = input.trim().toLowerCase().replace(/,/g, ".");
   if (!text) return null;
 
   let seconds = 0;

@@ -13,8 +13,11 @@
     "windows": [
       {
         "title": "performa",
-        "width": 800,
-        "height": 600
+        "width": 820,
+        "height": 900,
+        "minWidth": 640,
+        "minHeight": 520,
+        "center": true
       }
     ],
     "security": {
