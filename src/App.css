@@ -468,6 +468,16 @@ header {
   width: 100%;
 }
 
+/* ---------- Build info footer ---------- */
+.buildinfo {
+  margin-top: 26px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
 /* ---------- Update notice ---------- */
 .update-notice {
   display: flex;
