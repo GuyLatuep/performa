@@ -1,13 +1,15 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useRef, useState, FormEvent } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, CredentialsMeta } from "../api";
 import {
   getDailyHours,
+  getShowWeekends,
   setDailyHours,
   setShowWeekends,
   useShowWeekends,
 } from "../settings";
+import { getTheme, setTheme } from "../theme";
 import ThemeToggle from "./ThemeToggle";
 import Blockmark from "./Blockmark";
 
@@ -29,6 +31,21 @@ export default function Settings({ existing, onSaved, onCancel }: Props) {
   const [version, setVersion] = useState("");
   const [hours, setHours] = useState(String(getDailyHours()));
   const showWeekends = useShowWeekends();
+
+  // Theme, hours, and weekend toggle apply instantly (live preview), so keep
+  // a snapshot from when the screen opened and restore it on Cancel.
+  const snapshot = useRef({
+    theme: getTheme(),
+    hours: getDailyHours(),
+    weekends: getShowWeekends(),
+  });
+
+  function cancel() {
+    setTheme(snapshot.current.theme);
+    setDailyHours(snapshot.current.hours);
+    setShowWeekends(snapshot.current.weekends);
+    onCancel?.();
+  }
 
   useEffect(() => {
     getVersion().then(setVersion);
@@ -132,10 +149,10 @@ export default function Settings({ existing, onSaved, onCancel }: Props) {
           API token
           <input
             type="password"
-            placeholder={existing ? "•••••••• (enter to update)" : ""}
+            placeholder={existing ? "•••••••• (unchanged — enter to replace)" : ""}
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            required
+            required={!existing}
           />
         </label>
 
@@ -151,7 +168,7 @@ export default function Settings({ existing, onSaved, onCancel }: Props) {
 
         <div className="row">
           {onCancel && (
-            <button type="button" className="secondary" onClick={onCancel}>
+            <button type="button" className="secondary" onClick={cancel}>
               Cancel
             </button>
           )}

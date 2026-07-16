@@ -82,10 +82,20 @@ async fn save_credentials(
     token: String,
 ) -> Result<Myself, String> {
     let site = normalize_site(&site);
+    // An empty token means "keep the stored one" — the settings screen doesn't
+    // force re-entering the key just to change site/email.
+    let token = match token.trim() {
+        "" => {
+            creds::load()?
+                .ok_or_else(|| "API token required".to_string())?
+                .token
+        }
+        t => t.to_string(),
+    };
     let creds = Credentials {
         site,
         email: email.trim().to_string(),
-        token: token.trim().to_string(),
+        token,
     };
     let client = JiraClient::new(&creds);
     let me = client.myself().await?;
