@@ -468,10 +468,9 @@ header {
   width: 100%;
 }
 
-/* ---------- Build info footer ---------- */
+/* ---------- Build info (settings screen) ---------- */
 .buildinfo {
-  margin-top: 26px;
-  text-align: right;
+  margin: 26px 0 0;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;

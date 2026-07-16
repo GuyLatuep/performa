@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { getVersion } from "@tauri-apps/api/app";
 import { api, CredentialsMeta } from "./api";
 import Setup from "./components/Setup";
 import LogWork from "./components/LogWork";
@@ -29,11 +28,6 @@ export default function App() {
 
   const missingItems = useMissing();
   const missingUnseen = useMissingUnseenCount();
-  const [version, setVersion] = useState("");
-
-  useEffect(() => {
-    getVersion().then(setVersion);
-  }, []);
 
   async function refreshStatus() {
     setCreds(await api.credentialsStatus());
@@ -144,10 +138,6 @@ export default function App() {
         {tab === "timesheet" && <Timesheet refreshKey={refreshKey} />}
         {tab === "missing" && <MissingWorklogs onLogged={onLogged} />}
       </main>
-
-      <footer className="buildinfo">
-        v{version} · built {__BUILT_AT__.slice(0, 16).replace("T", " ")} UTC
-      </footer>
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, CredentialsMeta } from "../api";
 import ThemeToggle from "./ThemeToggle";
@@ -18,6 +19,11 @@ export default function Setup({ existing, onSaved, onCancel }: Props) {
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    getVersion().then(setVersion);
+  }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -106,6 +112,10 @@ export default function Setup({ existing, onSaved, onCancel }: Props) {
           </button>
         </div>
       </form>
+
+      <p className="buildinfo">
+        v{version} · built {__BUILT_AT__.slice(0, 16).replace("T", " ")} UTC
+      </p>
     </div>
   );
 }
