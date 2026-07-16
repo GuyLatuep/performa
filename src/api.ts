@@ -36,6 +36,13 @@ export interface MissingWorklog {
   logSummary: string;
 }
 
+export interface UpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  downloadUrl: string;
+  isNewer: boolean;
+}
+
 export const api = {
   saveCredentials(site: string, email: string, token: string): Promise<Myself> {
     return invoke("save_credentials", { site, email, token });
@@ -86,5 +93,8 @@ export const api = {
   },
   missingWorklogs(): Promise<MissingWorklog[]> {
     return invoke("missing_worklogs");
+  },
+  checkUpdate(): Promise<UpdateInfo> {
+    return invoke("check_update");
   },
 };

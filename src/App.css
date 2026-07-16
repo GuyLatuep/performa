@@ -466,6 +466,38 @@ header {
   width: 100%;
 }
 
+/* ---------- Update notice ---------- */
+.update-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid var(--ink);
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: 10px 14px;
+  margin: 18px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.update-notice span {
+  flex: 1;
+}
+.update-notice .link {
+  color: var(--accent-ink);
+  white-space: nowrap;
+}
+.update-notice .link:hover {
+  background: var(--ink);
+  color: var(--surface);
+}
+.update-notice .icon {
+  color: var(--accent-ink);
+}
+.update-notice .icon:hover {
+  background: var(--ink);
+  color: var(--surface);
+}
+
 /* ---------- Running timer bar (signature) ---------- */
 /* A constant black instrument block framed in neon, in both themes. */
 .timer-bar {

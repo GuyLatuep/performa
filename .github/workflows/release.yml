@@ -48,15 +48,19 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Bundle filenames come from tauri.conf.json's `version`, not the git tag.
-      # Stamp it from the tag (e.g. v0.2.0 -> 0.2.0) so assets match the release.
+      # The app's runtime version (used by the in-app update check) and the
+      # bundle filenames come from tauri.conf.json / Cargo.toml, not the git
+      # tag. Stamp both from the tag (e.g. v0.2.0 -> 0.2.0) so releases are
+      # always correctly versioned without manual bumps.
       - name: Stamp version from tag
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           node -e "const fs=require('fs'),p='src-tauri/tauri.conf.json',j=JSON.parse(fs.readFileSync(p));j.version='$VERSION';fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n')"
+          VERSION="$VERSION" node -e "const fs=require('fs'),p='src-tauri/Cargo.toml';fs.writeFileSync(p,fs.readFileSync(p,'utf8').replace(/^version = \".*\"$/m,'version = \"'+process.env.VERSION+'\"'))"
           echo "Stamped version $VERSION"
+          grep -m1 '^version' src-tauri/Cargo.toml
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0

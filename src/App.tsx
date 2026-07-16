@@ -5,6 +5,7 @@ import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
 import TimerBar from "./components/TimerBar";
 import MissingWorklogs from "./components/MissingWorklogs";
+import UpdateNotice from "./components/UpdateNotice";
 import Blockmark from "./components/Blockmark";
 import {
   refreshMissing,
@@ -103,6 +104,8 @@ export default function App() {
           )}
         </div>
       </header>
+
+      <UpdateNotice />
 
       <TimerBar onLogged={onLogged} />
 

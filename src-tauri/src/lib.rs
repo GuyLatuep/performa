@@ -1,5 +1,6 @@
 mod creds;
 mod jira;
+mod update;
 
 use creds::{Credentials, CredentialsMeta};
 use jira::{IssueSummary, JiraClient, MissingWorklog, Myself, WorklogEntry};
@@ -120,6 +121,12 @@ async fn missing_worklogs() -> Result<Vec<MissingWorklog>, String> {
         .await
 }
 
+/// Compare the running version against the latest GitHub release.
+#[tauri::command]
+async fn check_update(app: tauri::AppHandle) -> Result<update::UpdateInfo, String> {
+    update::check(&app.package_info().version.to_string()).await
+}
+
 /// Normalize a user-entered site into `https://host` with no trailing slash.
 fn normalize_site(input: &str) -> String {
     let trimmed = input.trim().trim_end_matches('/');
@@ -145,6 +152,7 @@ pub fn run() {
             delete_worklog,
             list_worklogs,
             missing_worklogs,
+            check_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

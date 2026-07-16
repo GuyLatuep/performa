@@ -1,6 +1,6 @@
 [package]
 name = "performa"
-version = "0.1.0"
+version = "0.4.0"
 description = "Log Jira Cloud work hours"
 authors = ["Malte Polzin <malte@polz.in>"]
 edition = "2021"
