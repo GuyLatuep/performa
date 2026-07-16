@@ -4,10 +4,18 @@ import Setup from "./components/Setup";
 import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
 import TimerBar from "./components/TimerBar";
+import MissingWorklogs from "./components/MissingWorklogs";
 import Blockmark from "./components/Blockmark";
+import {
+  refreshMissing,
+  startMissingPolling,
+  stopMissingPolling,
+  useMissing,
+  useMissingUnseenCount,
+} from "./missing";
 import "./App.css";
 
-type Tab = "log" | "timesheet";
+type Tab = "log" | "timesheet" | "missing";
 
 export default function App() {
   const [creds, setCreds] = useState<CredentialsMeta | null>(null);
@@ -17,6 +25,9 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
 
+  const missingItems = useMissing();
+  const missingUnseen = useMissingUnseenCount();
+
   async function refreshStatus() {
     setCreds(await api.credentialsStatus());
     setLoaded(true);
@@ -25,6 +36,14 @@ export default function App() {
   useEffect(() => {
     refreshStatus();
   }, []);
+
+  // Watch for unlogged activity in the background while signed in.
+  const signedIn = !!creds;
+  useEffect(() => {
+    if (!signedIn) return;
+    startMissingPolling();
+    return stopMissingPolling;
+  }, [signedIn]);
 
   if (!loaded) {
     return <div className="loading">Loading…</div>;
@@ -47,6 +66,12 @@ export default function App() {
     setConfirmSignOut(false);
     await api.clearCredentials();
     await refreshStatus();
+  }
+
+  function onLogged() {
+    setRefreshKey((k) => k + 1);
+    // A fresh worklog may resolve a reminder — recheck right away.
+    refreshMissing();
   }
 
   return (
@@ -79,7 +104,7 @@ export default function App() {
         </div>
       </header>
 
-      <TimerBar onLogged={() => setRefreshKey((k) => k + 1)} />
+      <TimerBar onLogged={onLogged} />
 
       <nav className="tabs">
         <button
@@ -94,14 +119,21 @@ export default function App() {
         >
           Timesheet
         </button>
+        <button
+          className={`${tab === "missing" ? "active" : ""}${
+            missingUnseen > 0 ? " alert" : ""
+          }`}
+          onClick={() => setTab("missing")}
+        >
+          Missing worklog
+          {missingItems.length > 0 && ` · ${missingItems.length}`}
+        </button>
       </nav>
 
       <main>
-        {tab === "log" ? (
-          <LogWork onLogged={() => setRefreshKey((k) => k + 1)} />
-        ) : (
-          <Timesheet refreshKey={refreshKey} />
-        )}
+        {tab === "log" && <LogWork onLogged={onLogged} />}
+        {tab === "timesheet" && <Timesheet refreshKey={refreshKey} />}
+        {tab === "missing" && <MissingWorklogs onLogged={onLogged} />}
       </main>
     </div>
   );

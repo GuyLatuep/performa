@@ -2,8 +2,11 @@
 //! All HTTP happens here in Rust (never in the webview) so that the API token
 //! stays out of the frontend and we sidestep browser CORS restrictions.
 
+use std::collections::HashSet;
+
 use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
+use futures_util::{stream, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 
 use crate::creds::Credentials;
@@ -48,6 +51,25 @@ pub struct WorklogEntry {
     pub comment: String,
 }
 
+#[derive(Serialize)]
+pub struct MissingWorklog {
+    #[serde(rename = "issueKey")]
+    pub issue_key: String,
+    #[serde(rename = "issueSummary")]
+    pub issue_summary: String,
+    /// What the user did without logging time: "comment" or "status".
+    pub kind: String,
+    /// RFC3339 timestamp of that activity.
+    #[serde(rename = "activityAt")]
+    pub activity_at: String,
+    /// Issue the work should be logged on: the escalation source for issues
+    /// from the escalation project, otherwise the issue itself.
+    #[serde(rename = "logKey")]
+    pub log_key: String,
+    #[serde(rename = "logSummary")]
+    pub log_summary: String,
+}
+
 // ----- Internal deserialization helpers -----
 
 #[derive(Deserialize)]
@@ -90,6 +112,81 @@ struct RawWorklog {
 struct WorklogAuthor {
     #[serde(rename = "accountId", default)]
     account_id: String,
+}
+
+#[derive(Deserialize)]
+struct CommentListResp {
+    #[serde(default)]
+    comments: Vec<RawComment>,
+}
+
+#[derive(Deserialize)]
+struct RawComment {
+    #[serde(default)]
+    author: Option<WorklogAuthor>,
+    #[serde(default)]
+    created: String,
+}
+
+#[derive(Deserialize)]
+struct ChangelogPage {
+    #[serde(default)]
+    total: i64,
+    #[serde(default)]
+    values: Vec<ChangelogEntry>,
+}
+
+#[derive(Deserialize)]
+struct ChangelogEntry {
+    #[serde(default)]
+    author: Option<WorklogAuthor>,
+    #[serde(default)]
+    created: String,
+    #[serde(default)]
+    items: Vec<ChangelogItem>,
+}
+
+#[derive(Deserialize)]
+struct ChangelogItem {
+    #[serde(default)]
+    field: String,
+}
+
+#[derive(Deserialize)]
+struct IssueLinksResp {
+    #[serde(default)]
+    fields: Option<IssueLinksFields>,
+}
+
+#[derive(Deserialize)]
+struct IssueLinksFields {
+    #[serde(default)]
+    issuelinks: Vec<IssueLink>,
+}
+
+#[derive(Deserialize)]
+struct IssueLink {
+    #[serde(rename = "type")]
+    link_type: LinkType,
+    #[serde(rename = "inwardIssue", default)]
+    inward_issue: Option<LinkedIssue>,
+    #[serde(rename = "outwardIssue", default)]
+    outward_issue: Option<LinkedIssue>,
+}
+
+#[derive(Deserialize)]
+struct LinkType {
+    #[serde(default)]
+    inward: String,
+    #[serde(default)]
+    outward: String,
+}
+
+#[derive(Deserialize)]
+struct LinkedIssue {
+    key: String,
+    #[serde(default)]
+    fields: Option<SearchFields>,
 }
 
 impl JiraClient {
@@ -251,22 +348,11 @@ impl JiraClient {
 
         let mut entries = Vec::new();
         for issue in issues {
-            let resp = self
-                .http
-                .get(self.url(&format!("/rest/api/3/issue/{}/worklog", issue.key)))
-                .header("Authorization", &self.auth)
-                .header("Accept", "application/json")
-                .query(&[("startedAfter", started_after_millis(start))])
-                .send()
-                .await
-                .map_err(net_err)?;
-            let list = Self::check(resp)
-                .await?
-                .json::<WorklogListResp>()
-                .await
-                .map_err(|e| format!("unexpected worklog response: {e}"))?;
+            let worklogs = self
+                .issue_worklogs(&issue.key, &started_after_millis(start))
+                .await?;
 
-            for w in list.worklogs {
+            for w in worklogs {
                 let author_id = w.author.map(|a| a.account_id).unwrap_or_default();
                 if author_id != account_id {
                     continue;
@@ -290,6 +376,303 @@ impl JiraClient {
         entries.sort_by(|a, b| b.date.cmp(&a.date));
         Ok(entries)
     }
+
+    /// Raw worklogs on one issue that started after the given epoch-millis value.
+    async fn issue_worklogs(
+        &self,
+        issue_key: &str,
+        started_after: &str,
+    ) -> Result<Vec<RawWorklog>, String> {
+        let resp = self
+            .http
+            .get(self.url(&format!("/rest/api/3/issue/{issue_key}/worklog")))
+            .header("Authorization", &self.auth)
+            .header("Accept", "application/json")
+            .query(&[("startedAfter", started_after)])
+            .send()
+            .await
+            .map_err(net_err)?;
+        Ok(Self::check(resp)
+            .await?
+            .json::<WorklogListResp>()
+            .await
+            .map_err(|e| format!("unexpected worklog response: {e}"))?
+            .worklogs)
+    }
+
+    async fn recent_comments(&self, issue_key: &str) -> Result<Vec<RawComment>, String> {
+        let resp = self
+            .http
+            .get(self.url(&format!("/rest/api/3/issue/{issue_key}/comment")))
+            .header("Authorization", &self.auth)
+            .header("Accept", "application/json")
+            .query(&[("orderBy", "-created"), ("maxResults", "30")])
+            .send()
+            .await
+            .map_err(net_err)?;
+        Ok(Self::check(resp)
+            .await?
+            .json::<CommentListResp>()
+            .await
+            .map_err(|e| format!("unexpected comment response: {e}"))?
+            .comments)
+    }
+
+    async fn changelog_page(&self, issue_key: &str, start_at: i64) -> Result<ChangelogPage, String> {
+        let resp = self
+            .http
+            .get(self.url(&format!("/rest/api/3/issue/{issue_key}/changelog")))
+            .header("Authorization", &self.auth)
+            .header("Accept", "application/json")
+            .query(&[
+                ("startAt", start_at.to_string()),
+                ("maxResults", "100".to_string()),
+            ])
+            .send()
+            .await
+            .map_err(net_err)?;
+        Self::check(resp)
+            .await?
+            .json::<ChangelogPage>()
+            .await
+            .map_err(|e| format!("unexpected changelog response: {e}"))
+    }
+
+    /// Most recent changelog entries. The API pages oldest-first, so when the
+    /// history doesn't fit in one page, re-fetch the last page.
+    async fn recent_changelog(&self, issue_key: &str) -> Result<Vec<ChangelogEntry>, String> {
+        let first = self.changelog_page(issue_key, 0).await?;
+        let fetched = first.values.len() as i64;
+        if first.total > fetched && fetched > 0 {
+            return Ok(self.changelog_page(issue_key, first.total - fetched).await?.values);
+        }
+        Ok(first.values)
+    }
+
+    /// The issue this one links to with the given description (e.g. the issue
+    /// a DEV ticket "is an escalation for"), if such a link exists.
+    async fn linked_issue(
+        &self,
+        issue_key: &str,
+        link_description: &str,
+    ) -> Result<Option<(String, String)>, String> {
+        let resp = self
+            .http
+            .get(self.url(&format!("/rest/api/3/issue/{issue_key}")))
+            .header("Authorization", &self.auth)
+            .header("Accept", "application/json")
+            .query(&[("fields", "issuelinks")])
+            .send()
+            .await
+            .map_err(net_err)?;
+        let parsed = Self::check(resp)
+            .await?
+            .json::<IssueLinksResp>()
+            .await
+            .map_err(|e| format!("unexpected issue response: {e}"))?;
+
+        // A link entry on this issue reads "<this issue> <description>
+        // <outwardIssue>" or "<this issue> <inward description> <inwardIssue>".
+        for link in parsed.fields.map(|f| f.issuelinks).unwrap_or_default() {
+            let target = if link.link_type.outward.eq_ignore_ascii_case(link_description) {
+                link.outward_issue
+            } else if link.link_type.inward.eq_ignore_ascii_case(link_description) {
+                link.inward_issue
+            } else {
+                None
+            };
+            if let Some(t) = target {
+                let summary = t.fields.map(|f| f.summary).unwrap_or_default();
+                return Ok(Some((t.key, summary)));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Periods covered by the user's worklogs on one issue, each stretched by
+    /// `window_secs` on both sides, as (from, to) epoch-second pairs.
+    async fn covered_ranges(
+        &self,
+        issue_key: &str,
+        account_id: &str,
+        after_secs: i64,
+        window_secs: i64,
+    ) -> Result<Vec<(i64, i64)>, String> {
+        let worklogs = self
+            .issue_worklogs(issue_key, &(after_secs * 1000).to_string())
+            .await?;
+        Ok(worklogs
+            .iter()
+            .filter(|w| w.author.as_ref().map(|a| a.account_id.as_str()) == Some(account_id))
+            .filter_map(|w| parse_jira_ts(&w.started).map(|s| (s, w.time_spent_seconds)))
+            .map(|(start, spent)| (start - window_secs, start + spent + window_secs))
+            .collect())
+    }
+
+    /// Issues where the user recently commented or changed the status but has
+    /// no own worklog whose logged period (stretched by `window_secs` on both
+    /// sides) covers that activity. Activity younger than `grace_secs` is not
+    /// flagged yet, so there is a chance to log before the reminder appears.
+    ///
+    /// Status changes are found directly via JQL. Comments are not queryable
+    /// by author, so recently updated issues the user viewed (issueHistory),
+    /// watches, or owns serve as candidates — viewing history also covers
+    /// JSM internal comments, which don't auto-watch.
+    /// Issues from `escalation_project` log their time on the issue they are
+    /// linked to as `escalation_link` (when present), so worklogs on either
+    /// issue clear the reminder.
+    pub async fn missing_worklogs(
+        &self,
+        account_id: &str,
+        lookback_days: u32,
+        window_secs: i64,
+        grace_secs: i64,
+        escalation_project: &str,
+        escalation_link: &str,
+    ) -> Result<Vec<MissingWorklog>, String> {
+        let now = Local::now().timestamp();
+        let cutoff = now - lookback_days as i64 * 86_400;
+        let flag_before = now - grace_secs;
+
+        let status_issues = self
+            .search_issues(
+                &format!(
+                    "status CHANGED BY currentUser() AFTER \"-{lookback_days}d\" ORDER BY updated DESC"
+                ),
+                25,
+            )
+            .await?;
+        let watched = self
+            .search_issues(
+                &format!(
+                    "updated >= \"-{lookback_days}d\" AND (issue in issueHistory() \
+                     OR watcher = currentUser() OR assignee = currentUser() \
+                     OR reporter = currentUser()) ORDER BY updated DESC"
+                ),
+                50,
+            )
+            .await?;
+
+        let status_keys: HashSet<String> = status_issues.iter().map(|i| i.key.clone()).collect();
+        let mut candidates = status_issues;
+        for issue in watched {
+            if !status_keys.contains(&issue.key) {
+                candidates.push(issue);
+            }
+        }
+
+        // Candidates are independent — check them concurrently so the whole
+        // scan finishes in seconds even with many recently touched issues.
+        let mut found: Vec<(i64, MissingWorklog)> = stream::iter(candidates)
+            .map(|issue| {
+                let has_status_change = status_keys.contains(&issue.key);
+                self.check_candidate(
+                    issue,
+                    has_status_change,
+                    account_id,
+                    cutoff,
+                    flag_before,
+                    window_secs,
+                    escalation_project,
+                    escalation_link,
+                )
+            })
+            .buffer_unordered(8)
+            .try_collect::<Vec<Option<(i64, MissingWorklog)>>>()
+            .await?
+            .into_iter()
+            .flatten()
+            .collect();
+
+        found.sort_by_key(|(ts, _)| std::cmp::Reverse(*ts));
+        Ok(found.into_iter().map(|(_, m)| m).collect())
+    }
+
+    /// Examine one candidate issue: does the user have unlogged activity on
+    /// it? Returns the newest unlogged activity, keyed for sorting.
+    #[allow(clippy::too_many_arguments)]
+    async fn check_candidate(
+        &self,
+        issue: IssueSummary,
+        has_status_change: bool,
+        account_id: &str,
+        cutoff: i64,
+        flag_before: i64,
+        window_secs: i64,
+        escalation_project: &str,
+        escalation_link: &str,
+    ) -> Result<Option<(i64, MissingWorklog)>, String> {
+        let mut activities: Vec<(&str, i64)> = Vec::new();
+        for c in self.recent_comments(&issue.key).await? {
+            if c.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
+                continue;
+            }
+            if let Some(ts) = parse_jira_ts(&c.created) {
+                if ts >= cutoff && ts <= flag_before {
+                    activities.push(("comment", ts));
+                }
+            }
+        }
+        if has_status_change {
+            for e in self.recent_changelog(&issue.key).await? {
+                if e.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
+                    continue;
+                }
+                if !e.items.iter().any(|i| i.field.eq_ignore_ascii_case("status")) {
+                    continue;
+                }
+                if let Some(ts) = parse_jira_ts(&e.created) {
+                    if ts >= cutoff && ts <= flag_before {
+                        activities.push(("status", ts));
+                    }
+                }
+            }
+        }
+        if activities.is_empty() {
+            return Ok(None);
+        }
+
+        // Escalation-project issues log their time on the linked source
+        // issue, so it becomes the log target and its worklogs count too.
+        let escalated = if issue.key.starts_with(&format!("{escalation_project}-")) {
+            self.linked_issue(&issue.key, escalation_link).await?
+        } else {
+            None
+        };
+
+        // Fetch worklogs a day extra back so a long worklog reaching into
+        // the lookback window is still seen.
+        let worklog_after = cutoff - 86_400;
+        let mut covered = self
+            .covered_ranges(&issue.key, account_id, worklog_after, window_secs)
+            .await?;
+        if let Some((target_key, _)) = &escalated {
+            covered.extend(
+                self.covered_ranges(target_key, account_id, worklog_after, window_secs)
+                    .await?,
+            );
+        }
+
+        let newest_unlogged = activities
+            .into_iter()
+            .filter(|(_, ts)| !covered.iter().any(|(a, b)| ts >= a && ts <= b))
+            .max_by_key(|(_, ts)| *ts);
+        Ok(newest_unlogged.map(|(kind, ts)| {
+            let (log_key, log_summary) =
+                escalated.unwrap_or_else(|| (issue.key.clone(), issue.summary.clone()));
+            (
+                ts,
+                MissingWorklog {
+                    issue_key: issue.key,
+                    issue_summary: issue.summary,
+                    kind: kind.to_string(),
+                    activity_at: format_rfc3339_local(ts),
+                    log_key,
+                    log_summary,
+                },
+            )
+        }))
+    }
 }
 
 fn net_err(e: reqwest::Error) -> String {
@@ -309,6 +692,22 @@ fn jira_started(date: &str, time: &str) -> Result<String, String> {
         .earliest()
         .ok_or_else(|| "invalid local time".to_string())?;
     Ok(dt.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string())
+}
+
+/// Parse a Jira timestamp (`2026-07-16T10:30:00.000+0200`) into epoch seconds.
+fn parse_jira_ts(s: &str) -> Option<i64> {
+    chrono::DateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.3f%z")
+        .ok()
+        .map(|dt| dt.timestamp())
+}
+
+/// Epoch seconds as an RFC3339 string in the local timezone.
+fn format_rfc3339_local(ts: i64) -> String {
+    Local
+        .timestamp_opt(ts, 0)
+        .single()
+        .map(|dt| dt.to_rfc3339())
+        .unwrap_or_default()
 }
 
 /// Epoch-millis at the start of `date`, used to narrow the worklog query.

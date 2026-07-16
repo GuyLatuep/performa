@@ -2,7 +2,18 @@ mod creds;
 mod jira;
 
 use creds::{Credentials, CredentialsMeta};
-use jira::{IssueSummary, JiraClient, Myself, WorklogEntry};
+use jira::{IssueSummary, JiraClient, MissingWorklog, Myself, WorklogEntry};
+
+// Tuning for the missing-worklog reminder: how far back to look for own
+// activity, how close a worklog must be to that activity to count, and how
+// long freshly created activity is left unflagged.
+const MISSING_LOOKBACK_DAYS: u32 = 1;
+const MISSING_WINDOW_SECS: i64 = 3 * 3600;
+const MISSING_GRACE_SECS: i64 = 10 * 60;
+// Issues from this project log their time on the issue they are linked to
+// with this link description (fallback: the issue itself).
+const MISSING_ESCALATION_PROJECT: &str = "DEV";
+const MISSING_ESCALATION_LINK: &str = "is an escalation for";
 
 /// Build a client from stored credentials, or fail if the app isn't set up yet.
 fn client() -> Result<JiraClient, String> {
@@ -91,6 +102,24 @@ async fn list_worklogs(start: String, end: String) -> Result<Vec<WorklogEntry>, 
     client.my_worklogs(&me.account_id, &start, &end).await
 }
 
+/// Issues with recent own activity (comment / status change) that have no
+/// nearby worklog — the data behind the "Missing worklog" tab.
+#[tauri::command]
+async fn missing_worklogs() -> Result<Vec<MissingWorklog>, String> {
+    let client = client()?;
+    let me = client.myself().await?;
+    client
+        .missing_worklogs(
+            &me.account_id,
+            MISSING_LOOKBACK_DAYS,
+            MISSING_WINDOW_SECS,
+            MISSING_GRACE_SECS,
+            MISSING_ESCALATION_PROJECT,
+            MISSING_ESCALATION_LINK,
+        )
+        .await
+}
+
 /// Normalize a user-entered site into `https://host` with no trailing slash.
 fn normalize_site(input: &str) -> String {
     let trimmed = input.trim().trim_end_matches('/');
@@ -115,6 +144,7 @@ pub fn run() {
             update_worklog,
             delete_worklog,
             list_worklogs,
+            missing_worklogs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

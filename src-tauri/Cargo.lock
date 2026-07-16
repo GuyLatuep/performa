@@ -2437,6 +2437,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "futures-util",
  "keyring",
  "reqwest 0.12.28",
  "serde",

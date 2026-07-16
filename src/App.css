@@ -403,6 +403,59 @@ header {
   border-bottom-color: var(--accent);
 }
 
+/* Missing-worklog tab with unseen findings: blinks in the accent fill until
+   the tab is opened. With reduced motion the accent fill stays solid. */
+.tabs button.alert,
+.tabs button.alert:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+  animation: tab-alert 1.1s steps(1, end) infinite;
+}
+@keyframes tab-alert {
+  0%,
+  55% {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  56%,
+  100% {
+    background: transparent;
+    color: var(--ink);
+  }
+}
+
+/* ---------- Missing worklog list ---------- */
+.missing-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 14px;
+  margin-bottom: 8px;
+  border-bottom: 2px solid var(--ink);
+}
+.missing-head .hint {
+  max-width: 48ch;
+}
+.missing-head .link {
+  white-space: nowrap;
+}
+.missing-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.missing-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.missing-source {
+  margin: 0 0 20px;
+}
+
 /* ---------- Panels ---------- */
 .panel {
   background: var(--surface);

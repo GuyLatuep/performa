@@ -26,6 +26,16 @@ export interface WorklogEntry {
   comment: string;
 }
 
+export interface MissingWorklog {
+  issueKey: string;
+  issueSummary: string;
+  kind: "comment" | "status";
+  activityAt: string; // RFC3339
+  /** Issue to log the work on (escalation source for DEV issues). */
+  logKey: string;
+  logSummary: string;
+}
+
 export const api = {
   saveCredentials(site: string, email: string, token: string): Promise<Myself> {
     return invoke("save_credentials", { site, email, token });
@@ -73,5 +83,8 @@ export const api = {
   },
   listWorklogs(start: string, end: string): Promise<WorklogEntry[]> {
     return invoke("list_worklogs", { start, end });
+  },
+  missingWorklogs(): Promise<MissingWorklog[]> {
+    return invoke("missing_worklogs");
   },
 };
