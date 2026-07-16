@@ -4,6 +4,7 @@ mod update;
 
 use creds::{Credentials, CredentialsMeta};
 use jira::{IssueSummary, JiraClient, MissingWorklog, Myself, WorklogEntry};
+use tauri::State;
 
 // Tuning for the missing-worklog reminder: how far back to look for own
 // activity, how close a worklog must be to that activity to count, and how
@@ -16,23 +17,83 @@ const MISSING_GRACE_SECS: i64 = 10 * 60;
 const MISSING_ESCALATION_PROJECT: &str = "DEV";
 const MISSING_ESCALATION_LINK: &str = "is an escalation for";
 
-/// Build a client from stored credentials, or fail if the app isn't set up yet.
-fn client() -> Result<JiraClient, String> {
+/// Client + account id, built once from the stored credentials and cached so
+/// commands neither re-read the keychain nor re-fetch `myself` on every call.
+#[derive(Clone)]
+struct Session {
+    client: JiraClient,
+    account_id: String,
+}
+
+#[derive(Default)]
+struct AppState {
+    session: tokio::sync::Mutex<Option<Session>>,
+}
+
+/// The cached session, or build (and cache) one from the stored credentials.
+async fn session(state: &State<'_, AppState>) -> Result<Session, String> {
+    let mut guard = state.session.lock().await;
+    if let Some(s) = guard.as_ref() {
+        return Ok(s.clone());
+    }
     let creds = creds::load()?.ok_or_else(|| "not configured".to_string())?;
-    Ok(JiraClient::new(&creds))
+    let client = JiraClient::new(&creds);
+    let me = client.myself().await?;
+    let s = Session {
+        client,
+        account_id: me.account_id,
+    };
+    *guard = Some(s.clone());
+    Ok(s)
+}
+
+// ----- Input validation at the IPC boundary -----
+// The webview is untrusted by design (the token lives only in this process),
+// so identifiers coming over IPC are validated before they reach a URL or JQL.
+
+fn checked_issue_key(key: &str) -> Result<&str, String> {
+    if jira::is_issue_key(key) {
+        Ok(key)
+    } else {
+        Err(format!("invalid issue key '{key}'"))
+    }
+}
+
+fn checked_worklog_id(id: &str) -> Result<&str, String> {
+    if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
+        Ok(id)
+    } else {
+        Err(format!("invalid worklog id '{id}'"))
+    }
+}
+
+fn checked_date(s: &str) -> Result<&str, String> {
+    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .map_err(|_| format!("invalid date '{s}', expected yyyy-MM-dd"))?;
+    Ok(s)
 }
 
 /// Validate the given credentials against Jira and, if valid, persist them.
 #[tauri::command]
-async fn save_credentials(site: String, email: String, token: String) -> Result<Myself, String> {
+async fn save_credentials(
+    state: State<'_, AppState>,
+    site: String,
+    email: String,
+    token: String,
+) -> Result<Myself, String> {
     let site = normalize_site(&site);
     let creds = Credentials {
         site,
         email: email.trim().to_string(),
         token: token.trim().to_string(),
     };
-    let me = JiraClient::new(&creds).myself().await?;
+    let client = JiraClient::new(&creds);
+    let me = client.myself().await?;
     creds::save(&creds)?;
+    *state.session.lock().await = Some(Session {
+        client,
+        account_id: me.account_id.clone(),
+    });
     Ok(me)
 }
 
@@ -43,35 +104,48 @@ fn credentials_status() -> Result<Option<CredentialsMeta>, String> {
 }
 
 #[tauri::command]
-fn clear_credentials() -> Result<(), String> {
+async fn clear_credentials(state: State<'_, AppState>) -> Result<(), String> {
+    *state.session.lock().await = None;
     creds::clear()
 }
 
 #[tauri::command]
-async fn current_user() -> Result<Myself, String> {
-    client()?.myself().await
+async fn current_user(state: State<'_, AppState>) -> Result<Myself, String> {
+    session(&state).await?.client.myself().await
 }
 
+/// Free-form issue search. The query is turned into JQL here — the webview
+/// never supplies raw JQL.
 #[tauri::command]
-async fn search_issues(jql: String) -> Result<Vec<IssueSummary>, String> {
-    client()?.search_issues(&jql, 50).await
+async fn search_issues(
+    state: State<'_, AppState>,
+    query: String,
+) -> Result<Vec<IssueSummary>, String> {
+    let s = session(&state).await?;
+    s.client
+        .search_issues(&jira::build_search_jql(&query), 50)
+        .await
 }
 
 #[tauri::command]
 async fn log_work(
+    state: State<'_, AppState>,
     issue_key: String,
     time_spent_seconds: i64,
     date: String,
     time: String,
     comment: String,
 ) -> Result<(), String> {
-    client()?
+    checked_issue_key(&issue_key)?;
+    let s = session(&state).await?;
+    s.client
         .add_worklog(&issue_key, time_spent_seconds, &date, &time, &comment)
         .await
 }
 
 #[tauri::command]
 async fn update_worklog(
+    state: State<'_, AppState>,
     issue_key: String,
     worklog_id: String,
     time_spent_seconds: i64,
@@ -79,7 +153,10 @@ async fn update_worklog(
     time: String,
     comment: String,
 ) -> Result<(), String> {
-    client()?
+    checked_issue_key(&issue_key)?;
+    checked_worklog_id(&worklog_id)?;
+    let s = session(&state).await?;
+    s.client
         .update_worklog(
             &issue_key,
             &worklog_id,
@@ -92,34 +169,48 @@ async fn update_worklog(
 }
 
 #[tauri::command]
-async fn delete_worklog(issue_key: String, worklog_id: String) -> Result<(), String> {
-    client()?.delete_worklog(&issue_key, &worklog_id).await
+async fn delete_worklog(
+    state: State<'_, AppState>,
+    issue_key: String,
+    worklog_id: String,
+) -> Result<(), String> {
+    checked_issue_key(&issue_key)?;
+    checked_worklog_id(&worklog_id)?;
+    let s = session(&state).await?;
+    s.client.delete_worklog(&issue_key, &worklog_id).await
 }
 
 #[tauri::command]
-async fn list_worklogs(start: String, end: String) -> Result<Vec<WorklogEntry>, String> {
-    let client = client()?;
-    let me = client.myself().await?;
-    client.my_worklogs(&me.account_id, &start, &end).await
+async fn list_worklogs(
+    state: State<'_, AppState>,
+    start: String,
+    end: String,
+) -> Result<Vec<WorklogEntry>, String> {
+    checked_date(&start)?;
+    checked_date(&end)?;
+    let s = session(&state).await?;
+    s.client.my_worklogs(&s.account_id, &start, &end).await
 }
 
 /// The current user's worklogs on one issue (shown on the log-work screen).
 #[tauri::command]
-async fn issue_worklogs(issue_key: String) -> Result<Vec<WorklogEntry>, String> {
-    let client = client()?;
-    let me = client.myself().await?;
-    client.my_issue_worklogs(&me.account_id, &issue_key).await
+async fn issue_worklogs(
+    state: State<'_, AppState>,
+    issue_key: String,
+) -> Result<Vec<WorklogEntry>, String> {
+    checked_issue_key(&issue_key)?;
+    let s = session(&state).await?;
+    s.client.my_issue_worklogs(&s.account_id, &issue_key).await
 }
 
 /// Issues with recent own activity (comment / status change) that have no
 /// nearby worklog — the data behind the "Missing worklog" tab.
 #[tauri::command]
-async fn missing_worklogs() -> Result<Vec<MissingWorklog>, String> {
-    let client = client()?;
-    let me = client.myself().await?;
-    client
+async fn missing_worklogs(state: State<'_, AppState>) -> Result<Vec<MissingWorklog>, String> {
+    let s = session(&state).await?;
+    s.client
         .missing_worklogs(
-            &me.account_id,
+            &s.account_id,
             MISSING_LOOKBACK_DAYS,
             MISSING_WINDOW_SECS,
             MISSING_GRACE_SECS,
@@ -148,6 +239,7 @@ fn normalize_site(input: &str) -> String {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(AppState::default())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             save_credentials,
@@ -165,4 +257,28 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn site_normalization() {
+        assert_eq!(normalize_site(" my.atlassian.net/ "), "https://my.atlassian.net");
+        assert_eq!(normalize_site("https://x.example.com"), "https://x.example.com");
+        assert_eq!(normalize_site("http://local.test"), "http://local.test");
+    }
+
+    #[test]
+    fn ipc_input_checks() {
+        assert!(checked_issue_key("ABC-12").is_ok());
+        assert!(checked_issue_key("ABC-12/transitions").is_err());
+        assert!(checked_issue_key("../secret").is_err());
+        assert!(checked_worklog_id("10023").is_ok());
+        assert!(checked_worklog_id("10023?x=1").is_err());
+        assert!(checked_worklog_id("").is_err());
+        assert!(checked_date("2026-07-16").is_ok());
+        assert!(checked_date("2026-07-16\" OR project = X").is_err());
+    }
 }

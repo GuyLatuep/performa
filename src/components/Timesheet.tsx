@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, WorklogEntry } from "../api";
-import { formatDuration, parseDuration, startOfWeek, today, toDateInput } from "../time";
+import { formatDuration, startOfWeek, today, toDateInput } from "../time";
 import { useDailyHours, useShowWeekends, WORKDAYS_PER_WEEK } from "../settings";
+import {
+  DURATION_ERROR,
+  useWorklogDraft,
+  WorklogFields,
+} from "./WorklogFields";
 
 interface Props {
   refreshKey: number;
@@ -295,23 +300,31 @@ function EditModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [duration, setDuration] = useState(formatDuration(entry.timeSpentSeconds));
-  const [date, setDate] = useState(entry.date);
-  const [time, setTime] = useState(entry.time);
-  const [comment, setComment] = useState(entry.comment);
+  const { draft, patch, seconds } = useWorklogDraft({
+    duration: formatDuration(entry.timeSpentSeconds),
+    date: entry.date,
+    time: entry.time,
+    comment: entry.comment,
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function save() {
-    const seconds = parseDuration(duration);
     if (seconds === null) {
-      setError("Enter a valid duration, e.g. 1h 30m");
+      setError(DURATION_ERROR);
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      await api.updateWorklog(entry.issueKey, entry.id, seconds, date, time, comment);
+      await api.updateWorklog(
+        entry.issueKey,
+        entry.id,
+        seconds,
+        draft.date,
+        draft.time,
+        draft.comment,
+      );
       onSaved();
     } catch (err) {
       setError(String(err));
@@ -326,24 +339,7 @@ function EditModal({
         <h3>
           Edit {entry.issueKey}
         </h3>
-        <label>
-          Time spent
-          <input value={duration} onChange={(e) => setDuration(e.target.value)} autoFocus />
-        </label>
-        <div className="field-row">
-          <label>
-            Date
-            <input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
-          </label>
-          <label>
-            Start time
-            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-          </label>
-        </div>
-        <label>
-          Comment
-          <textarea rows={3} value={comment} onChange={(e) => setComment(e.target.value)} />
-        </label>
+        <WorklogFields draft={draft} patch={patch} seconds={seconds} />
         {error && <p className="error">{error}</p>}
         <div className="row">
           <button className="secondary" onClick={onClose}>

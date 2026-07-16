@@ -19,7 +19,8 @@ interface Props {
 
 const TOKEN_URL = "https://id.atlassian.com/manage-profile/security/api-tokens";
 
-export default function Setup({ existing, onSaved, onCancel }: Props) {
+/** First-run connect screen; doubles as the settings page once signed in. */
+export default function Settings({ existing, onSaved, onCancel }: Props) {
   const [site, setSite] = useState(existing?.site ?? "");
   const [email, setEmail] = useState(existing?.email ?? "");
   const [token, setToken] = useState("");
@@ -155,7 +156,7 @@ export default function Setup({ existing, onSaved, onCancel }: Props) {
             </button>
           )}
           <button type="submit" disabled={busy}>
-            {busy ? "Verifying…" : "Connect"}
+            {busy ? "Verifying…" : existing ? "Save" : "Connect"}
           </button>
         </div>
       </form>

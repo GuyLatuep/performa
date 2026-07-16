@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { api, IssueSummary, WorklogEntry } from "../api";
-import { parseDuration, formatDuration, today, nowTime } from "../time";
+import { formatDuration, today } from "../time";
 import { startTimer, useTimer } from "../timer";
+import {
+  DURATION_ERROR,
+  useWorklogDraft,
+  WorklogFields,
+} from "./WorklogFields";
 
 interface Props {
   onLogged: () => void;
 }
-
-const escapeJql = (s: string) => s.replace(/["\\]/g, "\\$&");
 
 export default function LogWork({ onLogged }: Props) {
   const [query, setQuery] = useState("");
@@ -15,10 +18,7 @@ export default function LogWork({ onLogged }: Props) {
   const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<IssueSummary | null>(null);
 
-  const [duration, setDuration] = useState("");
-  const [date, setDate] = useState(today());
-  const [time, setTime] = useState(nowTime());
-  const [comment, setComment] = useState("");
+  const { draft, patch, seconds } = useWorklogDraft();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
@@ -39,20 +39,13 @@ export default function LogWork({ onLogged }: Props) {
     debounce.current = window.setTimeout(() => runSearch(value), 300);
   }
 
+  // The query is interpreted on the Rust side (blank = my open issues,
+  // issue key = exact lookup, anything else = text search).
   async function runSearch(value: string) {
     setSearching(true);
     setError(null);
-    const trimmed = value.trim();
-    let jql: string;
-    if (!trimmed) {
-      jql = "assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC";
-    } else if (/^[A-Za-z][A-Za-z0-9]+-\d+$/.test(trimmed)) {
-      jql = `key = "${trimmed.toUpperCase()}"`;
-    } else {
-      jql = `(summary ~ "${escapeJql(trimmed)}*" OR text ~ "${escapeJql(trimmed)}") ORDER BY updated DESC`;
-    }
     try {
-      setResults(await api.searchIssues(jql));
+      setResults(await api.searchIssues(value));
     } catch (err) {
       setError(String(err));
       setResults([]);
@@ -63,19 +56,17 @@ export default function LogWork({ onLogged }: Props) {
 
   async function submit() {
     if (!selected) return;
-    const seconds = parseDuration(duration);
     if (seconds === null) {
-      setError("Enter a valid duration, e.g. 1h 30m");
+      setError(DURATION_ERROR);
       return;
     }
     setBusy(true);
     setError(null);
     setOkMsg(null);
     try {
-      await api.logWork(selected.key, seconds, date, time, comment);
+      await api.logWork(selected.key, seconds, draft.date, draft.time, draft.comment);
       setOkMsg(`Logged ${formatDuration(seconds)} on ${selected.key}`);
-      setDuration("");
-      setComment("");
+      patch({ duration: "", comment: "" });
       setHistoryKey((k) => k + 1);
       onLogged();
     } catch (err) {
@@ -86,7 +77,6 @@ export default function LogWork({ onLogged }: Props) {
   }
 
   if (selected) {
-    const seconds = parseDuration(duration);
     return (
       <div className="panel">
         <button className="link" onClick={() => setSelected(null)}>
@@ -97,48 +87,7 @@ export default function LogWork({ onLogged }: Props) {
           <span className="summary">{selected.summary}</span>
         </div>
 
-        <label>
-          Time spent
-          <input
-            type="text"
-            placeholder="1h 30m"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            autoFocus
-          />
-          {seconds !== null && (
-            <span className="hint">= {formatDuration(seconds)}</span>
-          )}
-        </label>
-
-        <div className="field-row">
-          <label>
-            Date
-            <input
-              type="date"
-              value={date}
-              max={today()}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </label>
-          <label>
-            Start time
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
-          </label>
-        </div>
-
-        <label>
-          Comment (optional)
-          <textarea
-            rows={3}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-          />
-        </label>
+        <WorklogFields draft={draft} patch={patch} seconds={seconds} />
 
         {error && <p className="error">{error}</p>}
         {okMsg && <p className="success">{okMsg}</p>}

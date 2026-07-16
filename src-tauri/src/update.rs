@@ -25,7 +25,11 @@ struct LatestRelease {
 }
 
 pub async fn check(current_version: &str) -> Result<UpdateInfo, String> {
-    let resp = reqwest::Client::new()
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .unwrap_or_default();
+    let resp = client
         .get(format!(
             "https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
         ))
@@ -46,9 +50,19 @@ pub async fn check(current_version: &str) -> Result<UpdateInfo, String> {
     Ok(UpdateInfo {
         current_version: current_version.to_string(),
         latest_version: release.tag_name,
-        download_url: release.html_url,
+        download_url: checked_release_url(release.html_url),
         is_newer,
     })
+}
+
+/// The URL is handed to the OS opener, so only accept a page inside this
+/// project's repo; anything else falls back to the releases overview.
+fn checked_release_url(url: String) -> String {
+    if url.starts_with(&format!("https://github.com/{GITHUB_REPO}/")) {
+        url
+    } else {
+        format!("https://github.com/{GITHUB_REPO}/releases")
+    }
 }
 
 /// Lenient semver-ish parse: optional leading `v`, numeric
@@ -62,4 +76,28 @@ fn parse_version(s: &str) -> (u64, u64, u64) {
         nums.next().unwrap_or(0),
         nums.next().unwrap_or(0),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn version_parsing() {
+        assert_eq!(parse_version("v1.2.3"), (1, 2, 3));
+        assert_eq!(parse_version("0.4.0"), (0, 4, 0));
+        assert_eq!(parse_version("v2.0.0-beta.1"), (2, 0, 0));
+        assert_eq!(parse_version("garbage"), (0, 0, 0));
+        assert!(parse_version("v0.4.1") > parse_version("0.4.0"));
+    }
+
+    #[test]
+    fn release_url_is_pinned_to_the_repo() {
+        let good = format!("https://github.com/{GITHUB_REPO}/releases/tag/v1.0.0");
+        assert_eq!(checked_release_url(good.clone()), good);
+        assert_eq!(
+            checked_release_url("https://evil.example.com/x".into()),
+            format!("https://github.com/{GITHUB_REPO}/releases")
+        );
+    }
 }

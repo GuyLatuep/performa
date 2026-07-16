@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, CredentialsMeta } from "./api";
-import Setup from "./components/Setup";
+import Settings from "./components/Settings";
 import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
 import TimerBar from "./components/TimerBar";
@@ -21,6 +21,7 @@ type Tab = "log" | "timesheet" | "missing";
 export default function App() {
   const [creds, setCreds] = useState<CredentialsMeta | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [editingCreds, setEditingCreds] = useState(false);
   const [tab, setTab] = useState<Tab>("log");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -30,8 +31,15 @@ export default function App() {
   const missingUnseen = useMissingUnseenCount();
 
   async function refreshStatus() {
-    setCreds(await api.credentialsStatus());
-    setLoaded(true);
+    try {
+      setCreds(await api.credentialsStatus());
+      setLoadError(null);
+    } catch (err) {
+      // A keychain read failure must not leave the app stuck on "Loading…".
+      setLoadError(String(err));
+    } finally {
+      setLoaded(true);
+    }
   }
 
   useEffect(() => {
@@ -50,9 +58,27 @@ export default function App() {
     return <div className="loading">Loading…</div>;
   }
 
+  if (loadError && !creds) {
+    return (
+      <div className="setup">
+        <span className="eyebrow">Time ledger · Jira</span>
+        <h1>performa</h1>
+        <p className="error">Could not read stored credentials: {loadError}</p>
+        <button
+          onClick={() => {
+            setLoaded(false);
+            refreshStatus();
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   if (!creds || editingCreds) {
     return (
-      <Setup
+      <Settings
         existing={creds}
         onCancel={editingCreds ? () => setEditingCreds(false) : undefined}
         onSaved={async () => {

@@ -36,8 +36,11 @@ export function parseDuration(input: string): number | null {
 /** Format seconds as a compact "1h 30m" string. */
 export function formatDuration(seconds: number): string {
   if (seconds <= 0) return "0m";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.round((seconds % 3600) / 60);
+  // Round to whole minutes first, then split — rounding the remainder
+  // independently would turn 3,590s into "60m" instead of "1h".
+  const totalMinutes = Math.round(seconds / 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
   const parts: string[] = [];
   if (h) parts.push(`${h}h`);
   if (m) parts.push(`${m}m`);

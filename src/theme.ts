@@ -1,9 +1,8 @@
-import { useSyncExternalStore } from "react";
+import { createStore } from "./store";
 
 export type Theme = "light" | "dark";
 
 const STORAGE_KEY = "performa-theme";
-const listeners = new Set<() => void>();
 
 function systemTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -16,33 +15,26 @@ function resolveInitial(): Theme {
   return stored === "light" || stored === "dark" ? stored : systemTheme();
 }
 
-let current: Theme = resolveInitial();
+const store = createStore<Theme>(resolveInitial());
 
 /** Reflect the current theme onto the document so CSS variables apply. */
-export function applyTheme(theme: Theme = current): void {
+export function applyTheme(theme: Theme = store.get()): void {
   document.documentElement.setAttribute("data-theme", theme);
 }
 
 export function getTheme(): Theme {
-  return current;
+  return store.get();
 }
 
 export function setTheme(theme: Theme): void {
-  current = theme;
+  store.set(theme);
   localStorage.setItem(STORAGE_KEY, theme);
   applyTheme(theme);
-  listeners.forEach((l) => l());
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
 }
 
 /** React binding kept in sync across every mounted toggle. */
 export function useTheme(): [Theme, (theme: Theme) => void] {
-  const theme = useSyncExternalStore(subscribe, getTheme, getTheme);
-  return [theme, setTheme];
+  return [store.use(), setTheme];
 }
 
 // Apply immediately on import so the first paint matches the saved theme.

@@ -27,4 +27,5 @@ keyring = { version = "3", features = ["apple-native", "windows-native"] }
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 futures-util = "0.3"
+tokio = { version = "1", features = ["sync"] }
 

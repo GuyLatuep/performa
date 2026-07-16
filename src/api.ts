@@ -56,8 +56,9 @@ export const api = {
   currentUser(): Promise<Myself> {
     return invoke("current_user");
   },
-  searchIssues(jql: string): Promise<IssueSummary[]> {
-    return invoke("search_issues", { jql });
+  /** Free-form search; the query is turned into JQL on the Rust side. */
+  searchIssues(query: string): Promise<IssueSummary[]> {
+    return invoke("search_issues", { query });
   },
   logWork(
     issueKey: string,

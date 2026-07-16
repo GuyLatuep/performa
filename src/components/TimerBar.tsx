@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
-import { formatDuration, parseDuration, toDateInput, toTimeInput, today } from "../time";
+import { formatDuration, toDateInput, toTimeInput } from "../time";
 import {
   ActiveTimer,
   formatClock,
@@ -9,6 +9,11 @@ import {
   useElapsedSeconds,
   useTimer,
 } from "../timer";
+import {
+  DURATION_ERROR,
+  useWorklogDraft,
+  WorklogFields,
+} from "./WorklogFields";
 
 interface Props {
   onLogged: () => void;
@@ -70,25 +75,25 @@ function StopModal({
   onClose: () => void;
   onLogged: () => void;
 }) {
-  const [duration, setDuration] = useState(formatDuration(data.seconds));
-  const [date, setDate] = useState(toDateInput(new Date(data.timer.startedAt)));
-  const [time, setTime] = useState(toTimeInput(new Date(data.timer.startedAt)));
-  const [comment, setComment] = useState("");
+  const started = new Date(data.timer.startedAt);
+  const { draft, patch, seconds } = useWorklogDraft({
+    duration: formatDuration(data.seconds),
+    date: toDateInput(started),
+    time: toTimeInput(started),
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
-  const seconds = parseDuration(duration);
-
   async function save() {
     if (seconds === null) {
-      setError("Enter a valid duration, e.g. 1h 30m");
+      setError(DURATION_ERROR);
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      await api.logWork(data.timer.issueKey, seconds, date, time, comment);
+      await api.logWork(data.timer.issueKey, seconds, draft.date, draft.time, draft.comment);
       onLogged();
     } catch (err) {
       setError(String(err));
@@ -104,46 +109,12 @@ function StopModal({
         <h3>Log time — {data.timer.issueKey}</h3>
         <p className="muted modal-sub">{data.timer.issueSummary}</p>
 
-        <label>
-          Time spent (rounded up to 15 min)
-          <input
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            autoFocus
-          />
-          {seconds !== null && (
-            <span className="hint">= {formatDuration(seconds)}</span>
-          )}
-        </label>
-
-        <div className="field-row">
-          <label>
-            Date
-            <input
-              type="date"
-              value={date}
-              max={today()}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </label>
-          <label>
-            Start time
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
-          </label>
-        </div>
-
-        <label>
-          Comment (optional)
-          <textarea
-            rows={3}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-          />
-        </label>
+        <WorklogFields
+          draft={draft}
+          patch={patch}
+          seconds={seconds}
+          durationLabel="Time spent (rounded up to 15 min)"
+        />
 
         {error && <p className="error">{error}</p>}
 

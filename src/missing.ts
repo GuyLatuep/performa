@@ -1,5 +1,5 @@
-import { useSyncExternalStore } from "react";
 import { api, MissingWorklog } from "./api";
+import { createStore } from "./store";
 
 // Background watcher behind the "Missing worklog" tab: polls Jira for recent
 // own activity (comments / status changes) without a nearby worklog, and
@@ -9,12 +9,22 @@ import { api, MissingWorklog } from "./api";
 const SEEN_KEY = "performa-missing-seen";
 const POLL_MS = 2 * 60 * 1000;
 
-let items: MissingWorklog[] = [];
-let unseenCount = 0;
-let lastError: string | null = null;
-let lastChecked: string | null = null; // HH:mm of the last completed check
+interface MissingState {
+  items: MissingWorklog[];
+  unseenCount: number;
+  lastError: string | null;
+  /** HH:mm of the last completed check. */
+  lastChecked: string | null;
+}
+
+const store = createStore<MissingState>({
+  items: [],
+  unseenCount: 0,
+  lastError: null,
+  lastChecked: null,
+});
+
 let pollId: number | undefined;
-const listeners = new Set<() => void>();
 
 const sig = (item: MissingWorklog) => `${item.issueKey}@${item.activityAt}`;
 
@@ -30,37 +40,32 @@ function readSeen(): Set<string> {
   return new Set();
 }
 
-function recompute() {
+function countUnseen(items: MissingWorklog[]): number {
   const seen = readSeen();
-  unseenCount = items.filter((i) => !seen.has(sig(i))).length;
-}
-
-function emit() {
-  listeners.forEach((l) => l());
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+  return items.filter((i) => !seen.has(sig(i))).length;
 }
 
 export function getMissing(): MissingWorklog[] {
-  return items;
+  return store.get().items;
 }
 
 export async function refreshMissing(): Promise<void> {
+  let items = store.get().items;
+  let lastError: string | null = null;
   try {
     items = await api.missingWorklogs();
-    lastError = null;
   } catch (err) {
     lastError = String(err);
   }
-  lastChecked = new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
+  store.set({
+    items,
+    unseenCount: countUnseen(items),
+    lastError,
+    lastChecked: new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
   });
-  recompute();
-  emit();
 }
 
 export function startMissingPolling(): void {
@@ -73,44 +78,28 @@ export function stopMissingPolling(): void {
   if (pollId === undefined) return;
   window.clearInterval(pollId);
   pollId = undefined;
-  items = [];
-  unseenCount = 0;
-  lastError = null;
-  lastChecked = null;
-  emit();
+  store.set({ items: [], unseenCount: 0, lastError: null, lastChecked: null });
 }
 
 /** Acknowledge the current findings so the tab stops blinking for them. */
 export function markMissingSeen(): void {
-  localStorage.setItem(SEEN_KEY, JSON.stringify(items.map(sig)));
-  recompute();
-  emit();
+  const state = store.get();
+  localStorage.setItem(SEEN_KEY, JSON.stringify(state.items.map(sig)));
+  store.set({ ...state, unseenCount: countUnseen(state.items) });
 }
 
 export function useMissing(): MissingWorklog[] {
-  return useSyncExternalStore(subscribe, getMissing, getMissing);
+  return store.use().items;
 }
 
 export function useMissingUnseenCount(): number {
-  return useSyncExternalStore(
-    subscribe,
-    () => unseenCount,
-    () => unseenCount,
-  );
+  return store.use().unseenCount;
 }
 
 export function useMissingError(): string | null {
-  return useSyncExternalStore(
-    subscribe,
-    () => lastError,
-    () => lastError,
-  );
+  return store.use().lastError;
 }
 
 export function useMissingLastChecked(): string | null {
-  return useSyncExternalStore(
-    subscribe,
-    () => lastChecked,
-    () => lastChecked,
-  );
+  return store.use().lastChecked;
 }

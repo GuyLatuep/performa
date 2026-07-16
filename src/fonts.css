@@ -1,0 +1,18 @@
+/* Self-hosted variable fonts (latin subset) — bundled so the app never
+   phones home to Google Fonts and looks the same offline. */
+
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("./assets/fonts/SpaceGrotesk-Variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("./assets/fonts/JetBrainsMono-Variable.woff2") format("woff2");
+}

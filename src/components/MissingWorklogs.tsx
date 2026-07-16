@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, MissingWorklog } from "../api";
-import { formatDuration, parseDuration, toDateInput, toTimeInput, today } from "../time";
+import { toDateInput, toTimeInput } from "../time";
 import {
   markMissingSeen,
   refreshMissing,
@@ -8,6 +8,11 @@ import {
   useMissingError,
   useMissingLastChecked,
 } from "../missing";
+import {
+  DURATION_ERROR,
+  useWorklogDraft,
+  WorklogFields,
+} from "./WorklogFields";
 
 interface Props {
   onLogged: () => void;
@@ -113,24 +118,22 @@ function LogForm({
   // Default the start to the flagged activity, so the new worklog covers it
   // and the reminder clears.
   const activity = new Date(item.activityAt);
-  const [duration, setDuration] = useState("");
-  const [date, setDate] = useState(toDateInput(activity));
-  const [time, setTime] = useState(toTimeInput(activity));
-  const [comment, setComment] = useState("");
+  const { draft, patch, seconds } = useWorklogDraft({
+    date: toDateInput(activity),
+    time: toTimeInput(activity),
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const seconds = parseDuration(duration);
-
   async function save() {
     if (seconds === null) {
-      setError("Enter a valid duration, e.g. 1h 30m");
+      setError(DURATION_ERROR);
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      await api.logWork(item.logKey, seconds, date, time, comment);
+      await api.logWork(item.logKey, seconds, draft.date, draft.time, draft.comment);
       onSaved();
     } catch (err) {
       setError(String(err));
@@ -154,48 +157,7 @@ function LogForm({
         </p>
       )}
 
-      <label>
-        Time spent
-        <input
-          type="text"
-          placeholder="1h 30m"
-          value={duration}
-          onChange={(e) => setDuration(e.target.value)}
-          autoFocus
-        />
-        {seconds !== null && (
-          <span className="hint">= {formatDuration(seconds)}</span>
-        )}
-      </label>
-
-      <div className="field-row">
-        <label>
-          Date
-          <input
-            type="date"
-            value={date}
-            max={today()}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </label>
-        <label>
-          Start time
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-          />
-        </label>
-      </div>
-
-      <label>
-        Comment (optional)
-        <textarea
-          rows={3}
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-        />
-      </label>
+      <WorklogFields draft={draft} patch={patch} seconds={seconds} />
 
       {error && <p className="error">{error}</p>}
 

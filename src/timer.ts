@@ -1,4 +1,5 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
+import { createStore } from "./store";
 
 export interface ActiveTimer {
   issueKey: string;
@@ -7,7 +8,6 @@ export interface ActiveTimer {
 }
 
 const STORAGE_KEY = "performa-active-timer";
-const listeners = new Set<() => void>();
 
 function read(): ActiveTimer | null {
   try {
@@ -25,35 +25,25 @@ function read(): ActiveTimer | null {
 
 // Persisted by start timestamp, so elapsed is computed from the wall clock and
 // stays correct even if the app was closed while a timer was running.
-let current: ActiveTimer | null = read();
+const store = createStore<ActiveTimer | null>(read());
 
 export function getTimer(): ActiveTimer | null {
-  return current;
+  return store.get();
 }
 
 export function startTimer(issueKey: string, issueSummary: string): void {
-  current = { issueKey, issueSummary, startedAt: Date.now() };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
-  emit();
+  const timer = { issueKey, issueSummary, startedAt: Date.now() };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(timer));
+  store.set(timer);
 }
 
 export function stopTimer(): void {
-  current = null;
   localStorage.removeItem(STORAGE_KEY);
-  emit();
-}
-
-function emit() {
-  listeners.forEach((l) => l());
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+  store.set(null);
 }
 
 export function useTimer(): ActiveTimer | null {
-  return useSyncExternalStore(subscribe, getTimer, getTimer);
+  return store.use();
 }
 
 /** Elapsed whole seconds since the timer started, ticking every second. */
