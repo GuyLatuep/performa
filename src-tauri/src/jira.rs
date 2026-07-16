@@ -377,6 +377,33 @@ impl JiraClient {
         Ok(entries)
     }
 
+    /// The current user's worklogs on a single issue, newest first.
+    /// `issue_summary` is left empty — the caller already knows the issue.
+    pub async fn my_issue_worklogs(
+        &self,
+        account_id: &str,
+        issue_key: &str,
+    ) -> Result<Vec<WorklogEntry>, String> {
+        let worklogs = self.issue_worklogs(issue_key, "0").await?;
+        let mut entries: Vec<WorklogEntry> = worklogs
+            .into_iter()
+            .filter(|w| {
+                w.author.as_ref().map(|a| a.account_id.as_str()) == Some(account_id)
+            })
+            .map(|w| WorklogEntry {
+                id: w.id,
+                issue_key: issue_key.to_string(),
+                issue_summary: String::new(),
+                time_spent_seconds: w.time_spent_seconds,
+                date: w.started.get(0..10).unwrap_or("").to_string(),
+                time: w.started.get(11..16).unwrap_or("").to_string(),
+                comment: w.comment.as_ref().map(adf_to_text).unwrap_or_default(),
+            })
+            .collect();
+        entries.sort_by(|a, b| b.date.cmp(&a.date).then(b.time.cmp(&a.time)));
+        Ok(entries)
+    }
+
     /// Raw worklogs on one issue that started after the given epoch-millis value.
     async fn issue_worklogs(
         &self,

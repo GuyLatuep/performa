@@ -103,6 +103,14 @@ async fn list_worklogs(start: String, end: String) -> Result<Vec<WorklogEntry>, 
     client.my_worklogs(&me.account_id, &start, &end).await
 }
 
+/// The current user's worklogs on one issue (shown on the log-work screen).
+#[tauri::command]
+async fn issue_worklogs(issue_key: String) -> Result<Vec<WorklogEntry>, String> {
+    let client = client()?;
+    let me = client.myself().await?;
+    client.my_issue_worklogs(&me.account_id, &issue_key).await
+}
+
 /// Issues with recent own activity (comment / status change) that have no
 /// nearby worklog — the data behind the "Missing worklog" tab.
 #[tauri::command]
@@ -151,6 +159,7 @@ pub fn run() {
             update_worklog,
             delete_worklog,
             list_worklogs,
+            issue_worklogs,
             missing_worklogs,
             check_update,
         ])

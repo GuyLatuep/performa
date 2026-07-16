@@ -91,6 +91,9 @@ export const api = {
   listWorklogs(start: string, end: string): Promise<WorklogEntry[]> {
     return invoke("list_worklogs", { start, end });
   },
+  issueWorklogs(issueKey: string): Promise<WorklogEntry[]> {
+    return invoke("issue_worklogs", { issueKey });
+  },
   missingWorklogs(): Promise<MissingWorklog[]> {
     return invoke("missing_worklogs");
   },

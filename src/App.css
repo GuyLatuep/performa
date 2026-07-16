@@ -475,7 +475,7 @@ header {
   border: 2px solid var(--ink);
   padding: 22px;
 }
-.panel > button:last-child:not(.link):not(.icon) {
+.panel > button:not(.link):not(.icon) {
   width: 100%;
 }
 
@@ -664,6 +664,16 @@ header {
   background: var(--bg);
   border: 2px solid var(--ink);
   margin: 6px 0 22px;
+}
+
+/* ---------- Issue history (log-work screen) ---------- */
+.issue-history {
+  margin-top: 30px;
+}
+.history-more {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin: 8px 0 0;
 }
 
 /* ---------- Timesheet (ledger) ---------- */
