@@ -2,6 +2,12 @@ import { useEffect, useState, FormEvent } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, CredentialsMeta } from "../api";
+import {
+  getDailyHours,
+  setDailyHours,
+  setShowWeekends,
+  useShowWeekends,
+} from "../settings";
 import ThemeToggle from "./ThemeToggle";
 import Blockmark from "./Blockmark";
 
@@ -20,6 +26,8 @@ export default function Setup({ existing, onSaved, onCancel }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState("");
+  const [hours, setHours] = useState(String(getDailyHours()));
+  const showWeekends = useShowWeekends();
 
   useEffect(() => {
     getVersion().then(setVersion);
@@ -54,6 +62,45 @@ export default function Setup({ existing, onSaved, onCancel }: Props) {
       <div className="field-block">
         <span className="field-label">Appearance</span>
         <ThemeToggle />
+      </div>
+
+      <div className="field-block">
+        <span className="field-label">Daily work hours</span>
+        <div className="hours-field">
+          <input
+            type="number"
+            min={0.5}
+            max={24}
+            step={0.5}
+            value={hours}
+            onChange={(e) => {
+              setHours(e.target.value);
+              setDailyHours(parseFloat(e.target.value));
+            }}
+            onBlur={() => setHours(String(getDailyHours()))}
+          />
+          <span className="hint">h per day · sets the timesheet targets</span>
+        </div>
+      </div>
+
+      <div className="field-block">
+        <span className="field-label">Timesheet days</span>
+        <div className="theme-toggle">
+          <button
+            type="button"
+            className={showWeekends ? "" : "active"}
+            onClick={() => setShowWeekends(false)}
+          >
+            Mon–Fri
+          </button>
+          <button
+            type="button"
+            className={showWeekends ? "active" : ""}
+            onClick={() => setShowWeekends(true)}
+          >
+            Full week
+          </button>
+        </div>
       </div>
 
       <form onSubmit={submit}>

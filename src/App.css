@@ -343,6 +343,17 @@ textarea {
   color: var(--accent-ink);
 }
 
+.hours-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.hours-field input {
+  width: 86px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- App shell ---------- */
 .app {
   /* Comfortable column in the default window, growing fluidly up to a
@@ -683,6 +694,126 @@ header {
   letter-spacing: 0;
   text-transform: none;
 }
+.week-charts {
+  display: flex;
+  align-items: stretch;
+  gap: 30px;
+  margin: 16px 0 4px;
+}
+.day-bars {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.day-bars-plot {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  height: 120px;
+  border-bottom: 2px solid var(--ink);
+}
+.day-col {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+}
+.day-bar {
+  width: 100%;
+  max-width: 24px;
+  background: var(--accent);
+  border: 2px solid var(--ink);
+  border-bottom: none;
+}
+.day-target {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--muted);
+  pointer-events: none;
+}
+.day-target span {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.day-labels {
+  display: flex;
+}
+.day-labels span {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.day-labels span.today {
+  color: var(--ink);
+  font-weight: 700;
+}
+.week-gauge {
+  position: relative;
+  width: 132px;
+  flex-shrink: 0;
+  align-self: center;
+}
+.week-gauge svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.gauge-track,
+.gauge-edge,
+.gauge-fill {
+  fill: none;
+}
+.gauge-track {
+  stroke: var(--hair);
+  stroke-width: 12;
+}
+/* Ink underlay 4px wider than the accent arc — reads as a 2px border,
+   keeping the neon legible on the light surface. */
+.gauge-edge {
+  stroke: var(--ink);
+  stroke-width: 16;
+}
+.gauge-fill {
+  stroke: var(--accent);
+  stroke-width: 12;
+}
+.gauge-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+.gauge-center strong {
+  font-family: var(--font-mono);
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.gauge-center span {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .week-total {
   display: flex;
   align-items: baseline;
