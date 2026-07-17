@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, WorklogEntry } from "../api";
 import { formatDuration, startOfWeek, today, toDateInput } from "../time";
 import { useDailyHours, useShowWeekends, WORKDAYS_PER_WEEK } from "../settings";
@@ -9,6 +10,7 @@ import {
 } from "./WorklogFields";
 
 interface Props {
+  site: string;
   refreshKey: number;
 }
 
@@ -22,7 +24,7 @@ function weekRange(offsetWeeks: number): { start: string; end: string } {
   return { start, end: toDateInput(endDate) };
 }
 
-export default function Timesheet({ refreshKey }: Props) {
+export default function Timesheet({ site, refreshKey }: Props) {
   const [offset, setOffset] = useState(0);
   const [entries, setEntries] = useState<WorklogEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,7 +119,13 @@ export default function Timesheet({ refreshKey }: Props) {
             {list.map((e) => (
               <div key={e.id} className="worklog-row">
                 <div className="worklog-main">
-                  <span className="key">{e.issueKey}</span>
+                  <button
+                    className="key-link key"
+                    title={`Open ${e.issueKey} in browser`}
+                    onClick={() => openUrl(`${site}/browse/${e.issueKey}`)}
+                  >
+                    {e.issueKey}
+                  </button>
                   <span className="summary">{e.issueSummary}</span>
                   {e.comment && <span className="comment">{e.comment}</span>}
                 </div>

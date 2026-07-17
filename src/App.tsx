@@ -160,9 +160,9 @@ export default function App() {
       </nav>
 
       <main>
-        {tab === "log" && <LogWork onLogged={onLogged} />}
-        {tab === "timesheet" && <Timesheet refreshKey={refreshKey} />}
-        {tab === "missing" && <MissingWorklogs onLogged={onLogged} />}
+        {tab === "log" && <LogWork site={creds.site} onLogged={onLogged} />}
+        {tab === "timesheet" && <Timesheet site={creds.site} refreshKey={refreshKey} />}
+        {tab === "missing" && <MissingWorklogs site={creds.site} onLogged={onLogged} />}
       </main>
     </div>
   );

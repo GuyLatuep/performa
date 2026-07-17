@@ -616,6 +616,45 @@ header {
   background: var(--bg);
   color: var(--ink);
 }
+/* Issue key opens the issue in the browser; fixed width keeps summaries aligned. */
+.issue-open {
+  flex: 0 0 auto;
+  min-width: 10ch;
+  background: none;
+  border: none;
+  padding: 11px 0 11px 8px;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: left;
+}
+.issue-open:hover {
+  background: var(--bg);
+  text-decoration: underline;
+  color: var(--ink);
+}
+/* Inline issue-key button (timesheet / missing worklog rows). */
+.key-link {
+  background: none;
+  border: none;
+  padding: 0;
+  align-self: flex-start;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: left;
+}
+.key-link:hover {
+  background: none;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* Summary button in missing-worklog rows: stacked under the key. */
+.missing-select {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 2px 0;
+}
 .key {
   font-family: var(--font-mono);
   font-size: 12.5px;

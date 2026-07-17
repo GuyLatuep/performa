@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, IssueSummary, WorklogEntry } from "../api";
 import { formatDuration, today } from "../time";
 import { startTimer, useTimer } from "../timer";
@@ -9,10 +10,11 @@ import {
 } from "./WorklogFields";
 
 interface Props {
+  site: string;
   onLogged: () => void;
 }
 
-export default function LogWork({ onLogged }: Props) {
+export default function LogWork({ site, onLogged }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<IssueSummary[]>([]);
   const [searching, setSearching] = useState(false);
@@ -122,8 +124,14 @@ export default function LogWork({ onLogged }: Props) {
           const isRunning = activeTimer?.issueKey === issue.key;
           return (
             <li key={issue.key}>
+              <button
+                className="issue-open key"
+                title={`Open ${issue.key} in browser`}
+                onClick={() => openUrl(`${site}/browse/${issue.key}`)}
+              >
+                {issue.key}
+              </button>
               <button className="issue-select" onClick={() => setSelected(issue)}>
-                <span className="key">{issue.key}</span>
                 <span className="summary">{issue.summary}</span>
               </button>
               <button

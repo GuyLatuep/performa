@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, MissingWorklog } from "../api";
 import { toDateInput, toTimeInput } from "../time";
 import {
@@ -15,13 +16,14 @@ import {
 } from "./WorklogFields";
 
 interface Props {
+  site: string;
   onLogged: () => void;
 }
 
 // Reminder list: issues with recent own activity but no worklog around it.
 // Clicking an item opens an inline log form; saving returns to the refreshed
 // list. DEV issues log their time on the linked escalation-source issue.
-export default function MissingWorklogs({ onLogged }: Props) {
+export default function MissingWorklogs({ site, onLogged }: Props) {
   const items = useMissing();
   const error = useMissingError();
   const lastChecked = useMissingLastChecked();
@@ -81,21 +83,27 @@ export default function MissingWorklogs({ onLogged }: Props) {
 
       {items.map((item) => (
         <div key={`${item.issueKey}-${item.activityAt}`} className="worklog-row">
-          <button
-            className="issue-select"
-            title={`Log work on ${item.logKey}`}
-            onClick={() => setLogging(item)}
-          >
-            <div className="worklog-main">
-              <span className="key">{item.issueKey}</span>
+          <div className="worklog-main">
+            <button
+              className="key-link key"
+              title={`Open ${item.issueKey} in browser`}
+              onClick={() => openUrl(`${site}/browse/${item.issueKey}`)}
+            >
+              {item.issueKey}
+            </button>
+            <button
+              className="issue-select missing-select"
+              title={`Log work on ${item.logKey}`}
+              onClick={() => setLogging(item)}
+            >
               <span className="summary">{item.issueSummary}</span>
               {item.logKey !== item.issueKey && (
                 <span className="comment">
                   → logs on {item.logKey} · {item.logSummary}
                 </span>
               )}
-            </div>
-          </button>
+            </button>
+          </div>
           <span className="missing-meta">
             {item.kind === "comment" ? "commented" : "status changed"}{" "}
             {timeAgo(item.activityAt)}
