@@ -4,7 +4,7 @@ import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 
 const DISMISSED_KEY = "performa-update-dismissed";
-const CHECK_MS = 6 * 60 * 60 * 1000;
+const CHECK_MS = 60 * 60 * 1000;
 const RELEASES_URL = "https://github.com/GuyLatuep/performa/releases/latest";
 
 // Banner shown when a newer release exists on GitHub. "Update & restart"
