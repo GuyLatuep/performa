@@ -540,6 +540,14 @@ header {
   background: var(--ink);
   color: var(--surface);
 }
+.update-notice .update-progress {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.update-notice .update-error {
+  flex: 2;
+}
 
 /* ---------- Running timer bar (signature) ---------- */
 /* A constant black instrument block framed in neon, in both themes. */

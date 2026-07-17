@@ -27,6 +27,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -34,5 +35,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/GuyLatuep/performa/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEzQjYzOUQxOEYxMTM4NkIKUldSck9CR1AwVG0yRTRLR2hHMyszQkNJKzQrbi8zdHBoS0VhV21CRzlHY2JBSE5uK3l0VXZvZEEK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
