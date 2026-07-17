@@ -97,6 +97,11 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
               onClick={() => setLogging(item)}
             >
               <span className="summary">{item.issueSummary}</span>
+              {item.detail && (
+                <span className="comment">
+                  {item.kind === "comment" ? `“${item.detail}”` : item.detail}
+                </span>
+              )}
               {item.logKey !== item.issueKey && (
                 <span className="comment">
                   → logs on {item.logKey} · {item.logSummary}
@@ -169,6 +174,13 @@ function LogForm({
         <p className="hint missing-source">
           Escalation source of <span className="key">{item.issueKey}</span> —
           the time is logged here.
+        </p>
+      )}
+      {item.detail && (
+        <p className="hint missing-reason">
+          {item.kind === "comment" ? "Your comment" : "Status change"}{" "}
+          {timeAgo(item.activityAt)}:{" "}
+          {item.kind === "comment" ? `“${item.detail}”` : item.detail}
         </p>
       )}
 

@@ -31,6 +31,8 @@ export interface MissingWorklog {
   issueKey: string;
   issueSummary: string;
   kind: "comment" | "status";
+  /** The activity itself: a comment excerpt, or "Old status → New status". */
+  detail: string;
   activityAt: string; // RFC3339
   /** Issue to log the work on (escalation source for DEV issues). */
   logKey: string;

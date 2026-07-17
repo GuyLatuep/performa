@@ -7,7 +7,7 @@ use chrono::Local;
 use futures_util::{stream, StreamExt, TryStreamExt};
 
 use super::types::*;
-use super::{format_rfc3339_local, parse_jira_ts, JiraClient};
+use super::{adf_to_text, format_rfc3339_local, parse_jira_ts, JiraClient};
 
 impl JiraClient {
     /// Issues where the user recently commented or changed the status but has
@@ -103,14 +103,15 @@ impl JiraClient {
         escalation_project: &str,
         escalation_link: &str,
     ) -> Result<Option<(i64, MissingWorklog)>, String> {
-        let mut activities: Vec<(&str, i64)> = Vec::new();
+        let mut activities: Vec<(&str, i64, String)> = Vec::new();
         for c in self.recent_comments(&issue.key).await? {
             if c.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
                 continue;
             }
             if let Some(ts) = parse_jira_ts(&c.created) {
                 if ts >= cutoff && ts <= flag_before {
-                    activities.push(("comment", ts));
+                    let detail = excerpt(&c.body.as_ref().map(adf_to_text).unwrap_or_default());
+                    activities.push(("comment", ts, detail));
                 }
             }
         }
@@ -119,12 +120,19 @@ impl JiraClient {
                 if e.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
                     continue;
                 }
-                if !e.items.iter().any(|i| i.field.eq_ignore_ascii_case("status")) {
+                let Some(status) =
+                    e.items.iter().find(|i| i.field.eq_ignore_ascii_case("status"))
+                else {
                     continue;
-                }
+                };
                 if let Some(ts) = parse_jira_ts(&e.created) {
                     if ts >= cutoff && ts <= flag_before {
-                        activities.push(("status", ts));
+                        let detail = format!(
+                            "{} → {}",
+                            status.from.as_deref().unwrap_or("?"),
+                            status.to.as_deref().unwrap_or("?"),
+                        );
+                        activities.push(("status", ts, detail));
                     }
                 }
             }
@@ -156,9 +164,9 @@ impl JiraClient {
 
         let newest_unlogged = activities
             .into_iter()
-            .filter(|(_, ts)| !covered.iter().any(|(a, b)| ts >= a && ts <= b))
-            .max_by_key(|(_, ts)| *ts);
-        Ok(newest_unlogged.map(|(kind, ts)| {
+            .filter(|(_, ts, _)| !covered.iter().any(|(a, b)| ts >= a && ts <= b))
+            .max_by_key(|(_, ts, _)| *ts);
+        Ok(newest_unlogged.map(|(kind, ts, detail)| {
             let (log_key, log_summary) =
                 escalated.unwrap_or_else(|| (issue.key.clone(), issue.summary.clone()));
             (
@@ -167,6 +175,7 @@ impl JiraClient {
                     issue_key: issue.key,
                     issue_summary: issue.summary,
                     kind: kind.to_string(),
+                    detail,
                     activity_at: format_rfc3339_local(ts),
                     log_key,
                     log_summary,
@@ -264,4 +273,16 @@ impl JiraClient {
         }
         Ok(None)
     }
+}
+
+/// Collapse whitespace and cap the length so a long comment stays a one-line
+/// reminder hint.
+fn excerpt(text: &str) -> String {
+    const MAX_CHARS: usize = 140;
+    let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if collapsed.chars().count() <= MAX_CHARS {
+        return collapsed;
+    }
+    let cut: String = collapsed.chars().take(MAX_CHARS).collect();
+    format!("{}…", cut.trim_end())
 }

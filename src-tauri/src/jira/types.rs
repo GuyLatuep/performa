@@ -48,6 +48,9 @@ pub struct MissingWorklog {
     pub issue_summary: String,
     /// What the user did without logging time: "comment" or "status".
     pub kind: String,
+    /// What that activity was: a comment excerpt, or "Old status → New
+    /// status" — shown so the user remembers what they did.
+    pub detail: String,
     /// RFC3339 timestamp of that activity.
     #[serde(rename = "activityAt")]
     pub activity_at: String,
@@ -115,6 +118,8 @@ pub struct RawComment {
     pub author: Option<WorklogAuthor>,
     #[serde(default)]
     pub created: String,
+    #[serde(default)]
+    pub body: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -139,6 +144,10 @@ pub struct ChangelogEntry {
 pub struct ChangelogItem {
     #[serde(default)]
     pub field: String,
+    #[serde(rename = "fromString", default)]
+    pub from: Option<String>,
+    #[serde(rename = "toString", default)]
+    pub to: Option<String>,
 }
 
 #[derive(Deserialize)]
