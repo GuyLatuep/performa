@@ -75,7 +75,7 @@ export default function LogWork({ site, onLogged }: Props) {
         !draft.nonBillable,
       );
       setOkMsg(`Logged ${formatDuration(seconds)} on ${selected.key}`);
-      patch({ duration: "", comment: "" });
+      patch({ duration: "", comment: "", nonBillable: false });
       setHistoryKey((k) => k + 1);
       onLogged();
     } catch (err) {
@@ -138,7 +138,14 @@ export default function LogWork({ site, onLogged }: Props) {
               >
                 {issue.key}
               </button>
-              <button className="issue-select" onClick={() => setSelected(issue)}>
+              <button
+                className="issue-select"
+                onClick={() => {
+                  // Billability shouldn't leak from the previous entry.
+                  patch({ nonBillable: false });
+                  setSelected(issue);
+                }}
+              >
                 <span className="summary">{issue.summary}</span>
               </button>
               <button
