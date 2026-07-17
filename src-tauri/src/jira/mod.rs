@@ -133,14 +133,13 @@ impl JiraClient {
         comment: &str,
         billable: bool,
     ) -> Result<(), String> {
+        let comment = mark_billable(comment, billable);
         let mut body = serde_json::json!({
             "timeSpentSeconds": time_spent_seconds,
             "started": jira_started(date, time)?,
-            // Property values must be JSON objects — Jira rejects bare scalars.
-            "properties": [{"key": "billable", "value": {"billable": billable}}],
         });
-        if !comment.trim().is_empty() {
-            body["comment"] = adf_paragraph(comment);
+        if !comment.is_empty() {
+            body["comment"] = adf_paragraph(&comment);
         }
         self.send_ok(
             self.http
@@ -163,11 +162,9 @@ impl JiraClient {
         let mut body = serde_json::json!({
             "timeSpentSeconds": time_spent_seconds,
             "started": jira_started(date, time)?,
-            // Property values must be JSON objects — Jira rejects bare scalars.
-            "properties": [{"key": "billable", "value": {"billable": billable}}],
         });
         // Send an (empty) ADF doc to clear the comment when blank.
-        body["comment"] = adf_paragraph(comment.trim());
+        body["comment"] = adf_paragraph(&mark_billable(comment, billable));
         self.send_ok(
             self.http
                 .put(self.url(&format!(
@@ -215,7 +212,8 @@ impl JiraClient {
         let mut entries = Vec::new();
         for (issue, worklogs) in per_issue {
             for w in worklogs {
-                let billable = w.billable();
+                let (billable, comment) =
+                    split_billable(w.comment.as_ref().map(adf_to_text).unwrap_or_default());
                 let author_id = w.author.map(|a| a.account_id).unwrap_or_default();
                 if author_id != account_id {
                     continue;
@@ -233,7 +231,7 @@ impl JiraClient {
                     time_spent_seconds: w.time_spent_seconds,
                     date,
                     time,
-                    comment: w.comment.as_ref().map(adf_to_text).unwrap_or_default(),
+                    comment,
                 });
             }
         }
@@ -254,15 +252,19 @@ impl JiraClient {
             .filter(|w| {
                 w.author.as_ref().map(|a| a.account_id.as_str()) == Some(account_id)
             })
-            .map(|w| WorklogEntry {
-                billable: w.billable(),
-                id: w.id,
-                issue_key: issue_key.to_string(),
-                issue_summary: String::new(),
-                time_spent_seconds: w.time_spent_seconds,
-                date: w.started.get(0..10).unwrap_or("").to_string(),
-                time: w.started.get(11..16).unwrap_or("").to_string(),
-                comment: w.comment.as_ref().map(adf_to_text).unwrap_or_default(),
+            .map(|w| {
+                let (billable, comment) =
+                    split_billable(w.comment.as_ref().map(adf_to_text).unwrap_or_default());
+                WorklogEntry {
+                    billable,
+                    id: w.id,
+                    issue_key: issue_key.to_string(),
+                    issue_summary: String::new(),
+                    time_spent_seconds: w.time_spent_seconds,
+                    date: w.started.get(0..10).unwrap_or("").to_string(),
+                    time: w.started.get(11..16).unwrap_or("").to_string(),
+                    comment,
+                }
             })
             .collect();
         entries.sort_by(|a, b| b.date.cmp(&a.date).then(b.time.cmp(&a.time)));
@@ -278,14 +280,33 @@ impl JiraClient {
         let parsed: WorklogListResp = self
             .get_json(
                 &format!("/rest/api/3/issue/{issue_key}/worklog"),
-                &[
-                    ("startedAfter", started_after.to_string()),
-                    ("expand", "properties".to_string()),
-                ],
+                &[("startedAfter", started_after.to_string())],
                 "worklog",
             )
             .await?;
         Ok(parsed.worklogs)
+    }
+}
+
+// ----- Billable marker -----
+// ActivityTimeline's convention: a worklog whose Jira comment starts with `~`
+// is categorized as non-billable; everything else counts as billable.
+
+/// Prepend the non-billable marker to the comment when needed.
+fn mark_billable(comment: &str, billable: bool) -> String {
+    let trimmed = comment.trim();
+    if billable {
+        trimmed.to_string()
+    } else {
+        format!("~{trimmed}")
+    }
+}
+
+/// Inverse of [`mark_billable`]: detect and strip the `~` marker.
+fn split_billable(comment: String) -> (bool, String) {
+    match comment.strip_prefix('~') {
+        Some(rest) => (false, rest.trim_start().to_string()),
+        None => (true, comment),
     }
 }
 
