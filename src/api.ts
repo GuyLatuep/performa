@@ -24,6 +24,7 @@ export interface WorklogEntry {
   date: string; // yyyy-MM-dd
   time: string; // HH:mm
   comment: string;
+  billable: boolean;
 }
 
 export interface MissingWorklog {
@@ -66,8 +67,16 @@ export const api = {
     date: string,
     time: string,
     comment: string,
+    billable: boolean,
   ): Promise<void> {
-    return invoke("log_work", { issueKey, timeSpentSeconds, date, time, comment });
+    return invoke("log_work", {
+      issueKey,
+      timeSpentSeconds,
+      date,
+      time,
+      comment,
+      billable,
+    });
   },
   updateWorklog(
     issueKey: string,
@@ -76,6 +85,7 @@ export const api = {
     date: string,
     time: string,
     comment: string,
+    billable: boolean,
   ): Promise<void> {
     return invoke("update_worklog", {
       issueKey,
@@ -84,6 +94,7 @@ export const api = {
       date,
       time,
       comment,
+      billable,
     });
   },
   deleteWorklog(issueKey: string, worklogId: string): Promise<void> {

@@ -141,7 +141,14 @@ function LogForm({
     setBusy(true);
     setError(null);
     try {
-      await api.logWork(item.logKey, seconds, draft.date, draft.time, draft.comment);
+      await api.logWork(
+        item.logKey,
+        seconds,
+        draft.date,
+        draft.time,
+        draft.comment,
+        !draft.nonBillable,
+      );
       onSaved();
     } catch (err) {
       setError(String(err));

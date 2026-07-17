@@ -93,7 +93,14 @@ function StopModal({
     setBusy(true);
     setError(null);
     try {
-      await api.logWork(data.timer.issueKey, seconds, draft.date, draft.time, draft.comment);
+      await api.logWork(
+        data.timer.issueKey,
+        seconds,
+        draft.date,
+        draft.time,
+        draft.comment,
+        !draft.nonBillable,
+      );
       onLogged();
     } catch (err) {
       setError(String(err));

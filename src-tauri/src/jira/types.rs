@@ -35,6 +35,8 @@ pub struct WorklogEntry {
     /// Time portion (HH:mm) of the worklog start.
     pub time: String,
     pub comment: String,
+    /// False when the worklog carries a `billable: false` entity property.
+    pub billable: bool,
 }
 
 #[derive(Serialize)]
@@ -92,6 +94,27 @@ pub struct RawWorklog {
     pub started: String,
     #[serde(default)]
     pub comment: Option<serde_json::Value>,
+    #[serde(default)]
+    pub properties: Vec<RawEntityProperty>,
+}
+
+impl RawWorklog {
+    /// Worklogs are billable unless a `billable: false` property says
+    /// otherwise. The flag is wrapped in an object (`{"billable": false}`)
+    /// because Jira rejects bare scalars as property values.
+    pub fn billable(&self) -> bool {
+        !self.properties.iter().any(|p| {
+            p.key == "billable" && p.value.get("billable") == Some(&serde_json::Value::Bool(false))
+        })
+    }
+}
+
+#[derive(Deserialize)]
+pub struct RawEntityProperty {
+    #[serde(default)]
+    pub key: String,
+    #[serde(default)]
+    pub value: serde_json::Value,
 }
 
 #[derive(Deserialize)]

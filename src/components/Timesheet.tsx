@@ -128,6 +128,7 @@ export default function Timesheet({ site, refreshKey }: Props) {
                   </button>
                   <span className="summary">{e.issueSummary}</span>
                   {e.comment && <span className="comment">{e.comment}</span>}
+                  {!e.billable && <span className="nb-tag">non-billable</span>}
                 </div>
                 {e.time && <span className="wl-time">{e.time}</span>}
                 <span className="duration">{formatDuration(e.timeSpentSeconds)}</span>
@@ -313,6 +314,7 @@ function EditModal({
     date: entry.date,
     time: entry.time,
     comment: entry.comment,
+    nonBillable: !entry.billable,
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -332,6 +334,7 @@ function EditModal({
         draft.date,
         draft.time,
         draft.comment,
+        !draft.nonBillable,
       );
       onSaved();
     } catch (err) {

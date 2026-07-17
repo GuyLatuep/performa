@@ -10,6 +10,7 @@ export interface WorklogDraft {
   date: string; // yyyy-MM-dd
   time: string; // HH:mm
   comment: string;
+  nonBillable: boolean;
 }
 
 export const DURATION_ERROR = "Enter a valid duration, e.g. 1h 30m";
@@ -20,6 +21,7 @@ export function useWorklogDraft(initial: Partial<WorklogDraft> = {}) {
     date: initial.date ?? today(),
     time: initial.time ?? nowTime(),
     comment: initial.comment ?? "",
+    nonBillable: initial.nonBillable ?? false,
   });
   const patch = useCallback(
     (p: Partial<WorklogDraft>) => setDraft((d) => ({ ...d, ...p })),
@@ -84,6 +86,15 @@ export function WorklogFields({
           value={draft.comment}
           onChange={(e) => patch({ comment: e.target.value })}
         />
+      </label>
+
+      <label className="checkbox">
+        <input
+          type="checkbox"
+          checked={draft.nonBillable}
+          onChange={(e) => patch({ nonBillable: e.target.checked })}
+        />
+        Non-billable
       </label>
     </>
   );

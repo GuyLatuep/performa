@@ -66,7 +66,14 @@ export default function LogWork({ site, onLogged }: Props) {
     setError(null);
     setOkMsg(null);
     try {
-      await api.logWork(selected.key, seconds, draft.date, draft.time, draft.comment);
+      await api.logWork(
+        selected.key,
+        seconds,
+        draft.date,
+        draft.time,
+        draft.comment,
+        !draft.nonBillable,
+      );
       setOkMsg(`Logged ${formatDuration(seconds)} on ${selected.key}`);
       patch({ duration: "", comment: "" });
       setHistoryKey((k) => k + 1);

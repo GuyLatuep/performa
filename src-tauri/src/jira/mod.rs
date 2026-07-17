@@ -131,10 +131,13 @@ impl JiraClient {
         date: &str,
         time: &str,
         comment: &str,
+        billable: bool,
     ) -> Result<(), String> {
         let mut body = serde_json::json!({
             "timeSpentSeconds": time_spent_seconds,
             "started": jira_started(date, time)?,
+            // Property values must be JSON objects — Jira rejects bare scalars.
+            "properties": [{"key": "billable", "value": {"billable": billable}}],
         });
         if !comment.trim().is_empty() {
             body["comment"] = adf_paragraph(comment);
@@ -155,10 +158,13 @@ impl JiraClient {
         date: &str,
         time: &str,
         comment: &str,
+        billable: bool,
     ) -> Result<(), String> {
         let mut body = serde_json::json!({
             "timeSpentSeconds": time_spent_seconds,
             "started": jira_started(date, time)?,
+            // Property values must be JSON objects — Jira rejects bare scalars.
+            "properties": [{"key": "billable", "value": {"billable": billable}}],
         });
         // Send an (empty) ADF doc to clear the comment when blank.
         body["comment"] = adf_paragraph(comment.trim());
@@ -209,6 +215,7 @@ impl JiraClient {
         let mut entries = Vec::new();
         for (issue, worklogs) in per_issue {
             for w in worklogs {
+                let billable = w.billable();
                 let author_id = w.author.map(|a| a.account_id).unwrap_or_default();
                 if author_id != account_id {
                     continue;
@@ -219,6 +226,7 @@ impl JiraClient {
                 }
                 let time = w.started.get(11..16).unwrap_or("").to_string();
                 entries.push(WorklogEntry {
+                    billable,
                     id: w.id,
                     issue_key: issue.key.clone(),
                     issue_summary: issue.summary.clone(),
@@ -247,6 +255,7 @@ impl JiraClient {
                 w.author.as_ref().map(|a| a.account_id.as_str()) == Some(account_id)
             })
             .map(|w| WorklogEntry {
+                billable: w.billable(),
                 id: w.id,
                 issue_key: issue_key.to_string(),
                 issue_summary: String::new(),
@@ -269,7 +278,10 @@ impl JiraClient {
         let parsed: WorklogListResp = self
             .get_json(
                 &format!("/rest/api/3/issue/{issue_key}/worklog"),
-                &[("startedAfter", started_after.to_string())],
+                &[
+                    ("startedAfter", started_after.to_string()),
+                    ("expand", "properties".to_string()),
+                ],
                 "worklog",
             )
             .await?;

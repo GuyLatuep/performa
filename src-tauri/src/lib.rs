@@ -145,11 +145,19 @@ async fn log_work(
     date: String,
     time: String,
     comment: String,
+    billable: bool,
 ) -> Result<(), String> {
     checked_issue_key(&issue_key)?;
     let s = session(&state).await?;
     s.client
-        .add_worklog(&issue_key, time_spent_seconds, &date, &time, &comment)
+        .add_worklog(
+            &issue_key,
+            time_spent_seconds,
+            &date,
+            &time,
+            &comment,
+            billable,
+        )
         .await
 }
 
@@ -162,6 +170,7 @@ async fn update_worklog(
     date: String,
     time: String,
     comment: String,
+    billable: bool,
 ) -> Result<(), String> {
     checked_issue_key(&issue_key)?;
     checked_worklog_id(&worklog_id)?;
@@ -174,6 +183,7 @@ async fn update_worklog(
             &date,
             &time,
             &comment,
+            billable,
         )
         .await
 }
