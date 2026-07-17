@@ -3,6 +3,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, IssueSummary, WorklogEntry } from "../api";
 import { formatDuration, today } from "../time";
 import { startTimer, useTimer } from "../timer";
+import { togglePin, usePinnedIssues } from "../pins";
 import {
   DURATION_ERROR,
   useWorklogDraft,
@@ -25,7 +26,10 @@ export default function LogWork({ site, onLogged }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
 
-  const activeTimer = useTimer();
+  const pinnedIssues = usePinnedIssues();
+  const pinnedKeys = new Set(pinnedIssues.map((p) => p.key));
+  // Pinned issues lead the default list; an active search shows plain results.
+  const showPinned = query.trim() === "" && pinnedIssues.length > 0;
   const debounce = useRef<number | undefined>(undefined);
   // Bumped after logging so the history list below the form reloads.
   const [historyKey, setHistoryKey] = useState(0);
@@ -34,6 +38,12 @@ export default function LogWork({ site, onLogged }: Props) {
   useEffect(() => {
     runSearch("");
   }, []);
+
+  function selectIssue(issue: IssueSummary) {
+    // Billability shouldn't leak from the previous entry.
+    patch({ nonBillable: false });
+    setSelected(issue);
+  }
 
   function onQueryChange(value: string) {
     setQuery(value);
@@ -127,49 +137,85 @@ export default function LogWork({ site, onLogged }: Props) {
       {searching && <p className="muted">Searching…</p>}
 
       <ul className="issue-list">
-        {results.map((issue) => {
-          const isRunning = activeTimer?.issueKey === issue.key;
-          return (
-            <li key={issue.key}>
-              <button
-                className="issue-open key"
-                title={`Open ${issue.key} in browser`}
-                onClick={() => openUrl(`${site}/browse/${issue.key}`)}
-              >
-                {issue.key}
-              </button>
-              <button
-                className="issue-select"
-                onClick={() => {
-                  // Billability shouldn't leak from the previous entry.
-                  patch({ nonBillable: false });
-                  setSelected(issue);
-                }}
-              >
-                <span className="summary">{issue.summary}</span>
-              </button>
-              <button
-                className={`timer-start${isRunning ? " running" : ""}`}
-                disabled={!!activeTimer}
-                title={
-                  isRunning
-                    ? "Timer running"
-                    : activeTimer
-                      ? "Stop the running timer first"
-                      : `Start timer for ${issue.key}`
-                }
-                onClick={() => startTimer(issue.key, issue.summary)}
-              >
-                {isRunning ? "● timing" : "▶ start"}
-              </button>
-            </li>
-          );
-        })}
+        {showPinned &&
+          pinnedIssues.map((issue, i) => (
+            <IssueRow
+              key={issue.key}
+              issue={issue}
+              site={site}
+              pinned
+              lastPinned={i === pinnedIssues.length - 1}
+              onSelect={selectIssue}
+            />
+          ))}
+        {results
+          .filter((issue) => !showPinned || !pinnedKeys.has(issue.key))
+          .map((issue) => (
+            <IssueRow
+              key={issue.key}
+              issue={issue}
+              site={site}
+              pinned={pinnedKeys.has(issue.key)}
+              onSelect={selectIssue}
+            />
+          ))}
         {!searching && results.length === 0 && (
           <li className="muted empty">No matching issues.</li>
         )}
       </ul>
     </div>
+  );
+}
+
+function IssueRow({
+  issue,
+  site,
+  pinned,
+  lastPinned = false,
+  onSelect,
+}: {
+  issue: IssueSummary;
+  site: string;
+  pinned: boolean;
+  lastPinned?: boolean;
+  onSelect: (issue: IssueSummary) => void;
+}) {
+  const activeTimer = useTimer();
+  const isRunning = activeTimer?.issueKey === issue.key;
+  return (
+    <li className={lastPinned ? "pinned-last" : undefined}>
+      <button
+        className={`icon pin-toggle${pinned ? " pinned" : ""}`}
+        title={pinned ? `Unpin ${issue.key}` : `Pin ${issue.key} to top`}
+        onClick={() => togglePin(issue)}
+      >
+        {pinned ? "★" : "☆"}
+      </button>
+      <button
+        className="issue-open key"
+        title={`Open ${issue.key} in browser`}
+        onClick={() => openUrl(`${site}/browse/${issue.key}`)}
+      >
+        {issue.key}
+      </button>
+      <button className="issue-select" onClick={() => onSelect(issue)}>
+        <span className="summary">{issue.summary}</span>
+      </button>
+      <button
+        className={`timer-start${isRunning ? " running" : ""}`}
+        disabled={!!activeTimer}
+        title={
+          isRunning
+            ? "Timer running"
+            : activeTimer
+              ? "Stop the running timer first"
+              : `Start timer for ${issue.key}`
+        }
+        onClick={() => startTimer(issue.key, issue.summary)}
+      >
+        {isRunning ? "● timing" : "▶ start"}
+      </button>
+    </li>
   );
 }
 

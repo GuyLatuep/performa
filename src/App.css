@@ -661,6 +661,18 @@ header {
   text-decoration: underline;
   color: var(--ink);
 }
+/* Pin toggle: star buttons in the issue list. */
+.pin-toggle {
+  flex: 0 0 auto;
+  font-size: 14px;
+}
+.pin-toggle.pinned {
+  color: var(--ink);
+}
+/* Heavier rule after the pinned block to set it apart from the results. */
+.issue-list li.pinned-last:not(.empty) {
+  border-bottom: 2px solid var(--ink);
+}
 /* Inline issue-key button (timesheet / missing worklog rows). */
 .key-link {
   background: none;
