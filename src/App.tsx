@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, CredentialsMeta, IssueSummary } from "./api";
 import Settings from "./components/Settings";
 import Start from "./components/Start";
@@ -18,6 +19,10 @@ import {
 import "./App.css";
 
 type Tab = "start" | "log" | "timesheet" | "missing";
+
+// The English manual links to the German one via its language switcher.
+const HANDBOOK_URL =
+  "https://github.com/GuyLatuep/performa/blob/main/docs/user-manual.en.md";
 
 export default function App() {
   const [creds, setCreds] = useState<CredentialsMeta | null>(null);
@@ -115,6 +120,13 @@ export default function App() {
           <span className="muted">{creds.email}</span>
           <button className="link" onClick={() => setEditingCreds(true)}>
             Settings
+          </button>
+          <button
+            className="link"
+            title="Open the user manual on GitHub"
+            onClick={() => openUrl(HANDBOOK_URL)}
+          >
+            Handbook
           </button>
           {confirmSignOut ? (
             <>
