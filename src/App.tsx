@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { api, CredentialsMeta } from "./api";
+import { api, CredentialsMeta, IssueSummary } from "./api";
 import Settings from "./components/Settings";
+import Start from "./components/Start";
 import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
 import TimerBar from "./components/TimerBar";
@@ -16,15 +17,17 @@ import {
 } from "./missing";
 import "./App.css";
 
-type Tab = "log" | "timesheet" | "missing";
+type Tab = "start" | "log" | "timesheet" | "missing";
 
 export default function App() {
   const [creds, setCreds] = useState<CredentialsMeta | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editingCreds, setEditingCreds] = useState(false);
-  const [tab, setTab] = useState<Tab>("log");
+  const [tab, setTab] = useState<Tab>("start");
   const [refreshKey, setRefreshKey] = useState(0);
+  // Issue picked on the start tab, opened directly in the log-work form.
+  const [logIssue, setLogIssue] = useState<IssueSummary | null>(null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const missingItems = useMissing();
@@ -137,8 +140,18 @@ export default function App() {
 
       <nav className="tabs">
         <button
+          className={tab === "start" ? "active" : ""}
+          onClick={() => setTab("start")}
+        >
+          Start
+        </button>
+        <button
           className={tab === "log" ? "active" : ""}
-          onClick={() => setTab("log")}
+          onClick={() => {
+            // A manual visit starts fresh, without a preselected issue.
+            setLogIssue(null);
+            setTab("log");
+          }}
         >
           Log work
         </button>
@@ -160,7 +173,20 @@ export default function App() {
       </nav>
 
       <main>
-        {tab === "log" && <LogWork site={creds.site} onLogged={onLogged} />}
+        {tab === "start" && (
+          <Start
+            site={creds.site}
+            refreshKey={refreshKey}
+            onSelectIssue={(issue) => {
+              setLogIssue(issue);
+              setTab("log");
+            }}
+            onOpenMissing={() => setTab("missing")}
+          />
+        )}
+        {tab === "log" && (
+          <LogWork site={creds.site} onLogged={onLogged} initialIssue={logIssue} />
+        )}
         {tab === "timesheet" && <Timesheet site={creds.site} refreshKey={refreshKey} />}
         {tab === "missing" && <MissingWorklogs site={creds.site} onLogged={onLogged} />}
       </main>

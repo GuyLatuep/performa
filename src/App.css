@@ -1045,6 +1045,41 @@ header {
   margin-top: 4px;
 }
 
+/* ---------- Start tab ---------- */
+.start-section {
+  margin-bottom: 32px;
+}
+.start-section:last-child {
+  margin-bottom: 0;
+}
+/* The dashboard scrolls as a whole; keep the due list short enough that the
+   sections below stay in reach. */
+.start-section .issue-list {
+  max-height: clamp(200px, 32vh, 420px);
+}
+/* Due-date marker on issue rows, in the .nb-tag idiom. */
+.due-badge {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--muted);
+  border: 1px solid var(--hair);
+  padding: 1px 6px;
+}
+.due-badge.due-today {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.due-badge.overdue {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,

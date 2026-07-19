@@ -103,13 +103,30 @@ impl JiraClient {
         jql: &str,
         max_results: u32,
     ) -> Result<Vec<IssueSummary>, String> {
+        self.search_issues_fields(jql, max_results, "summary").await
+    }
+
+    /// Issues assigned to the current user whose due date falls in a window
+    /// around today — the data behind the dashboard's "due soon" list.
+    pub async fn due_issues(&self) -> Result<Vec<IssueSummary>, String> {
+        let jql = "assignee = currentUser() AND due >= -7d AND due <= 14d \
+                   AND statusCategory != Done ORDER BY due ASC";
+        self.search_issues_fields(jql, 50, "summary,duedate").await
+    }
+
+    async fn search_issues_fields(
+        &self,
+        jql: &str,
+        max_results: u32,
+        fields: &str,
+    ) -> Result<Vec<IssueSummary>, String> {
         let parsed: SearchResp = self
             .get_json(
                 "/rest/api/3/search/jql",
                 &[
                     ("jql", jql.to_string()),
                     ("maxResults", max_results.to_string()),
-                    ("fields", "summary".to_string()),
+                    ("fields", fields.to_string()),
                 ],
                 "search",
             )
@@ -120,6 +137,7 @@ impl JiraClient {
             .map(|i| IssueSummary {
                 key: i.key,
                 summary: i.fields.summary,
+                due_date: i.fields.duedate,
             })
             .collect())
     }

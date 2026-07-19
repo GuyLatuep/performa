@@ -14,6 +14,8 @@ export interface CredentialsMeta {
 export interface IssueSummary {
   key: string;
   summary: string;
+  /** yyyy-MM-dd; only present on searches that request it (due_issues). */
+  dueDate?: string;
 }
 
 export interface WorklogEntry {
@@ -55,6 +57,10 @@ export const api = {
   /** Free-form search; the query is turned into JQL on the Rust side. */
   searchIssues(query: string): Promise<IssueSummary[]> {
     return invoke("search_issues", { query });
+  },
+  /** My issues due between 7 days ago and 14 days ahead, soonest first. */
+  dueIssues(): Promise<IssueSummary[]> {
+    return invoke("due_issues");
   },
   logWork(
     issueKey: string,

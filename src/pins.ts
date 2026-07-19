@@ -36,6 +36,7 @@ export function togglePin(issue: IssueSummary): void {
   save(
     pins.some((p) => p.key === issue.key)
       ? pins.filter((p) => p.key !== issue.key)
-      : [...pins, issue],
+      : // Only key + summary; a snapshotted due date would go stale.
+        [...pins, { key: issue.key, summary: issue.summary }],
   );
 }

@@ -136,6 +136,14 @@ async fn search_issues(
         .await
 }
 
+/// Issues assigned to the current user with a due date between 7 days ago and
+/// 14 days ahead (shown on the start tab).
+#[tauri::command]
+async fn due_issues(state: State<'_, AppState>) -> Result<Vec<IssueSummary>, String> {
+    let s = session(&state).await?;
+    s.client.due_issues().await
+}
+
 #[tauri::command]
 async fn log_work(
     state: State<'_, AppState>,
@@ -262,6 +270,7 @@ pub fn run() {
             clear_credentials,
             current_user,
             search_issues,
+            due_issues,
             log_work,
             update_worklog,
             delete_worklog,

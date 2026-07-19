@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, MissingWorklog } from "../api";
-import { toDateInput, toTimeInput } from "../time";
+import { timeAgo, toDateInput, toTimeInput } from "../time";
 import {
   markMissingSeen,
   refreshMissing,
@@ -193,12 +193,4 @@ function LogForm({
       </button>
     </div>
   );
-}
-
-function timeAgo(iso: string): string {
-  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
 }

@@ -19,6 +19,9 @@ pub struct Myself {
 pub struct IssueSummary {
     pub key: String,
     pub summary: String,
+    /// Due date (yyyy-MM-dd); only populated by searches that request it.
+    #[serde(rename = "dueDate", skip_serializing_if = "Option::is_none")]
+    pub due_date: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -79,6 +82,8 @@ pub struct SearchIssue {
 pub struct SearchFields {
     #[serde(default)]
     pub summary: String,
+    #[serde(default)]
+    pub duedate: Option<String>,
 }
 
 #[derive(Deserialize)]

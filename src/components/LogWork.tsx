@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, IssueSummary, WorklogEntry } from "../api";
 import { formatDuration, today } from "../time";
-import { startTimer, useTimer } from "../timer";
-import { togglePin, usePinnedIssues } from "../pins";
+import { usePinnedIssues } from "../pins";
+import IssueRow from "./IssueRow";
 import {
   DURATION_ERROR,
   useWorklogDraft,
@@ -13,13 +12,17 @@ import {
 interface Props {
   site: string;
   onLogged: () => void;
+  /** Issue to open the log form for right away (e.g. picked on the start tab). */
+  initialIssue?: IssueSummary | null;
 }
 
-export default function LogWork({ site, onLogged }: Props) {
+export default function LogWork({ site, onLogged, initialIssue }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<IssueSummary[]>([]);
   const [searching, setSearching] = useState(false);
-  const [selected, setSelected] = useState<IssueSummary | null>(null);
+  const [selected, setSelected] = useState<IssueSummary | null>(
+    initialIssue ?? null,
+  );
 
   const { draft, patch, seconds } = useWorklogDraft();
   const [busy, setBusy] = useState(false);
@@ -164,58 +167,6 @@ export default function LogWork({ site, onLogged }: Props) {
         )}
       </ul>
     </div>
-  );
-}
-
-function IssueRow({
-  issue,
-  site,
-  pinned,
-  lastPinned = false,
-  onSelect,
-}: {
-  issue: IssueSummary;
-  site: string;
-  pinned: boolean;
-  lastPinned?: boolean;
-  onSelect: (issue: IssueSummary) => void;
-}) {
-  const activeTimer = useTimer();
-  const isRunning = activeTimer?.issueKey === issue.key;
-  return (
-    <li className={lastPinned ? "pinned-last" : undefined}>
-      <button
-        className={`icon pin-toggle${pinned ? " pinned" : ""}`}
-        title={pinned ? `Unpin ${issue.key}` : `Pin ${issue.key} to top`}
-        onClick={() => togglePin(issue)}
-      >
-        {pinned ? "★" : "☆"}
-      </button>
-      <button
-        className="issue-open key"
-        title={`Open ${issue.key} in browser`}
-        onClick={() => openUrl(`${site}/browse/${issue.key}`)}
-      >
-        {issue.key}
-      </button>
-      <button className="issue-select" onClick={() => onSelect(issue)}>
-        <span className="summary">{issue.summary}</span>
-      </button>
-      <button
-        className={`timer-start${isRunning ? " running" : ""}`}
-        disabled={!!activeTimer}
-        title={
-          isRunning
-            ? "Timer running"
-            : activeTimer
-              ? "Stop the running timer first"
-              : `Start timer for ${issue.key}`
-        }
-        onClick={() => startTimer(issue.key, issue.summary)}
-      >
-        {isRunning ? "● timing" : "▶ start"}
-      </button>
-    </li>
   );
 }
 

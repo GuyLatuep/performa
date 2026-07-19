@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatDuration, parseDuration, startOfWeek, toDateInput } from "./time";
+import {
+  formatDuration,
+  parseDuration,
+  startOfWeek,
+  toDateInput,
+  weekRange,
+} from "./time";
 
 describe("parseDuration", () => {
   it("parses unit combinations", () => {
@@ -52,5 +58,15 @@ describe("week helpers", () => {
 
   it("toDateInput zero-pads", () => {
     expect(toDateInput(new Date(2026, 0, 5))).toBe("2026-01-05");
+  });
+
+  it("weekRange spans Monday to Sunday", () => {
+    const { start, end } = weekRange(0);
+    expect(start).toBe(startOfWeek(new Date()));
+    const endDate = new Date(end + "T00:00:00");
+    expect((endDate.getDay() + 6) % 7).toBe(6); // Sunday
+    expect(endDate.getTime() - new Date(start + "T00:00:00").getTime()).toBe(
+      6 * 86_400_000,
+    );
   });
 });
