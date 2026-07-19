@@ -1,5 +1,6 @@
 mod creds;
 mod jira;
+mod tray;
 
 use creds::{Credentials, CredentialsMeta};
 use jira::{IssueSummary, JiraClient, MissingWorklog, Myself, WorklogEntry};
@@ -261,6 +262,10 @@ fn normalize_site(input: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState::default())
+        .setup(|app| {
+            tray::setup(app)?;
+            Ok(())
+        })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
