@@ -283,6 +283,8 @@ pub fn run() {
             list_worklogs,
             issue_worklogs,
             missing_worklogs,
+            tray::timer_started,
+            tray::timer_stopped,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { api } from "../api";
 import { formatDuration, toDateInput, toTimeInput } from "../time";
 import {
   ActiveTimer,
   formatClock,
+  getTimer,
   roundUpToQuarterHour,
   stopTimer,
   useElapsedSeconds,
@@ -34,6 +36,21 @@ export default function TimerBar({ onLogged }: Props) {
     setStopping({ timer, seconds: roundUpToQuarterHour(elapsed) });
     stopTimer(); // freeze the clock; the captured data lives in `stopping`
   }
+
+  // "Stop timer" in the system tray routes through the same log-modal flow.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen("stop-timer", () => {
+      const t = getTimer(); // live store, not a stale closure
+      if (!t) return;
+      const secs = Math.max(0, Math.floor((Date.now() - t.startedAt) / 1000));
+      setStopping({ timer: t, seconds: roundUpToQuarterHour(secs) });
+      stopTimer();
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, []);
 
   if (!timer && !stopping) return null;
 

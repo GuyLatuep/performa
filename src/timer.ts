@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { createStore } from "./store";
 
 export interface ActiveTimer {
@@ -27,6 +28,23 @@ function read(): ActiveTimer | null {
 // stays correct even if the app was closed while a timer was running.
 const store = createStore<ActiveTimer | null>(read());
 
+/** Mirror the timer to the Rust side so the system tray can display it. */
+function syncTray(timer: ActiveTimer | null): void {
+  const call = timer
+    ? invoke("timer_started", {
+        issueKey: timer.issueKey,
+        startedAt: timer.startedAt,
+      })
+    : invoke("timer_stopped");
+  // The tray is cosmetic — never let it break timing.
+  call.catch(() => {});
+}
+
+// A timer restored from a previous run must reappear in the tray too.
+if (store.get()) {
+  syncTray(store.get());
+}
+
 export function getTimer(): ActiveTimer | null {
   return store.get();
 }
@@ -35,11 +53,13 @@ export function startTimer(issueKey: string, issueSummary: string): void {
   const timer = { issueKey, issueSummary, startedAt: Date.now() };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(timer));
   store.set(timer);
+  syncTray(timer);
 }
 
 export function stopTimer(): void {
   localStorage.removeItem(STORAGE_KEY);
   store.set(null);
+  syncTray(null);
 }
 
 export function useTimer(): ActiveTimer | null {
