@@ -182,6 +182,7 @@ export default function App() {
               setTab("log");
             }}
             onOpenMissing={() => setTab("missing")}
+            onLogged={onLogged}
           />
         )}
         {tab === "log" && (

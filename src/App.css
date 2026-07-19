@@ -1079,6 +1079,42 @@ header {
   color: var(--danger);
   border-color: var(--danger);
 }
+/* Worklog template chips on the start tab. */
+.template-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 6px;
+}
+.template-chip {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--hair);
+}
+.template-use {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  max-width: 340px;
+  background: none;
+  border: none;
+  padding: 8px 4px 8px 10px;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.template-use:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+.template-use .duration {
+  min-width: 0;
+}
+.template-chip .comment {
+  min-width: 0;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,

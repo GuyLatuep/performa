@@ -185,6 +185,7 @@ export default function Timesheet({ site, refreshKey }: Props) {
         <RepeatModal
           issueKey={repeating.issueKey}
           issueSummary={repeating.issueSummary}
+          allowSaveTemplate
           initial={{
             duration: formatDuration(repeating.timeSpentSeconds),
             comment: repeating.comment,

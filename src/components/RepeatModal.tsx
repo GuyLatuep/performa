@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import { addTemplate } from "../templates";
 import {
   DURATION_ERROR,
   useWorklogDraft,
@@ -12,6 +13,8 @@ interface Props {
   issueSummary: string;
   /** Prefill (duration/comment/billability); date and time default to now. */
   initial: Partial<WorklogDraft>;
+  /** Offer a "save as template" checkbox alongside logging. */
+  allowSaveTemplate?: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -21,10 +24,12 @@ export default function RepeatModal({
   issueKey,
   issueSummary,
   initial,
+  allowSaveTemplate = false,
   onClose,
   onSaved,
 }: Props) {
   const { draft, patch, seconds } = useWorklogDraft(initial);
+  const [saveTemplate, setSaveTemplate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +49,15 @@ export default function RepeatModal({
         draft.comment,
         !draft.nonBillable,
       );
+      if (saveTemplate) {
+        addTemplate({
+          issueKey,
+          issueSummary,
+          duration: draft.duration,
+          comment: draft.comment,
+          nonBillable: draft.nonBillable,
+        });
+      }
       onSaved();
     } catch (err) {
       setError(String(err));
@@ -57,6 +71,16 @@ export default function RepeatModal({
         <h3>Log again — {issueKey}</h3>
         <p className="muted modal-sub">{issueSummary}</p>
         <WorklogFields draft={draft} patch={patch} seconds={seconds} />
+        {allowSaveTemplate && (
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={saveTemplate}
+              onChange={(e) => setSaveTemplate(e.target.checked)}
+            />
+            Save as template on the start tab
+          </label>
+        )}
         {error && <p className="error">{error}</p>}
         <div className="row">
           <button className="secondary" onClick={onClose}>

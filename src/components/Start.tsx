@@ -4,8 +4,10 @@ import { api, IssueSummary, MissingWorklog, WorklogEntry } from "../api";
 import { formatDuration, timeAgo, weekRange } from "../time";
 import { usePinnedIssues } from "../pins";
 import { useMissing } from "../missing";
+import { removeTemplate, useTemplates, WorklogTemplate } from "../templates";
 import IssueRow from "./IssueRow";
 import WeekChart from "./WeekChart";
+import RepeatModal from "./RepeatModal";
 
 interface Props {
   site: string;
@@ -14,21 +16,29 @@ interface Props {
   onSelectIssue: (issue: IssueSummary) => void;
   /** Jump to the missing-worklog tab. */
   onOpenMissing: () => void;
+  /** A worklog was created (template chip) — refresh dependent views. */
+  onLogged: () => void;
 }
 
-// Start tab: due issues, this week's progress, and unlogged activity at a glance.
+// Start tab: due issues, this week's progress, worklog templates, and
+// unlogged activity at a glance.
 export default function Start({
   site,
   refreshKey,
   onSelectIssue,
   onOpenMissing,
+  onLogged,
 }: Props) {
   const missing = useMissing();
+  const templates = useTemplates();
 
   return (
     <div className="panel start">
       <DueSection site={site} onSelectIssue={onSelectIssue} />
       <WeekSection refreshKey={refreshKey} />
+      {templates.length > 0 && (
+        <TemplatesSection templates={templates} onLogged={onLogged} />
+      )}
       {missing.length > 0 && (
         <MissingSection site={site} items={missing} onOpenMissing={onOpenMissing} />
       )}
@@ -123,6 +133,63 @@ function WeekSection({ refreshKey }: { refreshKey: number }) {
       </div>
       {error && <p className="error">{error}</p>}
       <WeekChart start={start} entries={entries} />
+    </section>
+  );
+}
+
+/** Saved templates as one-click chips; omitted while none are saved. */
+function TemplatesSection({
+  templates,
+  onLogged,
+}: {
+  templates: WorklogTemplate[];
+  onLogged: () => void;
+}) {
+  const [logging, setLogging] = useState<WorklogTemplate | null>(null);
+
+  return (
+    <section className="start-section">
+      <div className="day-head">
+        <span>Templates</span>
+      </div>
+      <div className="template-list">
+        {templates.map((t) => (
+          <div key={t.id} className="template-chip">
+            <button
+              className="template-use"
+              title={`Log ${t.duration} on ${t.issueKey}`}
+              onClick={() => setLogging(t)}
+            >
+              <span className="key">{t.issueKey}</span>
+              <span className="duration">{t.duration}</span>
+              {t.comment && <span className="comment">{t.comment}</span>}
+            </button>
+            <button
+              className="icon"
+              title="Remove template"
+              onClick={() => removeTemplate(t.id)}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+      {logging && (
+        <RepeatModal
+          issueKey={logging.issueKey}
+          issueSummary={logging.issueSummary}
+          initial={{
+            duration: logging.duration,
+            comment: logging.comment,
+            nonBillable: logging.nonBillable,
+          }}
+          onClose={() => setLogging(null)}
+          onSaved={() => {
+            setLogging(null);
+            onLogged();
+          }}
+        />
+      )}
     </section>
   );
 }
