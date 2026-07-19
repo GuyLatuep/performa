@@ -12,9 +12,24 @@ in **ActivityTimeline** automatically (ActivityTimeline reflects Jira worklogs).
 
 - Connect to a Jira Cloud site with your email + API token (stored in the OS
   keychain — macOS Keychain / Windows Credential Manager).
-- Search issues (assigned to you by default, or by text / issue key).
-- Log work with a Jira-style duration (`1h 30m`), date, and optional comment.
-- Weekly **timesheet** view with per-day totals; edit and delete worklogs.
+- **Start dashboard** with your due issues (last 7 / next 14 days), this
+  week's progress charts, worklog templates, and pending reminders.
+- Search issues (assigned to you by default, or by text / issue key), pin
+  favorites to the top.
+- Log work with a Jira-style duration (`1h 30m`), date, optional comment, and
+  a non-billable flag (ActivityTimeline's `~` convention).
+- **Timer** per issue with 15-minute round-up, mirrored live in the **system
+  tray / menu bar** (stop and log straight from the tray).
+- Weekly **timesheet** view with per-day totals and target charts; edit,
+  delete, and repeat worklogs (or save them as templates).
+- **Missing-worklog watcher**: flags your recent Jira comments / status
+  changes without logged time nearby and raises a desktop notification.
+- Auto-update via GitHub releases (hourly check).
+
+## Documentation
+
+- **User manual**: [English](docs/user-manual.en.md) ·
+  [Deutsch](docs/user-manual.de.md) — all workflows and features in detail.
 
 ## Architecture
 
@@ -77,6 +92,5 @@ into the app's connect screen along with your Jira site and email.
 
 ## Possible next steps
 
-- A start/stop **timer** that logs elapsed time.
 - Optional **read-only ActivityTimeline integration** (via an admin AT API
   token) to pre-fill planned assignments.
