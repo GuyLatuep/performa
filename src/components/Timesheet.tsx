@@ -3,6 +3,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, WorklogEntry } from "../api";
 import { formatDuration, today, weekRange } from "../time";
 import WeekChart from "./WeekChart";
+import RepeatModal from "./RepeatModal";
 import {
   DURATION_ERROR,
   useWorklogDraft,
@@ -20,6 +21,7 @@ export default function Timesheet({ site, refreshKey }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<WorklogEntry | null>(null);
+  const [repeating, setRepeating] = useState<WorklogEntry | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const { start, end } = weekRange(offset);
@@ -142,6 +144,13 @@ export default function Timesheet({ site, refreshKey }: Props) {
                     </>
                   ) : (
                     <>
+                      <button
+                        className="icon"
+                        title="Log again today"
+                        onClick={() => setRepeating(e)}
+                      >
+                        ↻
+                      </button>
                       <button className="icon" title="Edit" onClick={() => setEditing(e)}>
                         ✎
                       </button>
@@ -167,6 +176,23 @@ export default function Timesheet({ site, refreshKey }: Props) {
           onClose={() => setEditing(null)}
           onSaved={async () => {
             setEditing(null);
+            await load();
+          }}
+        />
+      )}
+
+      {repeating && (
+        <RepeatModal
+          issueKey={repeating.issueKey}
+          issueSummary={repeating.issueSummary}
+          initial={{
+            duration: formatDuration(repeating.timeSpentSeconds),
+            comment: repeating.comment,
+            nonBillable: !repeating.billable,
+          }}
+          onClose={() => setRepeating(null)}
+          onSaved={async () => {
+            setRepeating(null);
             await load();
           }}
         />
