@@ -37,8 +37,8 @@ Zwei Grundprinzipien, die du kennen solltest:
 
 Lade das aktuelle Release von der GitHub-Releases-Seite des Projekts herunter:
 
-- **macOS**: `.dmg` (Builds für Apple Silicon und Intel)
-- **Windows**: `.msi`- oder `.exe`-Installer
+- **macOS**: `.dmg` (Apple Silicon)
+- **Windows**: `.exe`-Installer
 
 ### Mit Jira verbinden
 

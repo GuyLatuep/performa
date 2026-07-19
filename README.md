@@ -69,8 +69,9 @@ use the included GitHub Actions workflow to build both.
 
 ## Release (CI)
 
-`.github/workflows/release.yml` builds macOS (Apple Silicon + Intel) and Windows
-bundles and attaches them to a draft GitHub Release. Trigger it by pushing a tag:
+`.github/workflows/release.yml` builds macOS (Apple Silicon) and Windows (NSIS
+installer) bundles and attaches them to a draft GitHub Release, including the
+updater artifacts. Trigger it by pushing a tag:
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0

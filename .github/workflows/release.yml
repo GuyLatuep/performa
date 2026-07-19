@@ -16,12 +16,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest # Apple Silicon
+          - platform: macos-latest # Apple Silicon only
             args: "--target aarch64-apple-darwin"
-          - platform: macos-latest # Intel
-            args: "--target x86_64-apple-darwin"
-          - platform: windows-latest
-            args: ""
+          - platform: windows-latest # NSIS installer only (no .msi)
+            args: "--bundles nsis"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -33,7 +31,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ contains(matrix.platform, 'macos') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ contains(matrix.platform, 'macos') && 'aarch64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2

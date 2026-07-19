@@ -37,8 +37,8 @@ Two design principles worth knowing:
 
 Download the latest release from the project's GitHub Releases page:
 
-- **macOS**: `.dmg` (Apple Silicon and Intel builds)
-- **Windows**: `.msi` or `.exe` installer
+- **macOS**: `.dmg` (Apple Silicon)
+- **Windows**: `.exe` installer
 
 ### Connecting to Jira
 
