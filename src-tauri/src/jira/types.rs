@@ -87,6 +87,25 @@ pub struct SearchFields {
 }
 
 #[derive(Deserialize)]
+pub struct TransitionsResp {
+    #[serde(default)]
+    pub transitions: Vec<RawTransition>,
+}
+
+#[derive(Deserialize)]
+pub struct RawTransition {
+    pub id: String,
+    #[serde(default)]
+    pub to: Option<TransitionTarget>,
+}
+
+#[derive(Deserialize)]
+pub struct TransitionTarget {
+    #[serde(default)]
+    pub name: String,
+}
+
+#[derive(Deserialize)]
 pub struct WorklogListResp {
     #[serde(default)]
     pub worklogs: Vec<RawWorklog>,

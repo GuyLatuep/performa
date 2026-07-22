@@ -62,6 +62,11 @@ export const api = {
   dueIssues(): Promise<IssueSummary[]> {
     return invoke("due_issues");
   },
+  /** Best-effort: move the issue to the "in progress" workflow status. A
+   *  no-op (not an error) when the workflow has no direct transition there. */
+  startIssueWork(issueKey: string): Promise<void> {
+    return invoke("start_issue_work", { issueKey });
+  },
   logWork(
     issueKey: string,
     timeSpentSeconds: number,

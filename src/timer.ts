@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { api } from "./api";
 import { createStore } from "./store";
 
 export interface ActiveTimer {
@@ -54,6 +55,11 @@ export function startTimer(issueKey: string, issueSummary: string): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(timer));
   store.set(timer);
   syncTray(timer);
+  // Best-effort nudge to "In Arbeit" — must never block or fail the timer.
+  // Only on a genuine start, not when a persisted timer is restored on launch.
+  api.startIssueWork(issueKey).catch((err) => {
+    console.error(`startIssueWork(${issueKey}) failed:`, err);
+  });
 }
 
 export function stopTimer(): void {

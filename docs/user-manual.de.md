@@ -151,6 +151,8 @@ Unter dem Formular zeigt die Historie **deine** bisherigen Worklogs auf diesem V
 
 Starte einen Timer mit dem **▶ start**-Button in jeder Vorgangszeile (Start-Tab oder Log-work-Tab). Es kann nur ein Timer gleichzeitig laufen — die übrigen Start-Buttons sind währenddessen deaktiviert.
 
+> Beim Start eines Timers versucht performa außerdem, den Vorgang in Jira in den Status **„In Arbeit"** zu versetzen — über den Übergang, der im Workflow dieses Vorgangs gerade dorthin führt (Groß-/Kleinschreibung spielt keine Rolle, „IN ARBEIT" zählt also auch). Das geschieht nur bestmöglich: Ist der Vorgang bereits in diesem Status, oder bietet sein Workflow keinen direkten Übergang dorthin, passiert einfach nichts — der Timer startet in beiden Fällen normal.
+
 Während er läuft:
 
 - Die **Timer-Leiste** über den Tabs zeigt den Vorgang und eine laufende Uhr.

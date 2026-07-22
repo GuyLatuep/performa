@@ -17,6 +17,10 @@ const MISSING_GRACE_SECS: i64 = 10 * 60;
 const MISSING_ESCALATION_PROJECT: &str = "DEV";
 const MISSING_ESCALATION_LINK: &str = "is an escalation for";
 
+// Status an issue is moved to when a timer starts on it (best-effort — see
+// `start_issue_work`).
+const TIMER_START_STATUS: &str = "In Arbeit";
+
 /// Client + account id, built once from the stored credentials and cached so
 /// commands neither re-read the keychain nor re-fetch `myself` on every call.
 #[derive(Clone)]
@@ -143,6 +147,19 @@ async fn search_issues(
 async fn due_issues(state: State<'_, AppState>) -> Result<Vec<IssueSummary>, String> {
     let s = session(&state).await?;
     s.client.due_issues().await
+}
+
+/// Move an issue to `TIMER_START_STATUS` when a timer starts on it. A no-op,
+/// not an error, when the workflow has no direct transition there (e.g. the
+/// issue is already in that status) — starting a timer must never fail just
+/// because the status couldn't be nudged.
+#[tauri::command]
+async fn start_issue_work(state: State<'_, AppState>, issue_key: String) -> Result<(), String> {
+    checked_issue_key(&issue_key)?;
+    let s = session(&state).await?;
+    s.client
+        .transition_to_status(&issue_key, TIMER_START_STATUS)
+        .await
 }
 
 #[tauri::command]
@@ -277,6 +294,7 @@ pub fn run() {
             current_user,
             search_issues,
             due_issues,
+            start_issue_work,
             log_work,
             update_worklog,
             delete_worklog,

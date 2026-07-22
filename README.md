@@ -19,7 +19,8 @@ in **ActivityTimeline** automatically (ActivityTimeline reflects Jira worklogs).
 - Log work with a Jira-style duration (`1h 30m`), date, optional comment, and
   a non-billable flag (ActivityTimeline's `~` convention).
 - **Timer** per issue with 15-minute round-up, mirrored live in the **system
-  tray / menu bar** (stop and log straight from the tray).
+  tray / menu bar** (stop and log straight from the tray). Starting a timer
+  also nudges the issue to Jira's "In Arbeit" status, best-effort.
 - Weekly **timesheet** view with per-day totals and target charts; edit,
   delete, and repeat worklogs (or save them as templates).
 - **Missing-worklog watcher**: flags your recent Jira comments / status

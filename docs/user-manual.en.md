@@ -151,6 +151,8 @@ Below the form, the issue's history shows **your** previous worklogs on that iss
 
 Start a timer with the **▶ start** button on any issue row (Start tab or Log work tab). Only one timer can run at a time — other start buttons are disabled while one is active.
 
+> Starting a timer also tries to move the issue to the **"In Arbeit"** status in Jira, using whatever transition currently leads there in that issue's workflow (matched case-insensitively, e.g. "IN ARBEIT" also counts). This is best-effort: if the issue is already in that status, or its workflow doesn't offer a direct transition to it, nothing happens — the timer still starts normally either way.
+
 While running:
 
 - The **timer bar** above the tabs shows the issue and a live clock.

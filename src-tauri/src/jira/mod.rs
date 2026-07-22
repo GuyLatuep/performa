@@ -142,6 +142,58 @@ impl JiraClient {
             .collect())
     }
 
+    /// Move `issue_key` to the workflow status named `target_status`
+    /// (case-insensitive), via whichever transition currently leads there.
+    /// A deliberate no-op — not an error — when the issue is already in that
+    /// status or no direct transition to it exists from the current one (a
+    /// workflow without that status, or one that needs an intermediate step).
+    pub async fn transition_to_status(
+        &self,
+        issue_key: &str,
+        target_status: &str,
+    ) -> Result<(), String> {
+        let resp: TransitionsResp = self
+            .get_json(
+                &format!("/rest/api/3/issue/{issue_key}/transitions"),
+                &[],
+                "transitions",
+            )
+            .await?;
+        let target = target_status.trim().to_lowercase();
+        let Some(t) = resp.transitions.iter().find(|t| {
+            t.to.as_ref()
+                .map(|s| s.name.trim().to_lowercase() == target)
+                .unwrap_or(false)
+        }) else {
+            // Best-effort feature — logged for diagnosis, not surfaced to the UI.
+            let available: Vec<&str> = resp
+                .transitions
+                .iter()
+                .map(|t| t.to.as_ref().map(|s| s.name.as_str()).unwrap_or("?"))
+                .collect();
+            eprintln!(
+                "transition_to_status: no transition to '{target_status}' on {issue_key}; \
+                 available targets: {available:?}"
+            );
+            return Ok(());
+        };
+        let result = self
+            .send_ok(
+                self.http
+                    .post(self.url(&format!("/rest/api/3/issue/{issue_key}/transitions")))
+                    .json(&serde_json::json!({ "transition": { "id": &t.id } })),
+            )
+            .await;
+        match &result {
+            Ok(()) => eprintln!(
+                "transition_to_status: moved {issue_key} to '{target_status}' (transition {})",
+                t.id
+            ),
+            Err(e) => eprintln!("transition_to_status: failed for {issue_key}: {e}"),
+        }
+        result
+    }
+
     pub async fn add_worklog(
         &self,
         issue_key: &str,
