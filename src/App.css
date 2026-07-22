@@ -191,7 +191,8 @@ label {
 }
 
 input,
-textarea {
+textarea,
+select {
   font: inherit;
   font-weight: 400;
   letter-spacing: normal;
@@ -373,6 +374,10 @@ label.checkbox input:checked {
   width: 86px;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+.hours-field select {
+  cursor: pointer;
+  width: auto;
 }
 
 /* ---------- App shell ---------- */

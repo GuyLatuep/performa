@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { api } from "./api";
+import { logDebug, logInfo } from "./log";
 import { createStore } from "./store";
 
 export interface ActiveTimer {
@@ -38,7 +39,7 @@ function syncTray(timer: ActiveTimer | null): void {
       })
     : invoke("timer_stopped");
   // The tray is cosmetic — never let it break timing.
-  call.catch(() => {});
+  call.catch((err) => logDebug(`tray sync failed: ${err}`));
 }
 
 // A timer restored from a previous run must reappear in the tray too.
@@ -55,14 +56,20 @@ export function startTimer(issueKey: string, issueSummary: string): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(timer));
   store.set(timer);
   syncTray(timer);
+  logInfo(`timer started on ${issueKey}`);
   // Best-effort nudge to "In Arbeit" — must never block or fail the timer.
   // Only on a genuine start, not when a persisted timer is restored on launch.
-  api.startIssueWork(issueKey).catch((err) => {
-    console.error(`startIssueWork(${issueKey}) failed:`, err);
-  });
+  // api.startIssueWork already logs its own outcome (incl. failures); nothing
+  // more to do here than stop it from becoming an unhandled rejection.
+  api.startIssueWork(issueKey).catch(() => {});
 }
 
 export function stopTimer(): void {
+  const timer = store.get();
+  if (timer) {
+    const elapsed = Math.floor((Date.now() - timer.startedAt) / 1000);
+    logInfo(`timer stopped on ${timer.issueKey} after ${elapsed}s`);
+  }
   localStorage.removeItem(STORAGE_KEY);
   store.set(null);
   syncTray(null);

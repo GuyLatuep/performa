@@ -55,6 +55,7 @@ impl JiraClient {
         }
         let body = resp.text().await.unwrap_or_default();
         let detail = extract_error_message(&body).unwrap_or(body);
+        log::error!("Jira returned {status}: {detail}");
         Err(format!("Jira returned {status}: {detail}"))
     }
 
@@ -171,7 +172,7 @@ impl JiraClient {
                 .iter()
                 .map(|t| t.to.as_ref().map(|s| s.name.as_str()).unwrap_or("?"))
                 .collect();
-            eprintln!(
+            log::debug!(
                 "transition_to_status: no transition to '{target_status}' on {issue_key}; \
                  available targets: {available:?}"
             );
@@ -185,11 +186,11 @@ impl JiraClient {
             )
             .await;
         match &result {
-            Ok(()) => eprintln!(
+            Ok(()) => log::info!(
                 "transition_to_status: moved {issue_key} to '{target_status}' (transition {})",
                 t.id
             ),
-            Err(e) => eprintln!("transition_to_status: failed for {issue_key}: {e}"),
+            Err(e) => log::error!("transition_to_status: failed for {issue_key}: {e}"),
         }
         result
     }
@@ -265,6 +266,10 @@ impl JiraClient {
             "worklogAuthor = currentUser() AND worklogDate >= \"{start}\" AND worklogDate <= \"{end}\" ORDER BY updated DESC"
         );
         let issues = self.search_issues(&jql, 100).await?;
+        log::debug!(
+            "my_worklogs {start}..{end}: {} candidate issue(s) to fan out worklog fetches over",
+            issues.len()
+        );
 
         let started_after = started_after_millis(start);
         let per_issue: Vec<(IssueSummary, Vec<RawWorklog>)> = stream::iter(issues)
@@ -306,6 +311,10 @@ impl JiraClient {
             }
         }
         entries.sort_by(|a, b| b.date.cmp(&a.date).then(b.time.cmp(&a.time)));
+        log::debug!(
+            "my_worklogs {start}..{end}: {} own worklog(s) after filtering",
+            entries.len()
+        );
         Ok(entries)
     }
 

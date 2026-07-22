@@ -26,6 +26,9 @@ in **ActivityTimeline** automatically (ActivityTimeline reflects Jira worklogs).
 - **Missing-worklog watcher**: flags your recent Jira comments / status
   changes without logged time nearby and raises a desktop notification.
 - Auto-update via GitHub releases (hourly check).
+- Rotating **debug log** (Python-`logging`-style lines, 3 most recent
+  sessions kept) with a Settings-configurable level and a one-click
+  "open log folder" button.
 
 ## Documentation
 
@@ -38,6 +41,7 @@ in **ActivityTimeline** automatically (ActivityTimeline reflects Jira worklogs).
   keeps the API token out of the webview and avoids browser CORS restrictions.
   - `creds.rs` — keychain-backed credential storage (`keyring` crate).
   - `jira.rs` — typed async client over Jira REST API v3.
+  - `logging.rs` — rotating debug-log file (see the manual's "Debug log").
   - `lib.rs` — `#[tauri::command]` handlers the frontend invokes.
 - **React frontend (`src/`)** calls those commands through `src/api.ts`.
 

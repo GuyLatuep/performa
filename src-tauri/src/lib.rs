@@ -1,5 +1,6 @@
 mod creds;
 mod jira;
+mod logging;
 mod tray;
 
 use creds::{Credentials, CredentialsMeta};
@@ -265,6 +266,30 @@ async fn missing_worklogs(state: State<'_, AppState>) -> Result<Vec<MissingWorkl
         .await
 }
 
+/// Change the active log-file verbosity (Settings → Logging).
+#[tauri::command]
+fn set_log_level(level: String) -> Result<(), String> {
+    logging::set_level(&level)
+}
+
+/// Reveal the folder holding the rotated debug log files in Finder/Explorer.
+#[tauri::command]
+fn open_log_folder() -> Result<(), String> {
+    open::that(logging::log_dir()).map_err(|e| format!("could not open log folder: {e}"))
+}
+
+/// Append a line from the frontend (webview `console.error`-style catches)
+/// to the same debug log, so both sides land in one place.
+#[tauri::command]
+fn frontend_log(level: String, message: String) {
+    match level.to_lowercase().as_str() {
+        "error" => log::error!("{message}"),
+        "warn" | "warning" => log::warn!("{message}"),
+        "info" => log::info!("{message}"),
+        _ => log::debug!("{message}"),
+    }
+}
+
 /// Normalize a user-entered site into `https://host` with no trailing slash.
 fn normalize_site(input: &str) -> String {
     let trimmed = input.trim().trim_end_matches('/');
@@ -280,6 +305,9 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState::default())
         .setup(|app| {
+            if let Err(e) = logging::init() {
+                eprintln!("logging::init failed: {e}");
+            }
             tray::setup(app)?;
             Ok(())
         })
@@ -303,6 +331,9 @@ pub fn run() {
             missing_worklogs,
             tray::timer_started,
             tray::timer_stopped,
+            set_log_level,
+            open_log_folder,
+            frontend_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

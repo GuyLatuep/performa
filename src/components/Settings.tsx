@@ -2,11 +2,15 @@ import { useEffect, useRef, useState, FormEvent } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, CredentialsMeta } from "../api";
+import { LOG_LEVELS, LogLevel } from "../log";
 import {
   getDailyHours,
+  getLogLevel,
   getShowWeekends,
   setDailyHours,
+  setLogLevel,
   setShowWeekends,
+  useLogLevel,
   useShowWeekends,
 } from "../settings";
 import { getTheme, setTheme } from "../theme";
@@ -31,20 +35,34 @@ export default function Settings({ existing, onSaved, onCancel }: Props) {
   const [version, setVersion] = useState("");
   const [hours, setHours] = useState(String(getDailyHours()));
   const showWeekends = useShowWeekends();
+  const logLevel = useLogLevel();
+  const [logFolderError, setLogFolderError] = useState<string | null>(null);
 
-  // Theme, hours, and weekend toggle apply instantly (live preview), so keep
-  // a snapshot from when the screen opened and restore it on Cancel.
+  // Theme, hours, weekend toggle, and log level apply instantly (live
+  // preview), so keep a snapshot from when the screen opened and restore it
+  // on Cancel.
   const snapshot = useRef({
     theme: getTheme(),
     hours: getDailyHours(),
     weekends: getShowWeekends(),
+    logLevel: getLogLevel(),
   });
 
   function cancel() {
     setTheme(snapshot.current.theme);
     setDailyHours(snapshot.current.hours);
     setShowWeekends(snapshot.current.weekends);
+    setLogLevel(snapshot.current.logLevel);
     onCancel?.();
+  }
+
+  async function openLogFolder() {
+    setLogFolderError(null);
+    try {
+      await api.openLogFolder();
+    } catch (err) {
+      setLogFolderError(String(err));
+    }
   }
 
   useEffect(() => {
@@ -119,6 +137,29 @@ export default function Settings({ existing, onSaved, onCancel }: Props) {
             Full week
           </button>
         </div>
+      </div>
+
+      <div className="field-block">
+        <span className="field-label">Logging</span>
+        <div className="hours-field">
+          <select
+            value={logLevel}
+            onChange={(e) => setLogLevel(e.target.value as LogLevel)}
+          >
+            {LOG_LEVELS.map((level) => (
+              <option key={level} value={level}>
+                {level.charAt(0).toUpperCase() + level.slice(1)}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="secondary" onClick={openLogFolder}>
+            Open log folder
+          </button>
+        </div>
+        <span className="hint">
+          Debug log level · files are written to a temp folder, newest 3 kept
+        </span>
+        {logFolderError && <p className="error">{logFolderError}</p>}
       </div>
 
       <form onSubmit={submit}>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, CredentialsMeta, IssueSummary } from "./api";
+import { logInfo } from "./log";
 import Settings from "./components/Settings";
 import Start from "./components/Start";
 import LogWork from "./components/LogWork";
@@ -62,6 +63,13 @@ export default function App() {
     return stopMissingPolling;
   }, [signedIn]);
 
+  // A single choke point for "which view is the user in" — covers every way
+  // a tab can change (nav click, start-tab shortcuts) without instrumenting
+  // each one individually.
+  useEffect(() => {
+    if (signedIn) logInfo(`view: ${tab}`);
+  }, [signedIn, tab]);
+
   if (!loaded) {
     return <div className="loading">Loading…</div>;
   }
@@ -99,6 +107,7 @@ export default function App() {
 
   async function doSignOut() {
     setConfirmSignOut(false);
+    logInfo("user signed out");
     await api.clearCredentials();
     await refreshStatus();
   }
@@ -106,7 +115,7 @@ export default function App() {
   function onLogged() {
     setRefreshKey((k) => k + 1);
     // A fresh worklog may resolve a reminder — recheck right away.
-    refreshMissing();
+    refreshMissing("post-log");
   }
 
   return (

@@ -19,6 +19,7 @@ performa ist eine kleine Desktop-App (macOS + Windows) zum Erfassen deiner Arbei
 - [Einstellungen](#einstellungen)
 - [Schutz beim Beenden](#schutz-beim-beenden)
 - [Updates](#updates)
+- [Debug-Log](#debug-log)
 - [Daten & Datenschutz](#daten--datenschutz)
 - [Problemlösung & FAQ](#problemlösung--faq)
 
@@ -227,9 +228,10 @@ Der **Settings**-Link in der Kopfzeile öffnet denselben Bildschirm wie bei der 
 - **Appearance** — heller / dunkler Modus.
 - **Daily work hours** — 0,5–24 h; daraus ergeben sich die Tagesziel-Linie und, × 5, der Wochenziel-Ring in den Diagrammen.
 - **Timesheet days** — **Mon–Fri** (Wochenenden ausgeblendet, außer sie enthalten erfasste Zeit) oder **Full week**.
+- **Logging** — die Ausführlichkeit des Debug-Logs (**Error**, **Warn**, **Info** oder **Debug**; siehe [Debug-Log](#debug-log)) sowie ein **Open log folder**-Button.
 - **Zugangsdaten** — Site, E-Mail oder Token ändern. Bleibt das Token-Feld leer, wird das gespeicherte Token beibehalten — du musst es also nicht neu eingeben, um z. B. einen Tippfehler in der E-Mail zu korrigieren. Beim Speichern wird erneut gegen Jira geprüft.
 
-Appearance, Stunden und die Wochenend-Einstellung wirken **sofort** als Live-Vorschau — **Cancel** stellt die Werte vom Öffnen des Bildschirms wieder her.
+Appearance, Stunden, die Wochenend-Einstellung und der Log-Level wirken **sofort** als Live-Vorschau — **Cancel** stellt die Werte vom Öffnen des Bildschirms wieder her.
 
 **Sign out** (in der Kopfzeile, mit Bestätigung) löscht das Token aus dem Schlüsselbund des Betriebssystems und kehrt zum Verbindungsbildschirm zurück.
 
@@ -250,6 +252,27 @@ performa prüft **stündlich** auf ein neueres Release auf GitHub. Gibt es eins,
 - **Release notes** — öffnet die Release-Seite im Browser
 - **✕** — blendet das Banner **für diese Version** aus; das nächste Release bringt es zurück
 
+## Debug-Log
+
+performa führt ein rollierendes Debug-Log auf der Festplatte — nützlich, wenn sich etwas nicht wie erwartet verhält (z. B. ein fehlgeschlagener Jira-Aufruf oder der [Status-Anstoß des Timers](#der-timer), der keinen passenden Übergang findet).
+
+- **Ort** — ein eigener Ordner `performa-logs` im temporären Verzeichnis deines Systems. Öffne ihn direkt über den **Open log folder**-Button in den [Einstellungen](#einstellungen).
+- **Rotation** — eine Datei pro App-Start, benannt `performa_YYYYMMDD_HHMMSS.log`; es werden nur die **3 neuesten Dateien** behalten, ältere werden beim nächsten Start automatisch gelöscht.
+- **Level** — in den Einstellungen wählbar, von am wenigsten bis am ausführlichsten: **Error** (Standard) → **Warn** → **Info** → **Debug**. Eine höhere Stufe wirkt sofort, ohne Neustart, und bestimmt auch, was das Frontend zusätzlich in dieselbe Datei schreibt.
+  - **Error** — nur Fehlschläge (ein abgelehnter Jira-Aufruf, ein gescheiterter Statusübergang, …).
+  - **Info** — ergänzt eine Spur dessen, was du getan hast und was performa daraufhin gemacht hat: in welchen Tab du gewechselt hast, jeden Backend-Aufruf von performa (was angefragt wurde, z. B. `search_issues(query="bug")`, wie viele Ergebnisse zurückkamen und wie lange es dauerte), Abmelden, Timer starten/stoppen sowie Missing-Worklog-Prüfungen (und warum sie liefen — ein Poll, **Check now**, oder direkt nach dem Erfassen von Arbeit).
+  - **Debug** — ergänzt interne Details unterhalb eines einzelnen Backend-Aufrufs, z. B. wie viele Kandidaten-Vorgänge der Missing-Worklog-Scan geprüft hat, bevor er welche markiert hat, oder ein kosmetischer Aussetzer beim Tray-Abgleich.
+- **Format** — eine Zeile pro Ereignis, im Format des Python-Standardmoduls `logging`:
+
+  ```
+  2026-07-22 15:10:26,618 - performa - INFO - performa 0.4.0 started
+  2026-07-22 15:10:27,203 - performa - INFO - view: timesheet
+  2026-07-22 15:10:28,410 - performa - INFO - list_worklogs(start=2026-07-20, end=2026-07-26) → 14 entr(y/ies) (312ms)
+  2026-07-22 15:10:41,006 - performa - ERROR - Jira returned 401: Unauthorized
+  ```
+
+Das Log ist rein lokal — siehe [Daten & Datenschutz](#daten--datenschutz) — und wird von performa selbst nirgendwohin hochgeladen. Dein API-Token wird nie hineingeschrieben; Logzeilen können aber Vorgangsschlüssel und Jira-Fehlertexte enthalten — behandle den Ordner also wie jede andere lokale Diagnosedatei, falls du ihn teilst (z. B. in einem Bugreport).
+
 ## Daten & Datenschutz
 
 | Daten | Wo sie liegen |
@@ -257,8 +280,9 @@ performa prüft **stündlich** auf ein neueres Release auf GitHub. Gibt es eins,
 | API-Token | Schlüsselbund des Betriebssystems (macOS-Schlüsselbund / Windows-Anmeldeinformationsverwaltung) |
 | Site & E-Mail | Zusammen mit dem Token im Schlüsselbund-Eintrag |
 | Worklogs | In Jira — performa speichert keine Kopie |
-| Pins, Vorlagen, Einstellungen (Theme, Stunden, Wochenenden) | Lokal im Speicher der App |
+| Pins, Vorlagen, Einstellungen (Theme, Stunden, Wochenenden, Log-Level) | Lokal im Speicher der App |
 | Timer-Zustand, Gesehen-/Benachrichtigt-Markierungen, ausgeblendete Update-Version | Lokal im Speicher der App |
+| Debug-Log (siehe [Debug-Log](#debug-log)) | Ordner `performa-logs` im temporären Verzeichnis deines Systems |
 
 performa kommuniziert **ausschließlich** mit deiner Jira-Cloud-Site (alle Worklog-Operationen) und GitHub (Update-Prüfung). Es gibt keine Telemetrie.
 

@@ -37,7 +37,7 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
 
   async function refresh() {
     setBusy(true);
-    await refreshMissing();
+    await refreshMissing("manual");
     setBusy(false);
   }
 
@@ -49,7 +49,7 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
         onSaved={async () => {
           setLogging(null);
           onLogged();
-          await refreshMissing();
+          await refreshMissing("post-log");
         }}
       />
     );

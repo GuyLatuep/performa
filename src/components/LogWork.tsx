@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, IssueSummary, WorklogEntry } from "../api";
+import { logInfo } from "../log";
 import { formatDuration, today } from "../time";
 import { usePinnedIssues } from "../pins";
 import IssueRow from "./IssueRow";
@@ -46,6 +47,7 @@ export default function LogWork({ site, onLogged, initialIssue }: Props) {
     // Billability shouldn't leak from the previous entry.
     patch({ nonBillable: false });
     setSelected(issue);
+    logInfo(`opened log-work form for ${issue.key}`);
   }
 
   function onQueryChange(value: string) {

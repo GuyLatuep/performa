@@ -61,6 +61,11 @@ impl JiraClient {
                 candidates.push(issue);
             }
         }
+        log::debug!(
+            "missing_worklogs: {} candidate issue(s) to scan ({} status-changed)",
+            candidates.len(),
+            status_keys.len()
+        );
 
         // Candidates are independent — check them concurrently so the whole
         // scan finishes in seconds even with many recently touched issues.
@@ -86,6 +91,10 @@ impl JiraClient {
             .collect();
 
         found.sort_by_key(|(ts, _)| std::cmp::Reverse(*ts));
+        log::debug!(
+            "missing_worklogs: {} issue(s) flagged as unlogged",
+            found.len()
+        );
         Ok(found.into_iter().map(|(_, m)| m).collect())
     }
 
