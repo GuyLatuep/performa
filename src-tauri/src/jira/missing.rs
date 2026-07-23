@@ -30,15 +30,28 @@ impl JiraClient {
         grace_secs: i64,
         escalation_project: &str,
         escalation_link: &str,
+        bookable_done_statuses: &[&str],
     ) -> Result<Vec<MissingWorklog>, String> {
         let now = Local::now().timestamp();
         let cutoff = now - lookback_days as i64 * 86_400;
         let flag_before = now - grace_secs;
 
+        // Workflows differ per project, so instead of naming every project's
+        // "fully closed" status, only status-category "Done" issues whose
+        // status is explicitly allow-listed (e.g. "Gelöst"/Resolved) count as
+        // still bookable — every other Done status is excluded.
+        let bookable_names = bookable_done_statuses
+            .iter()
+            .map(|s| format!("\"{s}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let not_closed = format!("(statusCategory != Done OR status in ({bookable_names}))");
+
         let status_issues = self
             .search_issues(
                 &format!(
-                    "status CHANGED BY currentUser() AFTER \"-{lookback_days}d\" ORDER BY updated DESC"
+                    "status CHANGED BY currentUser() AFTER \"-{lookback_days}d\" \
+                     AND {not_closed} ORDER BY updated DESC"
                 ),
                 25,
             )
@@ -48,7 +61,7 @@ impl JiraClient {
                 &format!(
                     "updated >= \"-{lookback_days}d\" AND (issue in issueHistory() \
                      OR watcher = currentUser() OR assignee = currentUser() \
-                     OR reporter = currentUser()) ORDER BY updated DESC"
+                     OR reporter = currentUser()) AND {not_closed} ORDER BY updated DESC"
                 ),
                 50,
             )
@@ -62,9 +75,10 @@ impl JiraClient {
             }
         }
         log::debug!(
-            "missing_worklogs: {} candidate issue(s) to scan ({} status-changed)",
+            "missing_worklogs: {} candidate issue(s) to scan ({} status-changed): {:?}",
             candidates.len(),
-            status_keys.len()
+            status_keys.len(),
+            candidates.iter().map(|i| i.key.as_str()).collect::<Vec<_>>()
         );
 
         // Candidates are independent — check them concurrently so the whole
@@ -92,8 +106,9 @@ impl JiraClient {
 
         found.sort_by_key(|(ts, _)| std::cmp::Reverse(*ts));
         log::debug!(
-            "missing_worklogs: {} issue(s) flagged as unlogged",
-            found.len()
+            "missing_worklogs: {} issue(s) flagged as unlogged: {:?}",
+            found.len(),
+            found.iter().map(|(_, m)| m.issue_key.as_str()).collect::<Vec<_>>()
         );
         Ok(found.into_iter().map(|(_, m)| m).collect())
     }

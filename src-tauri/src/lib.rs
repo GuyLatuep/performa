@@ -17,6 +17,11 @@ const MISSING_GRACE_SECS: i64 = 10 * 60;
 // with this link description (fallback: the issue itself).
 const MISSING_ESCALATION_PROJECT: &str = "DEV";
 const MISSING_ESCALATION_LINK: &str = "is an escalation for";
+// Different projects use different workflows, so rather than list every
+// project's "fully closed" status name, we allow-list the terminal statuses
+// that still accept worklogs; every other statusCategory=Done status (e.g.
+// "Geschlossen", "Closed", ...) is treated as no longer bookable.
+const MISSING_BOOKABLE_DONE_STATUSES: &[&str] = &["Gelöst", "Resolved"];
 
 // Status an issue is moved to when a timer starts on it (best-effort — see
 // `start_issue_work`).
@@ -262,6 +267,7 @@ async fn missing_worklogs(state: State<'_, AppState>) -> Result<Vec<MissingWorkl
             MISSING_GRACE_SECS,
             MISSING_ESCALATION_PROJECT,
             MISSING_ESCALATION_LINK,
+            MISSING_BOOKABLE_DONE_STATUSES,
         )
         .await
 }
