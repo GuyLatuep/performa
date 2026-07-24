@@ -365,6 +365,58 @@ label.checkbox input:checked {
   color: var(--accent-ink);
 }
 
+.accent-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.accent-swatch {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 2px solid var(--ink);
+  cursor: pointer;
+}
+.accent-swatch.active {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.accent-custom::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.accent-custom::-webkit-color-swatch {
+  border: none;
+}
+.accent-custom::-moz-color-swatch {
+  border: none;
+}
+
+/* ---------- Settings tabs ---------- */
+.settings-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 24px;
+}
+.settings-tabs button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 9px 4px;
+  margin-right: 20px;
+  font-size: 12px;
+}
+.settings-tabs button:hover {
+  background: none;
+  color: var(--ink);
+}
+.settings-tabs button.active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
 .hours-field {
   display: flex;
   align-items: center;
