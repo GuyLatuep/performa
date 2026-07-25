@@ -81,5 +81,39 @@ jobs:
       - name: Lint
         run: cargo clippy --all-targets -- -D warnings
 
+      # `--no-fail-fast` so one failing binary doesn't hide the rest, and the
+      # output is kept for the report below.
       - name: Test
-        run: cargo test
+        run: |
+          set -o pipefail
+          cargo test --no-fail-fast 2>&1 | tee /tmp/cargo-test.log
+
+      # Vitest writes its own run summary; cargo has no equivalent, so the
+      # test lines are turned into one here. Runs even when the tests failed —
+      # that is when the list is worth the most.
+      - name: Test report
+        if: always()
+        run: |
+          count() { grep -c "$1" /tmp/cargo-test.log || true; }
+          passed=$(count ' \.\.\. ok$')
+          failed=$(count ' \.\.\. FAILED$')
+          ignored=$(count ' \.\.\. ignored')
+          {
+            echo "## Cargo Test Report"
+            echo
+            echo "### Summary"
+            if [ "$failed" -eq 0 ]; then
+              echo "- Tests: ✅ $passed passed · $((passed + failed + ignored)) total"
+            else
+              echo "- Tests: ❌ $failed failed · $passed passed · $((passed + failed + ignored)) total"
+            fi
+            if [ "$ignored" -gt 0 ]; then
+              echo "- Ignored: ⚪ $ignored"
+            fi
+            echo
+            sed -n \
+              -e 's/^test \(.*\) \.\.\. ok$/- ✅ `\1`/p' \
+              -e 's/^test \(.*\) \.\.\. FAILED$/- ❌ `\1`/p' \
+              -e 's/^test \(.*\) \.\.\. ignored.*$/- ⚪ `\1`/p' \
+              /tmp/cargo-test.log
+          } >> "$GITHUB_STEP_SUMMARY"
