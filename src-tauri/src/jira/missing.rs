@@ -1,13 +1,53 @@
 //! The missing-worklog reminder heuristic: find issues with recent own
 //! activity (comments / status changes) that no nearby worklog covers.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use chrono::Local;
 use futures_util::{stream, StreamExt, TryStreamExt};
 
 use super::types::*;
 use super::{adf_to_text, format_rfc3339_local, parse_jira_ts, JiraClient};
+
+/// One thing the user did on an issue: a comment or a status change.
+/// Deliberately *not* filtered by time — the scan window moves with the clock,
+/// so a cached entry has to stay usable as it moves.
+#[derive(Clone)]
+pub(super) struct Activity {
+    /// "comment" or "status".
+    kind: &'static str,
+    /// Epoch seconds.
+    ts: i64,
+    /// Comment excerpt, or "Old status → New status".
+    detail: String,
+}
+
+/// What was found on one issue, plus the `updated` timestamp it was found at.
+pub(super) struct CachedActivity {
+    updated: Option<String>,
+    /// Whether the changelog was fetched too — a scan that needs status
+    /// changes cannot reuse an entry built without them.
+    includes_status: bool,
+    activities: Vec<Activity>,
+}
+
+impl CachedActivity {
+    /// Reusable while the issue has not been touched since the entry was
+    /// stored and it covers what this scan needs. A missing `updated` on
+    /// either side means we cannot prove the issue is unchanged — refetch.
+    fn is_fresh_for(&self, updated: Option<&str>, needs_status: bool) -> bool {
+        let unchanged = matches!(
+            (self.updated.as_deref(), updated),
+            (Some(cached), Some(current)) if cached == current
+        );
+        unchanged && (!needs_status || self.includes_status)
+    }
+}
+
+/// Per-issue activity cache, keyed by issue key. Shared across `JiraClient`
+/// clones, which is why it is behind an `Arc`.
+pub(super) type ActivityCache = Arc<tokio::sync::Mutex<HashMap<String, CachedActivity>>>;
 
 impl JiraClient {
     /// Issues where the user recently commented or changed the status but has
@@ -46,7 +86,7 @@ impl JiraClient {
         let not_closed = format!("(statusCategory != Done OR status in ({bookable_names}))");
 
         let status_issues = self
-            .search_issues(
+            .search_issues_dated(
                 &format!(
                     "status CHANGED BY currentUser() AFTER \"-{lookback_days}d\" \
                      AND {not_closed} ORDER BY updated DESC"
@@ -55,7 +95,7 @@ impl JiraClient {
             )
             .await?;
         let watched = self
-            .search_issues(
+            .search_issues_dated(
                 &format!(
                     "updated >= \"-{lookback_days}d\" AND (issue in issueHistory() \
                      OR watcher = currentUser() OR assignee = currentUser() \
@@ -79,6 +119,7 @@ impl JiraClient {
             status_keys.len(),
             candidate_keys
         );
+        let scanned: HashSet<String> = candidates.iter().map(|i| i.key.clone()).collect();
 
         // Candidates are independent — check them concurrently so the whole
         // scan finishes in seconds even with many recently touched issues.
@@ -101,6 +142,13 @@ impl JiraClient {
             .flatten()
             .collect();
 
+        // Issues that dropped out of the candidate set will not be asked about
+        // again, so their entries would linger for the rest of the app run.
+        self.activity_cache
+            .lock()
+            .await
+            .retain(|key, _| scanned.contains(key));
+
         found.sort_by_key(|(ts, _)| std::cmp::Reverse(*ts));
         let flagged_keys: Vec<&str> = found.iter().map(|(_, m)| m.issue_key.as_str()).collect();
         log::debug!(
@@ -122,43 +170,17 @@ impl JiraClient {
         flag_before: i64,
         config: &MissingConfig,
     ) -> Result<Option<(i64, MissingWorklog)>, String> {
-        let mut activities: Vec<(&str, i64, String)> = Vec::new();
-        for c in self.recent_comments(&issue.key).await? {
-            if c.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
-                continue;
-            }
-            if let Some(ts) = parse_jira_ts(&c.created) {
-                if ts >= cutoff && ts <= flag_before {
-                    let detail = excerpt(&c.body.as_ref().map(adf_to_text).unwrap_or_default());
-                    activities.push(("comment", ts, detail));
-                }
-            }
-        }
-        if has_status_change {
-            for e in self.recent_changelog(&issue.key).await? {
-                if e.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
-                    continue;
-                }
-                let Some(status) = e
-                    .items
-                    .iter()
-                    .find(|i| i.field.eq_ignore_ascii_case("status"))
-                else {
-                    continue;
-                };
-                if let Some(ts) = parse_jira_ts(&e.created) {
-                    if ts >= cutoff && ts <= flag_before {
-                        let detail = format!(
-                            "{} → {}",
-                            status.from.as_deref().unwrap_or("?"),
-                            status.to.as_deref().unwrap_or("?"),
-                        );
-                        activities.push(("status", ts, detail));
-                    }
-                }
-            }
-        }
-        if activities.is_empty() {
+        let activities = self
+            .own_activities(&issue, has_status_change, account_id)
+            .await?;
+        // Filtered here, not where the activities were fetched: `cutoff` and
+        // `flag_before` move with the clock, so the same cached activities
+        // have to be re-judged on every scan.
+        let in_window: Vec<&Activity> = activities
+            .iter()
+            .filter(|a| a.ts >= cutoff && a.ts <= flag_before)
+            .collect();
+        if in_window.is_empty() {
             return Ok(None);
         }
 
@@ -186,26 +208,105 @@ impl JiraClient {
             );
         }
 
-        let newest_unlogged = activities
+        let newest_unlogged = in_window
             .into_iter()
-            .filter(|(_, ts, _)| !covered.iter().any(|(a, b)| ts >= a && ts <= b))
-            .max_by_key(|(_, ts, _)| *ts);
-        Ok(newest_unlogged.map(|(kind, ts, detail)| {
-            let (log_key, log_summary) =
-                escalated.unwrap_or_else(|| (issue.key.clone(), issue.summary.clone()));
-            (
-                ts,
-                MissingWorklog {
-                    issue_key: issue.key,
-                    issue_summary: issue.summary,
-                    kind: kind.to_string(),
-                    detail,
-                    activity_at: format_rfc3339_local(ts),
-                    log_key,
-                    log_summary,
-                },
-            )
-        }))
+            .filter(|a| {
+                !covered
+                    .iter()
+                    .any(|(from, to)| a.ts >= *from && a.ts <= *to)
+            })
+            .max_by_key(|a| a.ts);
+        Ok(newest_unlogged
+            .cloned()
+            .map(|Activity { kind, ts, detail }| {
+                let (log_key, log_summary) =
+                    escalated.unwrap_or_else(|| (issue.key.clone(), issue.summary.clone()));
+                (
+                    ts,
+                    MissingWorklog {
+                        issue_key: issue.key,
+                        issue_summary: issue.summary,
+                        kind: kind.to_string(),
+                        detail,
+                        activity_at: format_rfc3339_local(ts),
+                        log_key,
+                        log_summary,
+                    },
+                )
+            }))
+    }
+
+    /// The user's own comments and status changes on an issue, unfiltered by
+    /// time (see [`Activity`]).
+    ///
+    /// Served from the cache while the issue's `updated` timestamp is
+    /// unchanged — neither a comment nor a status change can happen without
+    /// moving it. This is what keeps a scan cheap: without it every candidate
+    /// costs a comment fetch on every run, whether or not anything happened.
+    ///
+    /// Note that worklogs are deliberately *not* cached: they decide whether
+    /// an activity counts as logged, and they are re-read on every scan so a
+    /// freshly booked worklog clears its reminder immediately.
+    async fn own_activities(
+        &self,
+        issue: &IssueSummary,
+        has_status_change: bool,
+        account_id: &str,
+    ) -> Result<Vec<Activity>, String> {
+        if let Some(hit) = self.activity_cache.lock().await.get(&issue.key) {
+            if hit.is_fresh_for(issue.updated.as_deref(), has_status_change) {
+                return Ok(hit.activities.clone());
+            }
+        }
+
+        let mut activities = Vec::new();
+        for c in self.recent_comments(&issue.key).await? {
+            if c.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
+                continue;
+            }
+            if let Some(ts) = parse_jira_ts(&c.created) {
+                activities.push(Activity {
+                    kind: "comment",
+                    ts,
+                    detail: excerpt(&c.body.as_ref().map(adf_to_text).unwrap_or_default()),
+                });
+            }
+        }
+        if has_status_change {
+            for e in self.recent_changelog(&issue.key).await? {
+                if e.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
+                    continue;
+                }
+                let Some(status) = e
+                    .items
+                    .iter()
+                    .find(|i| i.field.eq_ignore_ascii_case("status"))
+                else {
+                    continue;
+                };
+                if let Some(ts) = parse_jira_ts(&e.created) {
+                    activities.push(Activity {
+                        kind: "status",
+                        ts,
+                        detail: format!(
+                            "{} → {}",
+                            status.from.as_deref().unwrap_or("?"),
+                            status.to.as_deref().unwrap_or("?"),
+                        ),
+                    });
+                }
+            }
+        }
+
+        self.activity_cache.lock().await.insert(
+            issue.key.clone(),
+            CachedActivity {
+                updated: issue.updated.clone(),
+                includes_status: has_status_change,
+                activities: activities.clone(),
+            },
+        );
+        Ok(activities)
     }
 
     /// Periods covered by the user's worklogs on one issue, each stretched by
@@ -320,4 +421,54 @@ fn excerpt(text: &str) -> String {
     }
     let cut: String = collapsed.chars().take(MAX_CHARS).collect();
     format!("{}…", cut.trim_end())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cached(updated: Option<&str>, includes_status: bool) -> CachedActivity {
+        CachedActivity {
+            updated: updated.map(str::to_string),
+            includes_status,
+            activities: vec![Activity {
+                kind: "comment",
+                ts: 1_784_190_600,
+                detail: "worked on it".to_string(),
+            }],
+        }
+    }
+
+    const T1: &str = "2026-07-16T10:30:00.000+0200";
+    const T2: &str = "2026-07-16T11:00:00.000+0200";
+
+    #[test]
+    fn cache_hit_while_the_issue_is_untouched() {
+        assert!(cached(Some(T1), false).is_fresh_for(Some(T1), false));
+        assert!(cached(Some(T1), true).is_fresh_for(Some(T1), true));
+        // Status changes already fetched are simply not needed this round.
+        assert!(cached(Some(T1), true).is_fresh_for(Some(T1), false));
+    }
+
+    #[test]
+    fn cache_miss_once_the_issue_moved() {
+        // A new comment or status change always bumps `updated`, which is the
+        // whole basis for reusing an entry.
+        assert!(!cached(Some(T1), true).is_fresh_for(Some(T2), true));
+    }
+
+    #[test]
+    fn cache_miss_when_the_entry_lacks_the_changelog() {
+        // Stored while the issue had no status change; this scan needs one.
+        assert!(!cached(Some(T1), false).is_fresh_for(Some(T1), true));
+    }
+
+    #[test]
+    fn cache_miss_when_freshness_cannot_be_proven() {
+        // No timestamp on either side (a search that didn't request the field,
+        // or Jira omitting it) must never be mistaken for "unchanged".
+        assert!(!cached(None, true).is_fresh_for(Some(T1), true));
+        assert!(!cached(Some(T1), true).is_fresh_for(None, true));
+        assert!(!cached(None, true).is_fresh_for(None, true));
+    }
 }

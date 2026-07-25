@@ -31,6 +31,10 @@ pub struct JiraClient {
     site: String,
     auth: String,
     http: reqwest::Client,
+    /// Scan cache for the missing-worklog check — the one piece of state this
+    /// client holds. Shared across clones (the session hands out copies) so
+    /// the cache survives for the whole app run. See [`missing`].
+    activity_cache: missing::ActivityCache,
 }
 
 impl JiraClient {
@@ -44,6 +48,7 @@ impl JiraClient {
                 .timeout(HTTP_TIMEOUT)
                 .build()
                 .unwrap_or_default(),
+            activity_cache: missing::ActivityCache::default(),
         }
     }
 
@@ -115,6 +120,17 @@ impl JiraClient {
         self.search_issues_fields(jql, max_results, "summary").await
     }
 
+    /// Like [`Self::search_issues`], but also carries each issue's `updated`
+    /// timestamp — what the missing-worklog scan keys its cache on.
+    async fn search_issues_dated(
+        &self,
+        jql: &str,
+        max_results: u32,
+    ) -> Result<Vec<IssueSummary>, String> {
+        self.search_issues_fields(jql, max_results, "summary,updated")
+            .await
+    }
+
     /// Issues assigned to the current user whose due date falls in a window
     /// around today — the data behind the dashboard's "due soon" list.
     pub async fn due_issues(&self) -> Result<Vec<IssueSummary>, String> {
@@ -147,6 +163,7 @@ impl JiraClient {
                 key: i.key,
                 summary: i.fields.summary,
                 due_date: i.fields.duedate,
+                updated: i.fields.updated,
             })
             .collect())
     }

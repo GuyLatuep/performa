@@ -81,7 +81,7 @@ export function getMissing(): MissingWorklog[] {
 /** `source` only labels the debug log — "why did this check run", separate
  *  from the generic request/result line `api.missingWorklogs()` already logs. */
 export async function refreshMissing(
-  source: "poll" | "manual" | "post-log" = "poll",
+  source: "poll" | "manual" | "post-log" | "close" = "poll",
 ): Promise<void> {
   logInfo(`missing-worklog check triggered (${source})`);
   let items = store.get().items;

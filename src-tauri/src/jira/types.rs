@@ -57,6 +57,11 @@ pub struct IssueSummary {
     /// Due date (yyyy-MM-dd); only populated by searches that request it.
     #[serde(rename = "dueDate", skip_serializing_if = "Option::is_none")]
     pub due_date: Option<String>,
+    /// When the issue was last touched; only populated by searches that
+    /// request it (the missing-worklog scan, to skip unchanged issues).
+    /// Backend-only — never sent to the frontend.
+    #[serde(skip)]
+    pub updated: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -119,6 +124,8 @@ pub struct SearchFields {
     pub summary: String,
     #[serde(default)]
     pub duedate: Option<String>,
+    #[serde(default)]
+    pub updated: Option<String>,
 }
 
 #[derive(Deserialize)]
