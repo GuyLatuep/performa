@@ -94,8 +94,10 @@ export const api = {
     );
   },
   credentialsStatus(): Promise<CredentialsMeta | null> {
-    return logged("credentials_status", () => invoke("credentials_status"), (r) =>
-      r ? `configured (${r.site})` : "not configured",
+    return logged(
+      "credentials_status",
+      () => invoke("credentials_status"),
+      (r) => (r ? `configured (${r.site})` : "not configured"),
     );
   },
   clearCredentials(): Promise<void> {

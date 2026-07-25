@@ -72,7 +72,11 @@ export default function Timesheet({ site, refreshKey }: Props) {
   }
 
   const label =
-    offset === 0 ? "This week" : offset === -1 ? "Last week" : `${start} – ${end}`;
+    offset === 0
+      ? "This week"
+      : offset === -1
+        ? "Last week"
+        : `${start} – ${end}`;
 
   return (
     <div className="panel">
@@ -131,7 +135,9 @@ export default function Timesheet({ site, refreshKey }: Props) {
                   {!e.billable && <span className="nb-tag">non-billable</span>}
                 </div>
                 {e.time && <span className="wl-time">{e.time}</span>}
-                <span className="duration">{formatDuration(e.timeSpentSeconds)}</span>
+                <span className="duration">
+                  {formatDuration(e.timeSpentSeconds)}
+                </span>
                 <div className="worklog-actions">
                   {confirmDelete === e.id ? (
                     <>
@@ -159,7 +165,11 @@ export default function Timesheet({ site, refreshKey }: Props) {
                       >
                         ↻
                       </button>
-                      <button className="icon" title="Edit" onClick={() => setEditing(e)}>
+                      <button
+                        className="icon"
+                        title="Edit"
+                        onClick={() => setEditing(e)}
+                      >
                         ✎
                       </button>
                       <button
@@ -253,9 +263,7 @@ function EditModal({
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>
-          Edit {entry.issueKey}
-        </h3>
+        <h3>Edit {entry.issueKey}</h3>
         <WorklogFields draft={draft} patch={patch} seconds={seconds} />
         {error && <p className="error">{error}</p>}
         <div className="row">

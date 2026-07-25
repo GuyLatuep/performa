@@ -17,7 +17,11 @@ function read(): ActiveTimer | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const t = JSON.parse(raw);
-    if (t && typeof t.issueKey === "string" && typeof t.startedAt === "number") {
+    if (
+      t &&
+      typeof t.issueKey === "string" &&
+      typeof t.startedAt === "number"
+    ) {
       return t;
     }
   } catch {
@@ -87,6 +91,12 @@ export function useElapsedSeconds(timer: ActiveTimer | null): number {
     setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
+    // Keyed on the start time, not the timer object: a new object identity for
+    // the same running timer would restart the interval on every render, and
+    // the start time is what the elapsed count is actually derived from.
+    // Stopping (timer → null) changes it to undefined, so the effect still
+    // re-runs and clears the interval.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timer?.startedAt]);
   if (!timer) return 0;
   return Math.max(0, Math.floor((now - timer.startedAt) / 1000));

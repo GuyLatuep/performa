@@ -17,7 +17,9 @@ const TEMPLATES_KEY = "performa-worklog-templates";
 
 function readTemplates(): WorklogTemplate[] {
   try {
-    const raw: unknown = JSON.parse(localStorage.getItem(TEMPLATES_KEY) ?? "[]");
+    const raw: unknown = JSON.parse(
+      localStorage.getItem(TEMPLATES_KEY) ?? "[]",
+    );
     if (!Array.isArray(raw)) return [];
     return raw.filter(
       (t): t is WorklogTemplate =>

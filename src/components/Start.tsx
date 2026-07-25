@@ -40,7 +40,11 @@ export default function Start({
         <TemplatesSection templates={templates} onLogged={onLogged} />
       )}
       {missing.length > 0 && (
-        <MissingSection site={site} items={missing} onOpenMissing={onOpenMissing} />
+        <MissingSection
+          site={site}
+          items={missing}
+          onOpenMissing={onOpenMissing}
+        />
       )}
     </div>
   );

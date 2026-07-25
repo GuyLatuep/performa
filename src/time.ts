@@ -96,7 +96,10 @@ export function formatDayLabel(
 
 /** Compact relative age of an RFC3339 timestamp: "5m ago", "3h ago", "2d ago". */
 export function timeAgo(iso: string): string {
-  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  const mins = Math.max(
+    0,
+    Math.round((Date.now() - new Date(iso).getTime()) / 60000),
+  );
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;

@@ -83,14 +83,18 @@ export default function CloseGuard() {
           <h3>Timer still running</h3>
           <p className="modal-sub">
             <span className="key">{timer.issueKey}</span> has been timing for{" "}
-            <span className="clock-inline">{formatClock(elapsed)}</span>. Quitting
-            now discards the tracked time — stop the timer to log it first.
+            <span className="clock-inline">{formatClock(elapsed)}</span>.
+            Quitting now discards the tracked time — stop the timer to log it
+            first.
           </p>
           <div className="row">
             <button className="secondary" onClick={() => setPrompting(null)}>
               Keep working
             </button>
-            <button className="danger" onClick={() => getCurrentWindow().destroy()}>
+            <button
+              className="danger"
+              onClick={() => getCurrentWindow().destroy()}
+            >
               Quit anyway
             </button>
           </div>
@@ -115,7 +119,10 @@ export default function CloseGuard() {
             <button className="secondary" onClick={() => setPrompting(null)}>
               Go back
             </button>
-            <button className="danger" onClick={() => getCurrentWindow().destroy()}>
+            <button
+              className="danger"
+              onClick={() => getCurrentWindow().destroy()}
+            >
               Quit anyway
             </button>
           </div>

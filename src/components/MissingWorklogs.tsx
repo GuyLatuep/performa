@@ -75,9 +75,7 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
       </div>
 
       {error && <p className="error">{error}</p>}
-      {!error && !lastChecked && (
-        <p className="muted empty">Checking…</p>
-      )}
+      {!error && !lastChecked && <p className="muted empty">Checking…</p>}
       {!error && lastChecked && items.length === 0 && (
         <p className="muted empty">Nothing unlogged. All caught up.</p>
       )}

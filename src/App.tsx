@@ -221,8 +221,12 @@ export default function App() {
             initialIssue={logIssue}
           />
         )}
-        {tab === "timesheet" && <Timesheet site={creds.site} refreshKey={refreshKey} />}
-        {tab === "missing" && <MissingWorklogs site={creds.site} onLogged={onLogged} />}
+        {tab === "timesheet" && (
+          <Timesheet site={creds.site} refreshKey={refreshKey} />
+        )}
+        {tab === "missing" && (
+          <MissingWorklogs site={creds.site} onLogged={onLogged} />
+        )}
       </main>
     </div>
   );

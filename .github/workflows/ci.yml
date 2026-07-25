@@ -43,6 +43,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Format
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
       # `pnpm build` is `tsc && vite build` — typecheck and bundle in one.
       - name: Typecheck and build
         run: pnpm build

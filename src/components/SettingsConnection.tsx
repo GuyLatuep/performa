@@ -43,7 +43,9 @@ export default function SettingsConnection({
       <p className="muted">
         Connect your Jira Cloud site to start logging hours. Your API token is
         kept in the{" "}
-        {navigator.platform.startsWith("Mac") ? "macOS Keychain" : "OS keychain"}{" "}
+        {navigator.platform.startsWith("Mac")
+          ? "macOS Keychain"
+          : "OS keychain"}{" "}
         and never leaves this machine.
       </p>
 
@@ -75,7 +77,9 @@ export default function SettingsConnection({
           API token
           <input
             type="password"
-            placeholder={existing ? "•••••••• (unchanged — enter to replace)" : ""}
+            placeholder={
+              existing ? "•••••••• (unchanged — enter to replace)" : ""
+            }
             value={token}
             onChange={(e) => setToken(e.target.value)}
             required={!existing}
@@ -88,7 +92,11 @@ export default function SettingsConnection({
           )}
         </label>
 
-        <button type="button" className="link" onClick={() => openUrl(TOKEN_URL)}>
+        <button
+          type="button"
+          className="link"
+          onClick={() => openUrl(TOKEN_URL)}
+        >
           Create an API token ↗
         </button>
 

@@ -140,7 +140,10 @@ function StopModal({
           {confirmDiscard ? (
             <>
               <span className="confirm-text">Discard tracked time?</span>
-              <button className="secondary" onClick={() => setConfirmDiscard(false)}>
+              <button
+                className="secondary"
+                onClick={() => setConfirmDiscard(false)}
+              >
                 Keep
               </button>
               <button className="danger" onClick={onClose}>
@@ -149,7 +152,10 @@ function StopModal({
             </>
           ) : (
             <>
-              <button className="secondary" onClick={() => setConfirmDiscard(true)}>
+              <button
+                className="secondary"
+                onClick={() => setConfirmDiscard(true)}
+              >
                 Discard
               </button>
               <button onClick={save} disabled={busy}>

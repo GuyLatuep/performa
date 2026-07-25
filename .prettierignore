@@ -1,0 +1,10 @@
+# Build output and generated files
+dist
+src-tauri/target
+src-tauri/gen
+src-tauri/icons
+pnpm-lock.yaml
+
+# Prose is wrapped by hand — Prettier would reflow whole paragraphs and make
+# every later edit a large diff.
+*.md
