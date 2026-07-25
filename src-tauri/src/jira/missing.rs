@@ -73,17 +73,7 @@ impl JiraClient {
         let cutoff = now - lookback_days as i64 * 86_400;
         let flag_before = now - config.grace_secs;
 
-        // Workflows differ per project, so instead of naming every project's
-        // "fully closed" status, only status-category "Done" issues whose
-        // status is explicitly allow-listed (e.g. "Gelöst"/Resolved) count as
-        // still bookable — every other Done status is excluded.
-        let bookable_names = config
-            .bookable_done_statuses
-            .iter()
-            .map(|s| format!("\"{s}\""))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let not_closed = format!("(statusCategory != Done OR status in ({bookable_names}))");
+        let not_closed = bookable_clause(&config.bookable_done_statuses);
 
         let status_issues = self
             .search_issues_dated(
@@ -176,10 +166,8 @@ impl JiraClient {
         // Filtered here, not where the activities were fetched: `cutoff` and
         // `flag_before` move with the clock, so the same cached activities
         // have to be re-judged on every scan.
-        let in_window: Vec<&Activity> = activities
-            .iter()
-            .filter(|a| a.ts >= cutoff && a.ts <= flag_before)
-            .collect();
+        let in_window = within_window(&activities, cutoff, flag_before);
+        // Nothing to judge — skip the worklog fetches entirely.
         if in_window.is_empty() {
             return Ok(None);
         }
@@ -208,14 +196,7 @@ impl JiraClient {
             );
         }
 
-        let newest_unlogged = in_window
-            .into_iter()
-            .filter(|a| {
-                !covered
-                    .iter()
-                    .any(|(from, to)| a.ts >= *from && a.ts <= *to)
-            })
-            .max_by_key(|a| a.ts);
+        let newest_unlogged = newest_uncovered(&in_window, &covered);
         Ok(newest_unlogged
             .cloned()
             .map(|Activity { kind, ts, detail }| {
@@ -325,7 +306,7 @@ impl JiraClient {
             .iter()
             .filter(|w| w.author.as_ref().map(|a| a.account_id.as_str()) == Some(account_id))
             .filter_map(|w| parse_jira_ts(&w.started).map(|s| (s, w.time_spent_seconds)))
-            .map(|(start, spent)| (start - window_secs, start + spent + window_secs))
+            .map(|(start, spent)| covered_range(start, spent, window_secs))
             .collect())
     }
 
@@ -411,6 +392,57 @@ impl JiraClient {
     }
 }
 
+/// The JQL fragment restricting a search to issues that still accept
+/// worklogs. Workflows differ per project, so instead of naming every
+/// project's "fully closed" status, only status-category "Done" issues whose
+/// status is explicitly allow-listed (e.g. "Gelöst"/Resolved) count as still
+/// bookable — every other Done status is excluded.
+fn bookable_clause(bookable_done_statuses: &[String]) -> String {
+    if bookable_done_statuses.is_empty() {
+        // `status in ()` is a JQL syntax error, so with nothing allow-listed
+        // the rule collapses to "not done at all".
+        return "statusCategory != Done".to_string();
+    }
+    let names = bookable_done_statuses
+        .iter()
+        .map(|s| format!("\"{s}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("(statusCategory != Done OR status in ({names}))")
+}
+
+/// The period a worklog accounts for, stretched by `window_secs` on both
+/// sides: time is rarely booked at the exact minute the work happened.
+fn covered_range(started: i64, spent_secs: i64, window_secs: i64) -> (i64, i64) {
+    (started - window_secs, started + spent_secs + window_secs)
+}
+
+/// Activities inside the scan window: old enough to be past the grace period
+/// (`flag_before`), recent enough to still be in the lookback (`cutoff`).
+fn within_window(activities: &[Activity], cutoff: i64, flag_before: i64) -> Vec<&Activity> {
+    activities
+        .iter()
+        .filter(|a| a.ts >= cutoff && a.ts <= flag_before)
+        .collect()
+}
+
+/// The newest activity that no worklog period covers — the one worth
+/// reminding about. `None` once every activity is accounted for.
+fn newest_uncovered<'a>(
+    activities: &[&'a Activity],
+    covered: &[(i64, i64)],
+) -> Option<&'a Activity> {
+    activities
+        .iter()
+        .copied()
+        .filter(|a| {
+            !covered
+                .iter()
+                .any(|(from, to)| a.ts >= *from && a.ts <= *to)
+        })
+        .max_by_key(|a| a.ts)
+}
+
 /// Collapse whitespace and cap the length so a long comment stays a one-line
 /// reminder hint.
 fn excerpt(text: &str) -> String {
@@ -441,6 +473,103 @@ mod tests {
 
     const T1: &str = "2026-07-16T10:30:00.000+0200";
     const T2: &str = "2026-07-16T11:00:00.000+0200";
+
+    fn activity(ts: i64) -> Activity {
+        Activity {
+            kind: "comment",
+            ts,
+            detail: format!("at {ts}"),
+        }
+    }
+
+    // A stand-in "now" so the window arithmetic reads like the real thing:
+    // one day of lookback, ten minutes of grace.
+    const NOW: i64 = 1_784_190_600;
+    const CUTOFF: i64 = NOW - 86_400;
+    const FLAG_BEFORE: i64 = NOW - 600;
+
+    #[test]
+    fn window_excludes_the_too_old_and_the_too_fresh() {
+        let all = vec![
+            activity(CUTOFF - 1),      // fell out of the lookback
+            activity(CUTOFF),          // exactly at the edge — included
+            activity(NOW - 3600),      // squarely inside
+            activity(FLAG_BEFORE),     // exactly at the grace edge — included
+            activity(FLAG_BEFORE + 1), // still within the grace period
+        ];
+        let kept: Vec<i64> = within_window(&all, CUTOFF, FLAG_BEFORE)
+            .iter()
+            .map(|a| a.ts)
+            .collect();
+        assert_eq!(kept, vec![CUTOFF, NOW - 3600, FLAG_BEFORE]);
+    }
+
+    #[test]
+    fn a_worklog_covering_the_activity_silences_it() {
+        let logged = activity(NOW - 3600);
+        let covered = vec![covered_range(NOW - 3600, 1800, 0)];
+        assert!(newest_uncovered(&[&logged], &covered).is_none());
+    }
+
+    #[test]
+    fn the_window_stretches_coverage_on_both_sides() {
+        // Booked at 12:00 for 30 min, but the comment was written at 11:00 —
+        // covered only because of the ±3h leeway.
+        let earlier = activity(NOW - 3600);
+        let booked_later = vec![covered_range(NOW, 1800, 3 * 3600)];
+        assert!(newest_uncovered(&[&earlier], &booked_later).is_none());
+
+        // Outside the leeway it stands.
+        let long_before = activity(NOW - 5 * 3600);
+        assert!(newest_uncovered(&[&long_before], &booked_later).is_some());
+    }
+
+    #[test]
+    fn the_newest_uncovered_activity_wins() {
+        let (old, middle, newest) = (
+            activity(NOW - 7200),
+            activity(NOW - 3600),
+            activity(NOW - 1800),
+        );
+        // The newest one is already booked, so the next one down is reported.
+        let covered = vec![covered_range(NOW - 1800, 900, 0)];
+        let found = newest_uncovered(&[&old, &middle, &newest], &covered).unwrap();
+        assert_eq!(found.ts, middle.ts);
+
+        // With nothing booked, the newest wins outright.
+        let found = newest_uncovered(&[&old, &middle, &newest], &[]).unwrap();
+        assert_eq!(found.ts, newest.ts);
+    }
+
+    #[test]
+    fn no_activities_means_nothing_to_report() {
+        assert!(newest_uncovered(&[], &[]).is_none());
+        assert!(within_window(&[], CUTOFF, FLAG_BEFORE).is_empty());
+    }
+
+    #[test]
+    fn bookable_clause_quotes_status_names() {
+        let statuses = vec!["Gelöst".to_string(), "Resolved".to_string()];
+        assert_eq!(
+            bookable_clause(&statuses),
+            "(statusCategory != Done OR status in (\"Gelöst\", \"Resolved\"))"
+        );
+    }
+
+    #[test]
+    fn bookable_clause_stays_valid_jql_without_allow_listed_statuses() {
+        // `status in ()` would be a syntax error and break the whole scan.
+        assert_eq!(bookable_clause(&[]), "statusCategory != Done");
+    }
+
+    #[test]
+    fn excerpt_collapses_and_caps() {
+        assert_eq!(excerpt("  a\n\tlong   comment "), "a long comment");
+        let long = "x".repeat(200);
+        let cut = excerpt(&long);
+        assert_eq!(cut.chars().count(), 141); // 140 + the ellipsis
+        assert!(cut.ends_with('…'));
+    }
 
     #[test]
     fn cache_hit_while_the_issue_is_untouched() {
