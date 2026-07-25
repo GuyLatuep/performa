@@ -6,6 +6,7 @@ import WeekChart from "./WeekChart";
 import RepeatModal from "./RepeatModal";
 import {
   DURATION_ERROR,
+  toWorklogInput,
   useWorklogDraft,
   WorklogFields,
 } from "./WorklogFields";
@@ -242,11 +243,7 @@ function EditModal({
       await api.updateWorklog(
         entry.issueKey,
         entry.id,
-        seconds,
-        draft.date,
-        draft.time,
-        draft.comment,
-        !draft.nonBillable,
+        toWorklogInput(draft, seconds),
       );
       onSaved();
     } catch (err) {

@@ -11,36 +11,34 @@ use super::{adf_to_text, format_rfc3339_local, parse_jira_ts, JiraClient};
 
 impl JiraClient {
     /// Issues where the user recently commented or changed the status but has
-    /// no own worklog whose logged period (stretched by `window_secs` on both
-    /// sides) covers that activity. Activity younger than `grace_secs` is not
-    /// flagged yet, so there is a chance to log before the reminder appears.
+    /// no own worklog whose logged period (stretched by `config.window_secs` on
+    /// both sides) covers that activity. Activity younger than
+    /// `config.grace_secs` is not flagged yet, so there is a chance to log
+    /// before the reminder appears.
     ///
     /// Status changes are found directly via JQL. Comments are not queryable
     /// by author, so recently updated issues the user viewed (issueHistory),
     /// watches, or owns serve as candidates — viewing history also covers
     /// JSM internal comments, which don't auto-watch.
-    /// Issues from `escalation_project` log their time on the issue they are
-    /// linked to as `escalation_link` (when present), so worklogs on either
-    /// issue clear the reminder.
+    /// Issues from `config.escalation_project` log their time on the issue they
+    /// are linked to as `config.escalation_link` (when present), so worklogs on
+    /// either issue clear the reminder.
     pub async fn missing_worklogs(
         &self,
         account_id: &str,
-        lookback_days: u32,
-        window_secs: i64,
-        grace_secs: i64,
-        escalation_project: &str,
-        escalation_link: &str,
-        bookable_done_statuses: &[&str],
+        config: &MissingConfig,
     ) -> Result<Vec<MissingWorklog>, String> {
+        let lookback_days = config.lookback_days;
         let now = Local::now().timestamp();
         let cutoff = now - lookback_days as i64 * 86_400;
-        let flag_before = now - grace_secs;
+        let flag_before = now - config.grace_secs;
 
         // Workflows differ per project, so instead of naming every project's
         // "fully closed" status, only status-category "Done" issues whose
         // status is explicitly allow-listed (e.g. "Gelöst"/Resolved) count as
         // still bookable — every other Done status is excluded.
-        let bookable_names = bookable_done_statuses
+        let bookable_names = config
+            .bookable_done_statuses
             .iter()
             .map(|s| format!("\"{s}\""))
             .collect::<Vec<_>>()
@@ -93,9 +91,7 @@ impl JiraClient {
                     account_id,
                     cutoff,
                     flag_before,
-                    window_secs,
-                    escalation_project,
-                    escalation_link,
+                    config,
                 )
             })
             .buffer_unordered(8)
@@ -117,7 +113,6 @@ impl JiraClient {
 
     /// Examine one candidate issue: does the user have unlogged activity on
     /// it? Returns the newest unlogged activity, keyed for sorting.
-    #[allow(clippy::too_many_arguments)]
     async fn check_candidate(
         &self,
         issue: IssueSummary,
@@ -125,9 +120,7 @@ impl JiraClient {
         account_id: &str,
         cutoff: i64,
         flag_before: i64,
-        window_secs: i64,
-        escalation_project: &str,
-        escalation_link: &str,
+        config: &MissingConfig,
     ) -> Result<Option<(i64, MissingWorklog)>, String> {
         let mut activities: Vec<(&str, i64, String)> = Vec::new();
         for c in self.recent_comments(&issue.key).await? {
@@ -171,8 +164,10 @@ impl JiraClient {
 
         // Escalation-project issues log their time on the linked source
         // issue, so it becomes the log target and its worklogs count too.
-        let escalated = if issue.key.starts_with(&format!("{escalation_project}-")) {
-            self.linked_issue(&issue.key, escalation_link).await?
+        let escalation_prefix = format!("{}-", config.escalation_project);
+        let escalated = if issue.key.starts_with(&escalation_prefix) {
+            self.linked_issue(&issue.key, &config.escalation_link)
+                .await?
         } else {
             None
         };
@@ -180,12 +175,13 @@ impl JiraClient {
         // Fetch worklogs a day extra back so a long worklog reaching into
         // the lookback window is still seen.
         let worklog_after = cutoff - 86_400;
+        let window = config.window_secs;
         let mut covered = self
-            .covered_ranges(&issue.key, account_id, worklog_after, window_secs)
+            .covered_ranges(&issue.key, account_id, worklog_after, window)
             .await?;
         if let Some((target_key, _)) = &escalated {
             covered.extend(
-                self.covered_ranges(target_key, account_id, worklog_after, window_secs)
+                self.covered_ranges(target_key, account_id, worklog_after, window)
                     .await?,
             );
         }

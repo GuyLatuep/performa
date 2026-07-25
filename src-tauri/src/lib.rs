@@ -4,7 +4,9 @@ mod logging;
 mod tray;
 
 use creds::{Credentials, CredentialsMeta};
-use jira::{IssueSummary, JiraClient, MissingWorklog, Myself, WorklogEntry};
+use jira::{
+    IssueSummary, JiraClient, MissingConfig, MissingWorklog, Myself, WorklogEntry, WorklogInput,
+};
 use tauri::State;
 
 // Tuning for the missing-worklog reminder: how far back to look for own
@@ -184,24 +186,11 @@ async fn start_issue_work(state: State<'_, AppState>, issue_key: String) -> Resu
 async fn log_work(
     state: State<'_, AppState>,
     issue_key: String,
-    time_spent_seconds: i64,
-    date: String,
-    time: String,
-    comment: String,
-    billable: bool,
+    worklog: WorklogInput,
 ) -> Result<(), String> {
     checked_issue_key(&issue_key)?;
     let s = session(&state).await?;
-    s.client
-        .add_worklog(
-            &issue_key,
-            time_spent_seconds,
-            &date,
-            &time,
-            &comment,
-            billable,
-        )
-        .await
+    s.client.add_worklog(&issue_key, &worklog).await
 }
 
 #[tauri::command]
@@ -209,25 +198,13 @@ async fn update_worklog(
     state: State<'_, AppState>,
     issue_key: String,
     worklog_id: String,
-    time_spent_seconds: i64,
-    date: String,
-    time: String,
-    comment: String,
-    billable: bool,
+    worklog: WorklogInput,
 ) -> Result<(), String> {
     checked_issue_key(&issue_key)?;
     checked_worklog_id(&worklog_id)?;
     let s = session(&state).await?;
     s.client
-        .update_worklog(
-            &issue_key,
-            &worklog_id,
-            time_spent_seconds,
-            &date,
-            &time,
-            &comment,
-            billable,
-        )
+        .update_worklog(&issue_key, &worklog_id, &worklog)
         .await
 }
 
@@ -272,16 +249,24 @@ async fn issue_worklogs(
 async fn missing_worklogs(state: State<'_, AppState>) -> Result<Vec<MissingWorklog>, String> {
     let s = session(&state).await?;
     s.client
-        .missing_worklogs(
-            &s.account_id,
-            MISSING_LOOKBACK_DAYS,
-            MISSING_WINDOW_SECS,
-            MISSING_GRACE_SECS,
-            MISSING_ESCALATION_PROJECT,
-            MISSING_ESCALATION_LINK,
-            MISSING_BOOKABLE_DONE_STATUSES,
-        )
+        .missing_worklogs(&s.account_id, &missing_config())
         .await
+}
+
+/// The shipped missing-worklog tuning. A single place to swap for
+/// user-configurable values once the workflow specifics move into settings.
+fn missing_config() -> MissingConfig {
+    MissingConfig {
+        lookback_days: MISSING_LOOKBACK_DAYS,
+        window_secs: MISSING_WINDOW_SECS,
+        grace_secs: MISSING_GRACE_SECS,
+        escalation_project: MISSING_ESCALATION_PROJECT.to_string(),
+        escalation_link: MISSING_ESCALATION_LINK.to_string(),
+        bookable_done_statuses: MISSING_BOOKABLE_DONE_STATUSES
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
+    }
 }
 
 /// Change the active log-file verbosity (Settings → Logging).

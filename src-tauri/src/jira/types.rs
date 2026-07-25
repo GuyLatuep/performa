@@ -1,7 +1,42 @@
-//! Response types: the public ones serialized back to the frontend, and the
-//! raw shapes used to deserialize Jira's API responses.
+//! Request and response types: the public ones exchanged with the frontend,
+//! and the raw shapes used to deserialize Jira's API responses.
 
 use serde::{Deserialize, Serialize};
+
+// ----- Request types (deserialized from the frontend) -----
+
+/// The editable fields of a worklog, as entered in the UI. Kept together so
+/// they travel as one value from the IPC boundary down to the Jira call
+/// instead of as a row of positional arguments.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorklogInput {
+    pub time_spent_seconds: i64,
+    /// Local start date, yyyy-MM-dd.
+    pub date: String,
+    /// Local start time, HH:mm.
+    pub time: String,
+    pub comment: String,
+    /// When false, the `~` non-billable marker is prepended to the comment.
+    pub billable: bool,
+}
+
+/// Tuning for the missing-worklog heuristic: how far back to look for own
+/// activity, how close a worklog must be to that activity to count, how long
+/// freshly created activity is left unflagged, and the workflow specifics of
+/// the Jira site in use.
+pub struct MissingConfig {
+    pub lookback_days: u32,
+    pub window_secs: i64,
+    pub grace_secs: i64,
+    /// Issues from this project log their time on the issue they link to with
+    /// `escalation_link` (fallback: the issue itself).
+    pub escalation_project: String,
+    pub escalation_link: String,
+    /// Terminal statuses that still accept worklogs — every other
+    /// statusCategory=Done status counts as no longer bookable.
+    pub bookable_done_statuses: Vec<String>,
+}
 
 // ----- Public response types (serialized back to the frontend) -----
 

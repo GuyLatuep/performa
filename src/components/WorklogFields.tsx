@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { WorklogInput } from "../api";
 import { formatDuration, nowTime, parseDuration, today } from "../time";
 
 // The duration/date/time/comment quartet shared by every place that logs or
@@ -14,6 +15,23 @@ export interface WorklogDraft {
 }
 
 export const DURATION_ERROR = "Enter a valid duration, e.g. 1h 30m";
+
+/** The draft as the backend's worklog payload. `seconds` comes from the
+ *  parsed duration, which every caller has to validate first anyway — hence
+ *  passing it in rather than re-parsing here. Note the inversion: the form
+ *  asks for "non-billable", the API takes "billable". */
+export function toWorklogInput(
+  draft: WorklogDraft,
+  seconds: number,
+): WorklogInput {
+  return {
+    timeSpentSeconds: seconds,
+    date: draft.date,
+    time: draft.time,
+    comment: draft.comment,
+    billable: !draft.nonBillable,
+  };
+}
 
 export function useWorklogDraft(initial: Partial<WorklogDraft> = {}) {
   const [draft, setDraft] = useState<WorklogDraft>({

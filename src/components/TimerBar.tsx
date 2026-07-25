@@ -13,6 +13,7 @@ import {
 } from "../timer";
 import {
   DURATION_ERROR,
+  toWorklogInput,
   useWorklogDraft,
   WorklogFields,
 } from "./WorklogFields";
@@ -110,14 +111,7 @@ function StopModal({
     setBusy(true);
     setError(null);
     try {
-      await api.logWork(
-        data.timer.issueKey,
-        seconds,
-        draft.date,
-        draft.time,
-        draft.comment,
-        !draft.nonBillable,
-      );
+      await api.logWork(data.timer.issueKey, toWorklogInput(draft, seconds));
       onLogged();
     } catch (err) {
       setError(String(err));

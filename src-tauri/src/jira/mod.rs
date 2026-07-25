@@ -16,7 +16,7 @@ use futures_util::{stream, StreamExt, TryStreamExt};
 use serde::de::DeserializeOwned;
 
 use types::*;
-pub use types::{IssueSummary, MissingWorklog, Myself, WorklogEntry};
+pub use types::{IssueSummary, MissingConfig, MissingWorklog, Myself, WorklogEntry, WorklogInput};
 
 use crate::creds::Credentials;
 
@@ -195,19 +195,11 @@ impl JiraClient {
         result
     }
 
-    pub async fn add_worklog(
-        &self,
-        issue_key: &str,
-        time_spent_seconds: i64,
-        date: &str,
-        time: &str,
-        comment: &str,
-        billable: bool,
-    ) -> Result<(), String> {
-        let comment = mark_billable(comment, billable);
+    pub async fn add_worklog(&self, issue_key: &str, input: &WorklogInput) -> Result<(), String> {
+        let comment = mark_billable(&input.comment, input.billable);
         let mut body = serde_json::json!({
-            "timeSpentSeconds": time_spent_seconds,
-            "started": jira_started(date, time)?,
+            "timeSpentSeconds": input.time_spent_seconds,
+            "started": jira_started(&input.date, &input.time)?,
         });
         if !comment.is_empty() {
             body["comment"] = adf_paragraph(&comment);
@@ -224,18 +216,14 @@ impl JiraClient {
         &self,
         issue_key: &str,
         worklog_id: &str,
-        time_spent_seconds: i64,
-        date: &str,
-        time: &str,
-        comment: &str,
-        billable: bool,
+        input: &WorklogInput,
     ) -> Result<(), String> {
         let mut body = serde_json::json!({
-            "timeSpentSeconds": time_spent_seconds,
-            "started": jira_started(date, time)?,
+            "timeSpentSeconds": input.time_spent_seconds,
+            "started": jira_started(&input.date, &input.time)?,
         });
         // Send an (empty) ADF doc to clear the comment when blank.
-        body["comment"] = adf_paragraph(&mark_billable(comment, billable));
+        body["comment"] = adf_paragraph(&mark_billable(&input.comment, input.billable));
         self.send_ok(
             self.http
                 .put(self.url(&format!(
@@ -566,6 +554,25 @@ mod tests {
         let ts = parse_jira_ts("2026-07-16T10:30:00.000+0200").unwrap();
         assert_eq!(ts, 1784190600);
         assert!(parse_jira_ts("not a date").is_none());
+    }
+
+    #[test]
+    fn worklog_input_matches_the_frontend_payload() {
+        // Verbatim shape of the `worklog` argument api.ts sends over IPC —
+        // guards the camelCase renames on both sides of the boundary.
+        let json = r#"{
+            "timeSpentSeconds": 5400,
+            "date": "2026-07-16",
+            "time": "09:30",
+            "comment": "code review",
+            "billable": false
+        }"#;
+        let input: WorklogInput = serde_json::from_str(json).unwrap();
+        assert_eq!(input.time_spent_seconds, 5400);
+        assert_eq!(input.date, "2026-07-16");
+        assert_eq!(input.time, "09:30");
+        assert_eq!(input.comment, "code review");
+        assert!(!input.billable);
     }
 
     #[test]

@@ -3,6 +3,7 @@ import { api } from "../api";
 import { addTemplate } from "../templates";
 import {
   DURATION_ERROR,
+  toWorklogInput,
   useWorklogDraft,
   WorklogDraft,
   WorklogFields,
@@ -41,14 +42,7 @@ export default function RepeatModal({
     setBusy(true);
     setError(null);
     try {
-      await api.logWork(
-        issueKey,
-        seconds,
-        draft.date,
-        draft.time,
-        draft.comment,
-        !draft.nonBillable,
-      );
+      await api.logWork(issueKey, toWorklogInput(draft, seconds));
       if (saveTemplate) {
         addTemplate({
           issueKey,

@@ -6,6 +6,7 @@ import { usePinnedIssues } from "../pins";
 import IssueRow from "./IssueRow";
 import {
   DURATION_ERROR,
+  toWorklogInput,
   useWorklogDraft,
   WorklogFields,
 } from "./WorklogFields";
@@ -81,14 +82,7 @@ export default function LogWork({ site, onLogged, initialIssue }: Props) {
     setError(null);
     setOkMsg(null);
     try {
-      await api.logWork(
-        selected.key,
-        seconds,
-        draft.date,
-        draft.time,
-        draft.comment,
-        !draft.nonBillable,
-      );
+      await api.logWork(selected.key, toWorklogInput(draft, seconds));
       setOkMsg(`Logged ${formatDuration(seconds)} on ${selected.key}`);
       patch({ duration: "", comment: "", nonBillable: false });
       setHistoryKey((k) => k + 1);

@@ -30,6 +30,16 @@ export interface WorklogEntry {
   billable: boolean;
 }
 
+/** The editable fields of a worklog, as the backend expects them. Build one
+ *  from a form draft with `toWorklogInput` (components/WorklogFields). */
+export interface WorklogInput {
+  timeSpentSeconds: number;
+  date: string; // yyyy-MM-dd
+  time: string; // HH:mm
+  comment: string;
+  billable: boolean;
+}
+
 export interface MissingWorklog {
   issueKey: string;
   issueSummary: string;
@@ -117,48 +127,20 @@ export const api = {
       invoke("start_issue_work", { issueKey }),
     );
   },
-  logWork(
-    issueKey: string,
-    timeSpentSeconds: number,
-    date: string,
-    time: string,
-    comment: string,
-    billable: boolean,
-  ): Promise<void> {
+  logWork(issueKey: string, worklog: WorklogInput): Promise<void> {
     return logged(
-      `log_work(issueKey=${issueKey}, seconds=${timeSpentSeconds}, date=${date}, billable=${billable})`,
-      () =>
-        invoke("log_work", {
-          issueKey,
-          timeSpentSeconds,
-          date,
-          time,
-          comment,
-          billable,
-        }),
+      `log_work(issueKey=${issueKey}, seconds=${worklog.timeSpentSeconds}, date=${worklog.date}, billable=${worklog.billable})`,
+      () => invoke("log_work", { issueKey, worklog }),
     );
   },
   updateWorklog(
     issueKey: string,
     worklogId: string,
-    timeSpentSeconds: number,
-    date: string,
-    time: string,
-    comment: string,
-    billable: boolean,
+    worklog: WorklogInput,
   ): Promise<void> {
     return logged(
-      `update_worklog(issueKey=${issueKey}, worklogId=${worklogId}, seconds=${timeSpentSeconds})`,
-      () =>
-        invoke("update_worklog", {
-          issueKey,
-          worklogId,
-          timeSpentSeconds,
-          date,
-          time,
-          comment,
-          billable,
-        }),
+      `update_worklog(issueKey=${issueKey}, worklogId=${worklogId}, seconds=${worklog.timeSpentSeconds})`,
+      () => invoke("update_worklog", { issueKey, worklogId, worklog }),
     );
   },
   deleteWorklog(issueKey: string, worklogId: string): Promise<void> {

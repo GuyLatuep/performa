@@ -11,6 +11,7 @@ import {
 } from "../missing";
 import {
   DURATION_ERROR,
+  toWorklogInput,
   useWorklogDraft,
   WorklogFields,
 } from "./WorklogFields";
@@ -146,14 +147,7 @@ function LogForm({
     setBusy(true);
     setError(null);
     try {
-      await api.logWork(
-        item.logKey,
-        seconds,
-        draft.date,
-        draft.time,
-        draft.comment,
-        !draft.nonBillable,
-      );
+      await api.logWork(item.logKey, toWorklogInput(draft, seconds));
       onSaved();
     } catch (err) {
       setError(String(err));
