@@ -188,6 +188,12 @@ export default function Settings({ existing, onSaved, onCancel }: Props) {
                 onChange={(e) => setToken(e.target.value)}
                 required={!existing}
               />
+              {existing && (
+                <span className="hint">
+                  Required again when you change the site or email — a stored
+                  token is never sent to a different connection.
+                </span>
+              )}
             </label>
 
             <button

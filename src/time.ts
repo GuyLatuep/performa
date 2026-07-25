@@ -92,7 +92,9 @@ export function weekRange(offsetWeeks: number): { start: string; end: string } {
   const now = new Date();
   now.setDate(now.getDate() + offsetWeeks * 7);
   const start = startOfWeek(now);
-  const startDate = new Date(start);
+  // Parsed as local midnight — a bare "yyyy-MM-dd" would be read as UTC and
+  // shift the whole range by a day west of Greenwich.
+  const startDate = new Date(start + "T00:00:00");
   const endDate = new Date(startDate);
   endDate.setDate(startDate.getDate() + 6);
   return { start, end: toDateInput(endDate) };

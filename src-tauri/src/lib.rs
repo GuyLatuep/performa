@@ -91,22 +91,27 @@ async fn save_credentials(
     email: String,
     token: String,
 ) -> Result<Myself, String> {
-    let site = normalize_site(&site);
+    let site = normalize_site(&site)?;
+    let email = email.trim().to_string();
     // An empty token means "keep the stored one" — the settings screen doesn't
-    // force re-entering the key just to change site/email.
+    // force re-entering the key just to change site/email. That reuse is only
+    // safe as long as the connection the token belongs to is unchanged: with a
+    // different site, the very first call (`myself` below) would hand the
+    // secret to a host it was never issued for. A mistyped site is enough to
+    // trigger that, and it is exactly what a compromised webview would ask for.
     let token = match token.trim() {
         "" => {
-            creds::load()?
-                .ok_or_else(|| "API token required".to_string())?
-                .token
+            let stored = creds::load()?.ok_or_else(|| "API token required".to_string())?;
+            if !may_reuse_token(&stored, &site, &email) {
+                return Err(
+                    "API token required to connect to a different site or account".to_string(),
+                );
+            }
+            stored.token
         }
         t => t.to_string(),
     };
-    let creds = Credentials {
-        site,
-        email: email.trim().to_string(),
-        token,
-    };
+    let creds = Credentials { site, email, token };
     let client = JiraClient::new(&creds);
     let me = client.myself().await?;
     creds::save(&creds)?;
@@ -115,6 +120,13 @@ async fn save_credentials(
         account_id: me.account_id.clone(),
     });
     Ok(me)
+}
+
+/// May the stored token be sent to this site/account without re-entering it?
+/// Only when both are unchanged — host and address compare case-insensitively,
+/// since neither DNS nor Jira's account addresses distinguish case.
+fn may_reuse_token(stored: &Credentials, site: &str, email: &str) -> bool {
+    stored.site.eq_ignore_ascii_case(site) && stored.email.eq_ignore_ascii_case(email)
 }
 
 /// Non-secret metadata about the stored credentials, or `null` if unset.
@@ -297,13 +309,43 @@ fn frontend_log(level: String, message: String) {
 }
 
 /// Normalize a user-entered site into `https://host` with no trailing slash.
-fn normalize_site(input: &str) -> String {
-    let trimmed = input.trim().trim_end_matches('/');
-    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
-        trimmed.to_string()
-    } else {
-        format!("https://{trimmed}")
+///
+/// Plain `http` is refused: the API token rides along as a Basic-auth header
+/// on every single request, so an unencrypted site would put it on the wire in
+/// clear. Loopback is the one exception — that traffic never leaves the
+/// machine, and it keeps a local test double usable.
+fn normalize_site(input: &str) -> Result<String, String> {
+    let trimmed = input.trim();
+    // Split the scheme off before trimming slashes — otherwise a bare
+    // "https://" would collapse into a "https:" hostname.
+    let (scheme, host) = match trimmed.split_once("://") {
+        None => ("https", trimmed),
+        Some((scheme, rest)) => (scheme, rest),
+    };
+    let host = host.trim_end_matches('/');
+    if host.is_empty() {
+        return Err("Jira site required, e.g. your-team.atlassian.net".to_string());
     }
+    if scheme.eq_ignore_ascii_case("http") && !is_loopback(host) {
+        return Err("refusing a plain http site: your API token is sent with every \
+                    request and would travel unencrypted — use https://"
+            .to_string());
+    }
+    if !scheme.eq_ignore_ascii_case("https") && !scheme.eq_ignore_ascii_case("http") {
+        return Err(format!("unsupported scheme '{scheme}://' — use https://"));
+    }
+    Ok(format!("{}://{host}", scheme.to_ascii_lowercase()))
+}
+
+/// Does this `host[:port][/path]` address the local machine?
+fn is_loopback(host: &str) -> bool {
+    let authority = host.split('/').next().unwrap_or("");
+    let hostname = match authority.strip_prefix('[') {
+        // Bracketed IPv6: `[::1]:8080` → `::1`
+        Some(rest) => rest.split(']').next().unwrap_or(""),
+        None => authority.split(':').next().unwrap_or(""),
+    };
+    matches!(hostname, "localhost" | "127.0.0.1" | "::1")
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -351,9 +393,73 @@ mod tests {
 
     #[test]
     fn site_normalization() {
-        assert_eq!(normalize_site(" my.atlassian.net/ "), "https://my.atlassian.net");
-        assert_eq!(normalize_site("https://x.example.com"), "https://x.example.com");
-        assert_eq!(normalize_site("http://local.test"), "http://local.test");
+        assert_eq!(
+            normalize_site(" my.atlassian.net/ ").unwrap(),
+            "https://my.atlassian.net"
+        );
+        assert_eq!(
+            normalize_site("https://x.example.com").unwrap(),
+            "https://x.example.com"
+        );
+        assert!(normalize_site("").is_err());
+        assert!(normalize_site("https://").is_err());
+    }
+
+    #[test]
+    fn site_must_be_encrypted_unless_loopback() {
+        // The token travels as a Basic-auth header on every request.
+        assert!(normalize_site("http://my.atlassian.net").is_err());
+        assert!(normalize_site("http://evil.example/jira").is_err());
+        assert!(normalize_site("ftp://my.atlassian.net").is_err());
+        // Loopback never leaves the machine — kept usable for local doubles.
+        assert_eq!(
+            normalize_site("http://localhost:1234").unwrap(),
+            "http://localhost:1234"
+        );
+        assert_eq!(
+            normalize_site("http://127.0.0.1:1234/").unwrap(),
+            "http://127.0.0.1:1234"
+        );
+        assert_eq!(normalize_site("http://[::1]:80").unwrap(), "http://[::1]:80");
+        // A loopback-lookalike hostname is a remote host like any other.
+        assert!(normalize_site("http://localhost.evil.example").is_err());
+        assert!(normalize_site("http://127.0.0.1.evil.example").is_err());
+    }
+
+    #[test]
+    fn stored_token_is_reused_only_for_the_same_connection() {
+        let stored = Credentials {
+            site: "https://my.atlassian.net".to_string(),
+            email: "me@example.com".to_string(),
+            token: "secret".to_string(),
+        };
+        assert!(may_reuse_token(
+            &stored,
+            "https://my.atlassian.net",
+            "me@example.com"
+        ));
+        // Case differences address the same host and account.
+        assert!(may_reuse_token(
+            &stored,
+            "https://MY.atlassian.net",
+            "Me@Example.com"
+        ));
+        // Anything else would send the token somewhere it was never issued for.
+        assert!(!may_reuse_token(
+            &stored,
+            "https://evil.example",
+            "me@example.com"
+        ));
+        assert!(!may_reuse_token(
+            &stored,
+            "https://my.atlassian.net.evil.example",
+            "me@example.com"
+        ));
+        assert!(!may_reuse_token(
+            &stored,
+            "https://my.atlassian.net",
+            "someone@else.com"
+        ));
     }
 
     #[test]

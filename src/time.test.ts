@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   formatDuration,
   parseDuration,
@@ -61,12 +61,34 @@ describe("week helpers", () => {
   });
 
   it("weekRange spans Monday to Sunday", () => {
-    const { start, end } = weekRange(0);
-    expect(start).toBe(startOfWeek(new Date()));
-    const endDate = new Date(end + "T00:00:00");
-    expect((endDate.getDay() + 6) % 7).toBe(6); // Sunday
-    expect(endDate.getTime() - new Date(start + "T00:00:00").getTime()).toBe(
-      6 * 86_400_000,
-    );
+    expectMondayToSunday();
+  });
+
+  // Regression: a bare `new Date("yyyy-MM-dd")` parses as UTC midnight, which
+  // put the range a day short everywhere west of Greenwich — invisible when
+  // the suite happens to run in a positive-offset zone. Pinned to a western
+  // zone so the developer's own timezone can't hide it again.
+  it("weekRange spans Monday to Sunday west of Greenwich", () => {
+    withTimeZone("America/Los_Angeles", expectMondayToSunday);
   });
 });
+
+function expectMondayToSunday(): void {
+  const { start, end } = weekRange(0);
+  expect(start).toBe(startOfWeek(new Date()));
+  const endDate = new Date(end + "T00:00:00");
+  expect((endDate.getDay() + 6) % 7).toBe(6); // Sunday
+  expect(endDate.getTime() - new Date(start + "T00:00:00").getTime()).toBe(
+    6 * 86_400_000,
+  );
+}
+
+/** Run `body` with the process timezone temporarily switched. */
+function withTimeZone(tz: string, body: () => void): void {
+  vi.stubEnv("TZ", tz);
+  try {
+    body();
+  } finally {
+    vi.unstubAllEnvs();
+  }
+}
