@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { formatClock, roundUpToQuarterHour } from "./timer";
+import { formatClock, isPlayfulClock, roundUpToQuarterHour } from "./timer";
 
 const KEY = "performa-active-timer";
 
@@ -37,6 +37,48 @@ describe("formatClock", () => {
     expect(formatClock(95)).toBe("01:35");
     expect(formatClock(3600)).toBe("1:00:00");
     expect(formatClock(3725)).toBe("1:02:05");
+  });
+});
+
+describe("isPlayfulClock", () => {
+  const mmss = (m: number, s: number) => m * 60 + s;
+  const hmmss = (h: number, m: number, s: number) => h * 3600 + m * 60 + s;
+
+  it("winks at Schnapszahlen below an hour", () => {
+    for (const n of [11, 22, 33, 44, 55]) {
+      expect(isPlayfulClock(mmss(n, n))).toBe(true);
+    }
+  });
+
+  it("winks at Schnapszahlen past an hour", () => {
+    // 1:11:11 through 5:55:55 — minutes cap at 59, so the next one after
+    // that is 11:11:11.
+    for (const n of [1, 2, 3, 4, 5]) {
+      expect(isPlayfulClock(hmmss(n, n * 11, n * 11))).toBe(true);
+    }
+    expect(isPlayfulClock(hmmss(11, 11, 11))).toBe(true);
+  });
+
+  it("winks at 13:37, whatever the hour", () => {
+    expect(isPlayfulClock(mmss(13, 37))).toBe(true);
+    expect(isPlayfulClock(hmmss(1, 13, 37))).toBe(true);
+  });
+
+  it("stays quiet the rest of the time", () => {
+    expect(isPlayfulClock(mmss(12, 34))).toBe(false);
+    expect(isPlayfulClock(mmss(11, 12))).toBe(false);
+    // "05:55" — the leading zero breaks the run of digits.
+    expect(isPlayfulClock(mmss(5, 55))).toBe(false);
+    // "1:00:00" — a round hour is not a Schnapszahl.
+    expect(isPlayfulClock(3600)).toBe(false);
+  });
+
+  it("does not wink at a timer that just started", () => {
+    // Without the guard, "00:00" would be all-identical digits and every
+    // single timer would flash on its first tick.
+    expect(isPlayfulClock(0)).toBe(false);
+    expect(isPlayfulClock(-1)).toBe(false);
+    expect(isPlayfulClock(1)).toBe(false);
   });
 });
 

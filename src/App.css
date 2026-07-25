@@ -657,6 +657,21 @@ header {
   letter-spacing: 0.01em;
   color: var(--accent);
 }
+/* A one-second wink when the clock hits a Schnapszahl or 13:37 — see
+   isPlayfulClock in timer.ts. Glow only: the digits are already accent
+   coloured, and anything that changed their size would nudge the layout.
+   The prefers-reduced-motion rule at the end of this file switches it off. */
+.timer-clock.wink {
+  animation: clock-wink 1s ease-out;
+}
+@keyframes clock-wink {
+  30% {
+    text-shadow:
+      0 0 12px var(--accent),
+      0 0 28px var(--accent);
+  }
+}
+
 .timer-stop {
   flex-shrink: 0;
 }

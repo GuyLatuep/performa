@@ -6,6 +6,7 @@ import {
   ActiveTimer,
   formatClock,
   getTimer,
+  isPlayfulClock,
   roundUpToQuarterHour,
   stopTimer,
   useElapsedSeconds,
@@ -64,7 +65,11 @@ export default function TimerBar({ onLogged }: Props) {
             <span className="key">{timer.issueKey}</span>
             <span className="summary">{timer.issueSummary}</span>
           </div>
-          <span className="timer-clock">{formatClock(elapsed)}</span>
+          <span
+            className={`timer-clock${isPlayfulClock(elapsed) ? " wink" : ""}`}
+          >
+            {formatClock(elapsed)}
+          </span>
           <button className="timer-stop" onClick={onStop}>
             Stop
           </button>

@@ -107,6 +107,22 @@ export function roundUpToQuarterHour(seconds: number): number {
   return Math.max(900, Math.ceil(seconds / 900) * 900);
 }
 
+/** Does the running clock currently read as something worth a wink — a
+ *  Schnapszahl (every digit the same: 11:11, 2:22:22, 11:11:11 …) or 13:37?
+ *  Purely decorative; the timer bar flashes for that one second.
+ *
+ *  Zero is excluded on purpose, or every timer would wink the moment it
+ *  starts on 00:00. */
+export function isPlayfulClock(totalSeconds: number): boolean {
+  if (totalSeconds <= 0) return false;
+  const clock = formatClock(totalSeconds);
+  // Matches "13:37" as well as "1:13:37" — the minutes and seconds are what
+  // reads as leet, whatever the hour.
+  if (clock.endsWith("13:37")) return true;
+  const digits = clock.replace(/:/g, "");
+  return [...digits].every((d) => d === digits[0]);
+}
+
 /** Format seconds as a running clock (m:ss, or h:mm:ss past an hour). */
 export function formatClock(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
