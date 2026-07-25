@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, WorklogEntry } from "../api";
-import { formatDuration, today, weekRange } from "../time";
+import { formatDayLabel, formatDuration, weekRange } from "../time";
 import WeekChart from "./WeekChart";
 import RepeatModal from "./RepeatModal";
 import {
@@ -15,6 +15,13 @@ interface Props {
   site: string;
   refreshKey: number;
 }
+
+// One week at a time, so the year would be noise.
+const DAY_FORMAT: Intl.DateTimeFormatOptions = {
+  weekday: "long",
+  month: "short",
+  day: "numeric",
+};
 
 export default function Timesheet({ site, refreshKey }: Props) {
   const [offset, setOffset] = useState(0);
@@ -106,7 +113,7 @@ export default function Timesheet({ site, refreshKey }: Props) {
         return (
           <div key={date} className="day-group">
             <div className="day-head">
-              <span>{formatDate(date)}</span>
+              <span>{formatDayLabel(date, DAY_FORMAT)}</span>
               <span className="muted">{formatDuration(dayTotal)}</span>
             </div>
             {list.map((e) => (
@@ -201,16 +208,6 @@ export default function Timesheet({ site, refreshKey }: Props) {
       )}
     </div>
   );
-}
-
-function formatDate(date: string): string {
-  const d = new Date(date + "T00:00:00");
-  const label = d.toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  });
-  return date === today() ? `${label} · Today` : label;
 }
 
 function EditModal({

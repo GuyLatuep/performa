@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, IssueSummary, MissingWorklog, WorklogEntry } from "../api";
-import { formatDuration, timeAgo, weekRange } from "../time";
+import { formatDuration, weekRange } from "../time";
 import { usePinnedIssues } from "../pins";
 import { useMissing } from "../missing";
 import { removeTemplate, useTemplates, WorklogTemplate } from "../templates";
 import IssueRow from "./IssueRow";
 import WeekChart from "./WeekChart";
 import RepeatModal from "./RepeatModal";
+import MissingRow, { missingRowKey } from "./MissingRow";
 
 interface Props {
   site: string;
@@ -213,33 +213,13 @@ function MissingSection({
         </button>
       </div>
       {items.map((item) => (
-        <div key={`${item.issueKey}-${item.activityAt}`} className="worklog-row">
-          <div className="worklog-main">
-            <button
-              className="key-link key"
-              title={`Open ${item.issueKey} in browser`}
-              onClick={() => openUrl(`${site}/browse/${item.issueKey}`)}
-            >
-              {item.issueKey}
-            </button>
-            <button
-              className="issue-select missing-select"
-              title="Show in the missing-worklog tab"
-              onClick={onOpenMissing}
-            >
-              <span className="summary">{item.issueSummary}</span>
-              {item.detail && (
-                <span className="comment">
-                  {item.kind === "comment" ? `“${item.detail}”` : item.detail}
-                </span>
-              )}
-            </button>
-          </div>
-          <span className="missing-meta">
-            {item.kind === "comment" ? "commented" : "status changed"}{" "}
-            {timeAgo(item.activityAt)}
-          </span>
-        </div>
+        <MissingRow
+          key={missingRowKey(item)}
+          item={item}
+          site={site}
+          actionTitle="Show in the missing-worklog tab"
+          onAction={onOpenMissing}
+        />
       ))}
     </section>
   );

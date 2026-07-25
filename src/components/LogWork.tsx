@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, IssueSummary, WorklogEntry } from "../api";
 import { logInfo } from "../log";
-import { formatDuration, today } from "../time";
+import { formatDayLabel, formatDuration } from "../time";
 import { usePinnedIssues } from "../pins";
 import IssueRow from "./IssueRow";
 import {
@@ -168,6 +168,14 @@ export default function LogWork({ site, onLogged, initialIssue }: Props) {
 
 const HISTORY_LIMIT = 10;
 
+// History reaches back arbitrarily far, so the year has to be spelled out.
+const ENTRY_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  weekday: "short",
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+};
+
 /** The user's previous worklogs on the selected issue. */
 function IssueHistory({
   issueKey,
@@ -216,7 +224,7 @@ function IssueHistory({
       {history?.slice(0, HISTORY_LIMIT).map((e) => (
         <div key={e.id} className="worklog-row">
           <div className="worklog-main">
-            <span>{formatHistoryDate(e.date)}</span>
+            <span>{formatDayLabel(e.date, ENTRY_DATE_FORMAT)}</span>
             {e.comment && <span className="comment">{e.comment}</span>}
           </div>
           {e.time && <span className="wl-time">{e.time}</span>}
@@ -233,13 +241,3 @@ function IssueHistory({
   );
 }
 
-function formatHistoryDate(date: string): string {
-  const d = new Date(date + "T00:00:00");
-  const label = d.toLocaleDateString(undefined, {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-  return date === today() ? `${label} · Today` : label;
-}

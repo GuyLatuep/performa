@@ -78,6 +78,22 @@ export function startOfWeek(d: Date): string {
   return toDateInput(copy);
 }
 
+/** Human-readable label for a yyyy-MM-dd date, suffixed with "· Today" when
+ *  it is the current day. `options` picks the shape — callers differ on how
+ *  much detail their context needs. The date is parsed as *local* midnight;
+ *  a bare "yyyy-MM-dd" would be read as UTC and land on the wrong day west of
+ *  Greenwich. */
+export function formatDayLabel(
+  date: string,
+  options: Intl.DateTimeFormatOptions,
+): string {
+  const label = new Date(date + "T00:00:00").toLocaleDateString(
+    undefined,
+    options,
+  );
+  return date === today() ? `${label} · Today` : label;
+}
+
 /** Compact relative age of an RFC3339 timestamp: "5m ago", "3h ago", "2d ago". */
 export function timeAgo(iso: string): string {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));

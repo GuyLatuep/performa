@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, MissingWorklog } from "../api";
 import { timeAgo, toDateInput, toTimeInput } from "../time";
 import {
@@ -15,6 +14,7 @@ import {
   useWorklogDraft,
   WorklogFields,
 } from "./WorklogFields";
+import MissingRow, { missingRowKey } from "./MissingRow";
 
 interface Props {
   site: string;
@@ -83,38 +83,14 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
       )}
 
       {items.map((item) => (
-        <div key={`${item.issueKey}-${item.activityAt}`} className="worklog-row">
-          <div className="worklog-main">
-            <button
-              className="key-link key"
-              title={`Open ${item.issueKey} in browser`}
-              onClick={() => openUrl(`${site}/browse/${item.issueKey}`)}
-            >
-              {item.issueKey}
-            </button>
-            <button
-              className="issue-select missing-select"
-              title={`Log work on ${item.logKey}`}
-              onClick={() => setLogging(item)}
-            >
-              <span className="summary">{item.issueSummary}</span>
-              {item.detail && (
-                <span className="comment">
-                  {item.kind === "comment" ? `“${item.detail}”` : item.detail}
-                </span>
-              )}
-              {item.logKey !== item.issueKey && (
-                <span className="comment">
-                  → logs on {item.logKey} · {item.logSummary}
-                </span>
-              )}
-            </button>
-          </div>
-          <span className="missing-meta">
-            {item.kind === "comment" ? "commented" : "status changed"}{" "}
-            {timeAgo(item.activityAt)}
-          </span>
-        </div>
+        <MissingRow
+          key={missingRowKey(item)}
+          item={item}
+          site={site}
+          actionTitle={`Log work on ${item.logKey}`}
+          onAction={() => setLogging(item)}
+          showLogTarget
+        />
       ))}
     </div>
   );
