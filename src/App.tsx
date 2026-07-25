@@ -34,6 +34,11 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   // Issue picked on the start tab, opened directly in the log-work form.
   const [logIssue, setLogIssue] = useState<IssueSummary | null>(null);
+  // Counts entries into the log tab. Used as LogWork's key so every visit
+  // remounts it: the component keeps the picked issue in its own state, which
+  // a changed `initialIssue` alone would not clear — least of all when it
+  // changes from "no issue" to "no issue" (see `openLogTab`).
+  const [logVisit, setLogVisit] = useState(0);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const missingItems = useMissing();
@@ -112,6 +117,13 @@ export default function App() {
     await refreshStatus();
   }
 
+  /** Open the log-work tab, optionally with an issue preselected. */
+  function openLogTab(issue: IssueSummary | null) {
+    setLogIssue(issue);
+    setLogVisit((v) => v + 1);
+    setTab("log");
+  }
+
   function onLogged() {
     setRefreshKey((k) => k + 1);
     // A fresh worklog may resolve a reminder — recheck right away.
@@ -168,11 +180,9 @@ export default function App() {
         </button>
         <button
           className={tab === "log" ? "active" : ""}
-          onClick={() => {
-            // A manual visit starts fresh, without a preselected issue.
-            setLogIssue(null);
-            setTab("log");
-          }}
+          // A manual visit starts fresh, without a preselected issue — also
+          // when the tab is already open.
+          onClick={() => openLogTab(null)}
         >
           Log work
         </button>
@@ -198,16 +208,18 @@ export default function App() {
           <Start
             site={creds.site}
             refreshKey={refreshKey}
-            onSelectIssue={(issue) => {
-              setLogIssue(issue);
-              setTab("log");
-            }}
+            onSelectIssue={openLogTab}
             onOpenMissing={() => setTab("missing")}
             onLogged={onLogged}
           />
         )}
         {tab === "log" && (
-          <LogWork site={creds.site} onLogged={onLogged} initialIssue={logIssue} />
+          <LogWork
+            key={logVisit}
+            site={creds.site}
+            onLogged={onLogged}
+            initialIssue={logIssue}
+          />
         )}
         {tab === "timesheet" && <Timesheet site={creds.site} refreshKey={refreshKey} />}
         {tab === "missing" && <MissingWorklogs site={creds.site} onLogged={onLogged} />}
