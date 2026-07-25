@@ -9,7 +9,14 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Same checks as on main — a tag must never ship code that fails them.
+  test:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   build:
+    needs: test
     permissions:
       contents: write
     strategy:

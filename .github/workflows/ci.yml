@@ -1,0 +1,79 @@
+name: CI
+
+# Runs on every push to main and every pull request. Also callable from
+# release.yml (`workflow_call`), so a tag build is gated on the same checks
+# instead of duplicating them.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+# A newer push to the same ref makes the running check obsolete.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Date handling is timezone-sensitive and a UTC-negative zone has
+        # already hidden one bug (weekRange parsed yyyy-MM-dd as UTC). Run the
+        # suite on both sides of Greenwich so that class of bug can't return.
+        timezone: [Europe/Berlin, America/Los_Angeles]
+    env:
+      TZ: ${{ matrix.timezone }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `pnpm build` is `tsc && vite build` — typecheck and bundle in one.
+      - name: Typecheck and build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+
+  rust:
+    # macOS mirrors the primary release target and needs no system packages,
+    # unlike Linux where Tauri pulls in webkit2gtk & friends.
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          # Same key as release.yml so both share one cache.
+          workspaces: "./src-tauri -> target"
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test
