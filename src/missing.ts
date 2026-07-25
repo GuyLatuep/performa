@@ -10,7 +10,11 @@ import { createStore } from "./store";
 
 const SEEN_KEY = "performa-missing-seen";
 const NOTIFIED_KEY = "performa-missing-notified";
-const POLL_MS = 2 * 60 * 1000;
+// Each check costs a burst of Jira requests (one search per candidate issue,
+// plus worklogs and changelog per hit), so the interval is kept wide. Anything
+// missed in between still surfaces at the next run, on "Check now", or when
+// closing the app — the reminder is not time-critical.
+const POLL_MS = 15 * 60 * 1000;
 
 interface MissingState {
   items: MissingWorklog[];

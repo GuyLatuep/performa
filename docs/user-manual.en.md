@@ -199,7 +199,7 @@ Row actions:
 
 The **Missing worklog** tab is a safety net for forgotten time entries.
 
-**What it flags:** issues where **you** commented or changed the status within the **last 24 hours**, but have **no worklog within about 3 hours** of that activity. Activity from the last 10 minutes is not flagged yet (grace period — you may simply not have logged it *yet*). The check runs automatically **every 2 minutes** while you are signed in; **Check now** triggers it manually, and the tab shows when it last ran.
+**What it flags:** issues where **you** commented or changed the status within the **last 24 hours**, but have **no worklog within about 3 hours** of that activity. Activity from the last 10 minutes is not flagged yet (grace period — you may simply not have logged it *yet*). The check runs automatically **every 15 minutes** while you are signed in; **Check now** triggers it manually, and the tab shows when it last ran.
 
 Each finding shows:
 

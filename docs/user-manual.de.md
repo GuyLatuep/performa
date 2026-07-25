@@ -199,7 +199,7 @@ Aktionen pro Zeile:
 
 Der Tab **Missing worklog** ist ein Sicherheitsnetz gegen vergessene Zeiteinträge.
 
-**Was er meldet:** Vorgänge, auf denen **du** in den **letzten 24 Stunden** kommentiert oder den Status geändert hast, ohne dass in **etwa ±3 Stunden** um diese Aktivität ein Worklog existiert. Aktivität der letzten 10 Minuten wird noch nicht gemeldet (Karenzzeit — vielleicht hast du sie einfach *noch* nicht erfasst). Die Prüfung läuft automatisch **alle 2 Minuten**, solange du angemeldet bist; **Check now** stößt sie manuell an, und der Tab zeigt den Zeitpunkt der letzten Prüfung.
+**Was er meldet:** Vorgänge, auf denen **du** in den **letzten 24 Stunden** kommentiert oder den Status geändert hast, ohne dass in **etwa ±3 Stunden** um diese Aktivität ein Worklog existiert. Aktivität der letzten 10 Minuten wird noch nicht gemeldet (Karenzzeit — vielleicht hast du sie einfach *noch* nicht erfasst). Die Prüfung läuft automatisch **alle 15 Minuten**, solange du angemeldet bist; **Check now** stößt sie manuell an, und der Tab zeigt den Zeitpunkt der letzten Prüfung.
 
 Jeder Fund zeigt:
 

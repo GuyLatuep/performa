@@ -61,7 +61,7 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
       <div className="missing-head">
         <span className="hint">
           Issues you commented on or moved in the last 24 hours without logging
-          time around it. Rechecked every 2 minutes; activity from the last 10
+          time around it. Rechecked every 15 minutes; activity from the last 10
           minutes isn't flagged yet.
         </span>
         <div className="missing-actions">
