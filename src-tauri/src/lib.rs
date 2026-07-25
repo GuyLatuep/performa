@@ -29,6 +29,10 @@ const MISSING_BOOKABLE_DONE_STATUSES: &[&str] = &["Gelöst", "Resolved"];
 // `start_issue_work`).
 const TIMER_START_STATUS: &str = "In Arbeit";
 
+// Generous enough for any genuine frontend log line (the longest are search
+// labels carrying the user's query), short enough to bound the file.
+const MAX_FRONTEND_LOG_CHARS: usize = 1000;
+
 /// Client + account id, built once from the stored credentials and cached so
 /// commands neither re-read the keychain nor re-fetch `myself` on every call.
 #[derive(Clone)]
@@ -292,8 +296,13 @@ fn open_log_folder() -> Result<(), String> {
 
 /// Append a line from the frontend (webview `console.error`-style catches)
 /// to the same debug log, so both sides land in one place.
+///
+/// The message is folded to one bounded line first — it arrives from the
+/// untrusted webview, which could otherwise forge extra log entries with
+/// embedded newlines or flood the file with a single call.
 #[tauri::command]
 fn frontend_log(level: String, message: String) {
+    let message = logging::one_line(&message, MAX_FRONTEND_LOG_CHARS);
     match level.to_lowercase().as_str() {
         "error" => log::error!("{message}"),
         "warn" | "warning" => log::warn!("{message}"),

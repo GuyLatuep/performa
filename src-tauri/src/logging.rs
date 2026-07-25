@@ -54,6 +54,22 @@ fn format_line(record: &Record) -> String {
     )
 }
 
+/// Fold text into a single bounded log line: all whitespace runs (newlines
+/// above all) collapse to one space, and the result is capped at `max_chars`.
+///
+/// Anything that reaches the log from outside this process — the webview, a
+/// Jira response body — goes through here first. One record must stay one
+/// line: an embedded newline would otherwise let a caller forge additional
+/// log entries, and an unbounded message could fill the disk.
+pub fn one_line(text: &str, max_chars: usize) -> String {
+    let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if collapsed.chars().count() <= max_chars {
+        return collapsed;
+    }
+    let cut: String = collapsed.chars().take(max_chars).collect();
+    format!("{}…", cut.trim_end())
+}
+
 /// `<temp>/performa-logs` — a dedicated subfolder so "open log folder" shows
 /// only our files, not the whole shared system temp directory.
 pub fn log_dir() -> PathBuf {
@@ -130,6 +146,30 @@ mod tests {
         assert!(set_level("info").is_ok());
         assert!(set_level("Debug").is_ok());
         assert!(set_level("critical").is_err());
+    }
+
+    #[test]
+    fn one_line_folds_newlines_so_a_caller_cannot_forge_records() {
+        // The attack this guards: a webview message that ends the current
+        // record and appends a fabricated one.
+        let forged = "oops\n2026-07-25 12:00:00,000 - performa - INFO - all good";
+        let safe = one_line(forged, 200);
+        assert!(!safe.contains('\n'));
+        assert_eq!(
+            safe,
+            "oops 2026-07-25 12:00:00,000 - performa - INFO - all good"
+        );
+        // Carriage returns and tabs collapse too, and edges are trimmed.
+        assert_eq!(one_line("  a\r\n\tb  ", 200), "a b");
+        assert_eq!(one_line("", 200), "");
+    }
+
+    #[test]
+    fn one_line_caps_length() {
+        assert_eq!(one_line("short", 100), "short");
+        assert_eq!(one_line(&"x".repeat(50), 10), "xxxxxxxxxx…");
+        // Counted in chars, not bytes — must not split a multi-byte character.
+        assert_eq!(one_line(&"ü".repeat(50), 3), "üüü…");
     }
 
     #[test]

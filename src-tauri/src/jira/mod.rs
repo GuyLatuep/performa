@@ -22,6 +22,10 @@ use crate::creds::Credentials;
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(30);
 
+// Jira's own error messages are a sentence or two; this only bites when the
+// response isn't Jira's error JSON at all and the raw body stands in.
+const MAX_ERROR_DETAIL_CHARS: usize = 500;
+
 #[derive(Clone)]
 pub struct JiraClient {
     site: String,
@@ -55,6 +59,10 @@ impl JiraClient {
         }
         let body = resp.text().await.unwrap_or_default();
         let detail = extract_error_message(&body).unwrap_or(body);
+        // When Jira answers with something other than its usual error JSON —
+        // a proxy's HTML page, say — `detail` is the whole raw body. Bound it
+        // before it reaches either the log file or the error banner.
+        let detail = crate::logging::one_line(&detail, MAX_ERROR_DETAIL_CHARS);
         log::error!("Jira returned {status}: {detail}");
         Err(format!("Jira returned {status}: {detail}"))
     }
