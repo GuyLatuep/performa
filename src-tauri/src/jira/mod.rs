@@ -15,8 +15,8 @@ use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
 use futures_util::{stream, StreamExt, TryStreamExt};
 use serde::de::DeserializeOwned;
 
-pub use types::{IssueSummary, MissingWorklog, Myself, WorklogEntry};
 use types::*;
+pub use types::{IssueSummary, MissingWorklog, Myself, WorklogEntry};
 
 use crate::creds::Credentials;
 
@@ -328,9 +328,7 @@ impl JiraClient {
         let worklogs = self.issue_worklogs(issue_key, "0").await?;
         let mut entries: Vec<WorklogEntry> = worklogs
             .into_iter()
-            .filter(|w| {
-                w.author.as_ref().map(|a| a.account_id.as_str()) == Some(account_id)
-            })
+            .filter(|w| w.author.as_ref().map(|a| a.account_id.as_str()) == Some(account_id))
             .map(|w| {
                 let (billable, comment) =
                     split_billable(w.comment.as_ref().map(adf_to_text).unwrap_or_default());

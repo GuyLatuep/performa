@@ -74,11 +74,12 @@ impl JiraClient {
                 candidates.push(issue);
             }
         }
+        let candidate_keys: Vec<&str> = candidates.iter().map(|i| i.key.as_str()).collect();
         log::debug!(
             "missing_worklogs: {} candidate issue(s) to scan ({} status-changed): {:?}",
             candidates.len(),
             status_keys.len(),
-            candidates.iter().map(|i| i.key.as_str()).collect::<Vec<_>>()
+            candidate_keys
         );
 
         // Candidates are independent — check them concurrently so the whole
@@ -105,10 +106,11 @@ impl JiraClient {
             .collect();
 
         found.sort_by_key(|(ts, _)| std::cmp::Reverse(*ts));
+        let flagged_keys: Vec<&str> = found.iter().map(|(_, m)| m.issue_key.as_str()).collect();
         log::debug!(
             "missing_worklogs: {} issue(s) flagged as unlogged: {:?}",
             found.len(),
-            found.iter().map(|(_, m)| m.issue_key.as_str()).collect::<Vec<_>>()
+            flagged_keys
         );
         Ok(found.into_iter().map(|(_, m)| m).collect())
     }
@@ -144,8 +146,10 @@ impl JiraClient {
                 if e.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
                     continue;
                 }
-                let Some(status) =
-                    e.items.iter().find(|i| i.field.eq_ignore_ascii_case("status"))
+                let Some(status) = e
+                    .items
+                    .iter()
+                    .find(|i| i.field.eq_ignore_ascii_case("status"))
                 else {
                     continue;
                 };
@@ -242,7 +246,11 @@ impl JiraClient {
         Ok(parsed.comments)
     }
 
-    async fn changelog_page(&self, issue_key: &str, start_at: i64) -> Result<ChangelogPage, String> {
+    async fn changelog_page(
+        &self,
+        issue_key: &str,
+        start_at: i64,
+    ) -> Result<ChangelogPage, String> {
         self.get_json(
             &format!("/rest/api/3/issue/{issue_key}/changelog"),
             &[
@@ -260,7 +268,9 @@ impl JiraClient {
         let first = self.changelog_page(issue_key, 0).await?;
         let fetched = first.values.len() as i64;
         if first.total > fetched && fetched > 0 {
-            return Ok(self.changelog_page(issue_key, first.total - fetched).await?.values);
+            let last_page_start = first.total - fetched;
+            let last = self.changelog_page(issue_key, last_page_start).await?;
+            return Ok(last.values);
         }
         Ok(first.values)
     }
@@ -283,10 +293,15 @@ impl JiraClient {
         // A link entry on this issue reads "<this issue> <description>
         // <outwardIssue>" or "<this issue> <inward description> <inwardIssue>".
         for link in parsed.fields.map(|f| f.issuelinks).unwrap_or_default() {
-            let target = if link.link_type.outward.eq_ignore_ascii_case(link_description) {
-                link.outward_issue
-            } else if link.link_type.inward.eq_ignore_ascii_case(link_description) {
-                link.inward_issue
+            let IssueLink {
+                link_type,
+                inward_issue,
+                outward_issue,
+            } = link;
+            let target = if link_type.outward.eq_ignore_ascii_case(link_description) {
+                outward_issue
+            } else if link_type.inward.eq_ignore_ascii_case(link_description) {
+                inward_issue
             } else {
                 None
             };

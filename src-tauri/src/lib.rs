@@ -327,9 +327,11 @@ fn normalize_site(input: &str) -> Result<String, String> {
         return Err("Jira site required, e.g. your-team.atlassian.net".to_string());
     }
     if scheme.eq_ignore_ascii_case("http") && !is_loopback(host) {
-        return Err("refusing a plain http site: your API token is sent with every \
-                    request and would travel unencrypted — use https://"
-            .to_string());
+        return Err(
+            "refusing a plain http site: your API token is sent with every \
+             request and would travel unencrypted — use https://"
+                .to_string(),
+        );
     }
     if !scheme.eq_ignore_ascii_case("https") && !scheme.eq_ignore_ascii_case("http") {
         return Err(format!("unsupported scheme '{scheme}://' — use https://"));
@@ -420,7 +422,10 @@ mod tests {
             normalize_site("http://127.0.0.1:1234/").unwrap(),
             "http://127.0.0.1:1234"
         );
-        assert_eq!(normalize_site("http://[::1]:80").unwrap(), "http://[::1]:80");
+        assert_eq!(
+            normalize_site("http://[::1]:80").unwrap(),
+            "http://[::1]:80"
+        );
         // A loopback-lookalike hostname is a remote host like any other.
         assert!(normalize_site("http://localhost.evil.example").is_err());
         assert!(normalize_site("http://127.0.0.1.evil.example").is_err());
