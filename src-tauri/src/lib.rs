@@ -43,20 +43,29 @@ struct AppState {
 }
 
 /// The cached session, or build (and cache) one from the stored credentials.
+///
+/// The keychain read and the `myself` round-trip deliberately run *without*
+/// the lock held. Holding it would make one command's session build block
+/// every other command for the full 30s HTTP timeout, so an unreachable Jira
+/// costs one stall per queued command instead of one overall — and the app
+/// fires several commands at once on startup. The price is that commands
+/// racing on a cold start may each fetch `myself` once; the first result to
+/// land is kept and the rest reuse it.
 async fn session(state: &State<'_, AppState>) -> Result<Session, String> {
-    let mut guard = state.session.lock().await;
-    if let Some(s) = guard.as_ref() {
-        return Ok(s.clone());
+    let cached = state.session.lock().await.clone();
+    if let Some(s) = cached {
+        return Ok(s);
     }
     let creds = creds::load()?.ok_or_else(|| "not configured".to_string())?;
     let client = JiraClient::new(&creds);
     let me = client.myself().await?;
-    let s = Session {
-        client,
-        account_id: me.account_id,
-    };
-    *guard = Some(s.clone());
-    Ok(s)
+    let mut guard = state.session.lock().await;
+    Ok(guard
+        .get_or_insert(Session {
+            client,
+            account_id: me.account_id,
+        })
+        .clone())
 }
 
 // ----- Input validation at the IPC boundary -----
