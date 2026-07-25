@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState, FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { api, CredentialsMeta } from "../api";
-import { LOG_LEVELS, LogLevel } from "../log";
+import { CredentialsMeta } from "../api";
 import {
   getDailyHours,
   getLogLevel,
@@ -10,14 +8,14 @@ import {
   setDailyHours,
   setLogLevel,
   setShowWeekends,
-  useLogLevel,
-  useShowWeekends,
 } from "../settings";
 import { getTheme, setTheme } from "../theme";
 import { getAccent, setAccent } from "../accent";
-import ThemeToggle from "./ThemeToggle";
-import AccentPicker from "./AccentPicker";
 import Blockmark from "./Blockmark";
+import SettingsConnection from "./SettingsConnection";
+import SettingsAppearance from "./SettingsAppearance";
+import SettingsTimesheet from "./SettingsTimesheet";
+import SettingsLogging from "./SettingsLogging";
 
 interface Props {
   existing: CredentialsMeta | null;
@@ -25,22 +23,20 @@ interface Props {
   onCancel?: () => void;
 }
 
-const TOKEN_URL = "https://id.atlassian.com/manage-profile/security/api-tokens";
-
 type SettingsTab = "connection" | "appearance" | "timesheet" | "logging";
 
-/** First-run connect screen; doubles as the settings page once signed in. */
+const TABS: { id: SettingsTab; label: string }[] = [
+  { id: "connection", label: "Connection" },
+  { id: "appearance", label: "Appearance" },
+  { id: "timesheet", label: "Timesheet" },
+  { id: "logging", label: "Logging" },
+];
+
+/** First-run connect screen; doubles as the settings page once signed in.
+ *  Holds what spans the tabs — which one is open, and the rollback of the
+ *  live-previewed settings — while each tab owns its own fields. */
 export default function Settings({ existing, onSaved, onCancel }: Props) {
-  const [site, setSite] = useState(existing?.site ?? "");
-  const [email, setEmail] = useState(existing?.email ?? "");
-  const [token, setToken] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState("");
-  const [hours, setHours] = useState(String(getDailyHours()));
-  const showWeekends = useShowWeekends();
-  const logLevel = useLogLevel();
-  const [logFolderError, setLogFolderError] = useState<string | null>(null);
   // Editing an existing connection lands on Appearance — that's the more
   // common reason to reopen this screen. First run has to start on
   // Connection since nothing else matters until it's set up.
@@ -68,32 +64,9 @@ export default function Settings({ existing, onSaved, onCancel }: Props) {
     onCancel?.();
   }
 
-  async function openLogFolder() {
-    setLogFolderError(null);
-    try {
-      await api.openLogFolder();
-    } catch (err) {
-      setLogFolderError(String(err));
-    }
-  }
-
   useEffect(() => {
     getVersion().then(setVersion);
   }, []);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await api.saveCredentials(site, email, token);
-      onSaved();
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <div className="setup">
@@ -104,207 +77,33 @@ export default function Settings({ existing, onSaved, onCancel }: Props) {
       <h1>performa</h1>
 
       <div className="settings-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "connection"}
-          className={tab === "connection" ? "active" : ""}
-          onClick={() => setTab("connection")}
-        >
-          Connection
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "appearance"}
-          className={tab === "appearance" ? "active" : ""}
-          onClick={() => setTab("appearance")}
-        >
-          Appearance
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "timesheet"}
-          className={tab === "timesheet" ? "active" : ""}
-          onClick={() => setTab("timesheet")}
-        >
-          Timesheet
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "logging"}
-          className={tab === "logging" ? "active" : ""}
-          onClick={() => setTab("logging")}
-        >
-          Logging
-        </button>
+        {TABS.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={tab === id ? "active" : ""}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {tab === "connection" && (
-        <>
-          <p className="muted">
-            Connect your Jira Cloud site to start logging hours. Your API
-            token is kept in the{" "}
-            {navigator.platform.startsWith("Mac")
-              ? "macOS Keychain"
-              : "OS keychain"}{" "}
-            and never leaves this machine.
-          </p>
-
-          <form onSubmit={submit}>
-            <label>
-              Jira site
-              <input
-                type="text"
-                placeholder="your-team.atlassian.net"
-                value={site}
-                onChange={(e) => setSite(e.target.value)}
-                autoFocus
-                required
-              />
-            </label>
-
-            <label>
-              Email
-              <input
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </label>
-
-            <label>
-              API token
-              <input
-                type="password"
-                placeholder={
-                  existing ? "•••••••• (unchanged — enter to replace)" : ""
-                }
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                required={!existing}
-              />
-              {existing && (
-                <span className="hint">
-                  Required again when you change the site or email — a stored
-                  token is never sent to a different connection.
-                </span>
-              )}
-            </label>
-
-            <button
-              type="button"
-              className="link"
-              onClick={() => openUrl(TOKEN_URL)}
-            >
-              Create an API token ↗
-            </button>
-
-            {error && <p className="error">{error}</p>}
-
-            <div className="row">
-              {onCancel && (
-                <button type="button" className="secondary" onClick={cancel}>
-                  Cancel
-                </button>
-              )}
-              <button type="submit" disabled={busy}>
-                {busy ? "Verifying…" : existing ? "Save" : "Connect"}
-              </button>
-            </div>
-          </form>
-        </>
+        <SettingsConnection
+          existing={existing}
+          onSaved={onSaved}
+          onCancel={onCancel ? cancel : undefined}
+        />
       )}
+      {tab === "appearance" && <SettingsAppearance />}
+      {tab === "timesheet" && <SettingsTimesheet />}
+      {tab === "logging" && <SettingsLogging />}
 
-      {tab === "appearance" && (
-        <>
-          <div className="field-block">
-            <span className="field-label">Theme</span>
-            <ThemeToggle />
-          </div>
-
-          <div className="field-block">
-            <span className="field-label">Accent color</span>
-            <AccentPicker />
-          </div>
-        </>
-      )}
-
-      {tab === "timesheet" && (
-        <>
-          <div className="field-block">
-            <span className="field-label">Daily work hours</span>
-            <div className="hours-field">
-              <input
-                type="number"
-                min={0.5}
-                max={24}
-                step={0.5}
-                value={hours}
-                onChange={(e) => {
-                  setHours(e.target.value);
-                  setDailyHours(parseFloat(e.target.value));
-                }}
-                onBlur={() => setHours(String(getDailyHours()))}
-              />
-              <span className="hint">
-                h per day · sets the timesheet targets
-              </span>
-            </div>
-          </div>
-
-          <div className="field-block">
-            <span className="field-label">Timesheet days</span>
-            <div className="theme-toggle">
-              <button
-                type="button"
-                className={showWeekends ? "" : "active"}
-                onClick={() => setShowWeekends(false)}
-              >
-                Mon–Fri
-              </button>
-              <button
-                type="button"
-                className={showWeekends ? "active" : ""}
-                onClick={() => setShowWeekends(true)}
-              >
-                Full week
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {tab === "logging" && (
-        <div className="field-block">
-          <span className="field-label">Logging</span>
-          <div className="hours-field">
-            <select
-              value={logLevel}
-              onChange={(e) => setLogLevel(e.target.value as LogLevel)}
-            >
-              {LOG_LEVELS.map((level) => (
-                <option key={level} value={level}>
-                  {level.charAt(0).toUpperCase() + level.slice(1)}
-                </option>
-              ))}
-            </select>
-            <button type="button" className="secondary" onClick={openLogFolder}>
-              Open log folder
-            </button>
-          </div>
-          <span className="hint">
-            Debug log level · files are written to a temp folder, newest 3
-            kept
-          </span>
-          {logFolderError && <p className="error">{logFolderError}</p>}
-        </div>
-      )}
-
+      {/* The connection tab brings its own buttons — its Save has to submit
+          the form. */}
       {tab !== "connection" && onCancel && (
         <div className="row">
           <button type="button" className="secondary" onClick={cancel}>
