@@ -213,6 +213,41 @@ textarea {
   resize: vertical;
 }
 
+/* Duration input plus its quick-add row; the label keeps its own bottom
+   margin off so the shortcuts sit tight under the field. */
+.duration-field {
+  margin-bottom: 16px;
+}
+.duration-field > label {
+  margin-bottom: 0;
+}
+.duration-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 7px;
+}
+button.duration-add {
+  width: auto;
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--hair);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+button.duration-add:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.duration-quick .hint {
+  margin-left: auto;
+}
+
 .field-row {
   display: flex;
   gap: 14px;

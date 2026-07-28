@@ -16,6 +16,9 @@ export interface WorklogDraft {
 
 export const DURATION_ERROR = "Enter a valid duration, e.g. 1h 30m";
 
+/** One-tap increments offered next to the duration preview, in seconds. */
+const QUICK_DURATIONS = [15 * 60, 30 * 60, 60 * 60];
+
 /** The draft as the backend's worklog payload. `seconds` comes from the
  *  parsed duration, which every caller has to validate first anyway — hence
  *  passing it in rather than re-parsing here. Note the inversion: the form
@@ -61,21 +64,40 @@ export function WorklogFields({
   seconds,
   durationLabel = "Time spent",
 }: Props) {
+  // Quick buttons add to whatever is already there, so "+30m" twice reads 1h.
+  // An unparseable draft counts as zero rather than blocking the shortcut.
+  const addDuration = (delta: number) =>
+    patch({ duration: formatDuration((seconds ?? 0) + delta) });
+
   return (
     <>
-      <label>
-        {durationLabel}
-        <input
-          type="text"
-          placeholder="1h 30m"
-          value={draft.duration}
-          onChange={(e) => patch({ duration: e.target.value })}
-          autoFocus
-        />
-        {seconds !== null && (
-          <span className="hint">= {formatDuration(seconds)}</span>
-        )}
-      </label>
+      <div className="duration-field">
+        <label>
+          {durationLabel}
+          <input
+            type="text"
+            placeholder="1h 30m"
+            value={draft.duration}
+            onChange={(e) => patch({ duration: e.target.value })}
+            autoFocus
+          />
+        </label>
+        <div className="duration-quick">
+          {QUICK_DURATIONS.map((delta) => (
+            <button
+              key={delta}
+              type="button"
+              className="duration-add"
+              onClick={() => addDuration(delta)}
+            >
+              +{formatDuration(delta)}
+            </button>
+          ))}
+          {seconds !== null && (
+            <span className="hint">= {formatDuration(seconds)}</span>
+          )}
+        </div>
+      </div>
 
       <div className="field-row">
         <label>
