@@ -56,6 +56,10 @@ interface Props {
   patch: (p: Partial<WorklogDraft>) => void;
   seconds: number | null;
   durationLabel?: string;
+  /** Keep Tab on the straight path duration → comment → submit, leaving the
+   *  fields that usually stay at their default (date, start time, billability,
+   *  the quick-add buttons) reachable by click or shift-tab only. */
+  fastTabOrder?: boolean;
 }
 
 export function WorklogFields({
@@ -63,7 +67,9 @@ export function WorklogFields({
   patch,
   seconds,
   durationLabel = "Time spent",
+  fastTabOrder = false,
 }: Props) {
+  const skip = fastTabOrder ? -1 : undefined;
   // Quick buttons add to whatever is already there, so "+30m" twice reads 1h.
   // An unparseable draft counts as zero rather than blocking the shortcut.
   const addDuration = (delta: number) =>
@@ -88,6 +94,7 @@ export function WorklogFields({
               key={delta}
               type="button"
               className="duration-add"
+              tabIndex={skip}
               onClick={() => addDuration(delta)}
             >
               +{formatDuration(delta)}
@@ -106,6 +113,7 @@ export function WorklogFields({
             type="date"
             value={draft.date}
             max={today()}
+            tabIndex={skip}
             onChange={(e) => patch({ date: e.target.value })}
           />
         </label>
@@ -114,6 +122,7 @@ export function WorklogFields({
           <input
             type="time"
             value={draft.time}
+            tabIndex={skip}
             onChange={(e) => patch({ time: e.target.value })}
           />
         </label>
@@ -132,6 +141,7 @@ export function WorklogFields({
         <input
           type="checkbox"
           checked={draft.nonBillable}
+          tabIndex={skip}
           onChange={(e) => patch({ nonBillable: e.target.checked })}
         />
         Non-billable
