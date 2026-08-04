@@ -74,6 +74,14 @@ function countUnseen(items: MissingWorklog[]): number {
   return items.filter((i) => !seen.has(sig(i))).length;
 }
 
+/** Do two scans report the same findings? Compared by signature, the same key
+ *  the seen/notified sets use. Lets `refreshMissing` hand back the array it
+ *  already had, so the components watching `items` are not re-rendered by a
+ *  check that turned up nothing new. */
+function sameItems(a: MissingWorklog[], b: MissingWorklog[]): boolean {
+  return a.length === b.length && a.every((item, i) => sig(item) === sig(b[i]));
+}
+
 export function getMissing(): MissingWorklog[] {
   return store.get().items;
 }
@@ -84,7 +92,8 @@ export async function refreshMissing(
   source: "poll" | "manual" | "post-log" | "close" = "poll",
 ): Promise<void> {
   logInfo(`missing-worklog check triggered (${source})`);
-  let items = store.get().items;
+  const previous = store.get().items;
+  let items = previous;
   let lastError: string | null = null;
   try {
     items = await api.missingWorklogs();
@@ -93,7 +102,10 @@ export async function refreshMissing(
     lastError = String(err);
   }
   store.set({
-    items,
+    // `lastChecked` below moves on every single check, so the state object is
+    // always new — keeping the array identity is what spares the components
+    // that only watch `items` (see the `useSelector` hooks at the bottom).
+    items: sameItems(previous, items) ? previous : items,
     unseenCount: countUnseen(items),
     lastError,
     lastChecked: new Date().toLocaleTimeString([], {
@@ -123,18 +135,22 @@ export function markMissingSeen(): void {
   store.set({ ...state, unseenCount: countUnseen(state.items) });
 }
 
+// Each hook selects its own field rather than the whole state: a check that
+// only moves `lastChecked` then re-renders the one component showing that
+// timestamp, instead of every component watching for findings.
+
 export function useMissing(): MissingWorklog[] {
-  return store.use().items;
+  return store.useSelector((s) => s.items);
 }
 
 export function useMissingUnseenCount(): number {
-  return store.use().unseenCount;
+  return store.useSelector((s) => s.unseenCount);
 }
 
 export function useMissingError(): string | null {
-  return store.use().lastError;
+  return store.useSelector((s) => s.lastError);
 }
 
 export function useMissingLastChecked(): string | null {
-  return store.use().lastChecked;
+  return store.useSelector((s) => s.lastChecked);
 }

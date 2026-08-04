@@ -28,6 +28,33 @@ describe("createStore", () => {
     expect(first).toHaveBeenCalledTimes(2);
   });
 
+  it("stays quiet when set is handed the value it already holds", () => {
+    const store = createStore("a");
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    store.set("a");
+    expect(listener).not.toHaveBeenCalled();
+
+    store.set("b");
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("compares by identity, not by contents", () => {
+    // Two equal-looking objects are still two values: the store cannot know
+    // whether something nested changed, so it must notify.
+    const store = createStore({ n: 1 });
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    store.set({ n: 1 });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    const same = store.get();
+    store.set(same);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
   it("stops notifying after unsubscribe", () => {
     const store = createStore(0);
     const listener = vi.fn();
