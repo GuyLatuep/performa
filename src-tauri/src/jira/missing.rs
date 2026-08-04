@@ -8,7 +8,7 @@ use chrono::Local;
 use futures_util::{stream, StreamExt, TryStreamExt};
 
 use super::types::*;
-use super::{adf_to_text, format_rfc3339_local, parse_jira_ts, JiraClient};
+use super::{adf_to_text, format_rfc3339_local, parse_jira_ts, JiraClient, MAX_INFLIGHT};
 
 /// One thing the user did on an issue: a comment or a status change.
 /// Deliberately *not* filtered by time — the scan window moves with the clock,
@@ -125,7 +125,7 @@ impl JiraClient {
                     config,
                 )
             })
-            .buffer_unordered(8)
+            .buffer_unordered(MAX_INFLIGHT)
             .try_collect::<Vec<Option<(i64, MissingWorklog)>>>()
             .await?
             .into_iter()

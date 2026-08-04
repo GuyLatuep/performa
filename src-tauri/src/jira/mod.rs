@@ -34,6 +34,17 @@ const POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(20 * 60);
 /// drops silent flows is noticed by us and not as a failed request.
 const TCP_KEEPALIVE: Duration = Duration::from_secs(60);
 
+/// How many per-issue requests the two fan-out scans (`my_worklogs` and the
+/// missing-worklog candidate scan) keep in flight at once.
+///
+/// The ceiling used to be about connections: under HTTP/1.1 each parallel
+/// request needed its own socket, so a low number kept us from opening a pile
+/// of them. With h2 negotiated (see the `http2` feature in `Cargo.toml`) they
+/// multiplex over a single connection, and the number is purely about how much
+/// work Jira is asked to do concurrently. Lower it again if Jira starts
+/// answering 429.
+const MAX_INFLIGHT: usize = 16;
+
 // Jira's own error messages are a sentence or two; this only bites when the
 // response isn't Jira's error JSON at all and the raw body stands in.
 const MAX_ERROR_DETAIL_CHARS: usize = 500;
@@ -329,7 +340,7 @@ impl JiraClient {
                     Ok::<_, String>((issue, worklogs))
                 }
             })
-            .buffer_unordered(8)
+            .buffer_unordered(MAX_INFLIGHT)
             .try_collect()
             .await?;
 
