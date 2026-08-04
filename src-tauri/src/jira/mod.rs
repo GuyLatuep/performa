@@ -8,6 +8,7 @@
 mod missing;
 mod types;
 
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -37,10 +38,37 @@ const TCP_KEEPALIVE: Duration = Duration::from_secs(60);
 // response isn't Jira's error JSON at all and the raw body stands in.
 const MAX_ERROR_DETAIL_CHARS: usize = 500;
 
+/// The one transport for the whole process, connection pool included.
+///
+/// `reqwest::Client` is an `Arc` handle, so cloning it shares that pool while
+/// building a second one starts a rival pool that has to warm up from scratch.
+/// That matters because a `JiraClient` gets built more than once: `session()`
+/// deliberately builds one outside the lock, so several commands racing on a
+/// cold start each construct their own, and all but one are dropped — taking
+/// their freshly negotiated connections with them.
+///
+/// Nothing credential-bound lives here: the site and the `Authorization`
+/// header are per-[`JiraClient`] fields, and reqwest keys pooled connections
+/// by host, so one transport safely serves whichever site is configured.
+fn shared_http() -> reqwest::Client {
+    static HTTP: OnceLock<reqwest::Client> = OnceLock::new();
+    HTTP.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(HTTP_TIMEOUT)
+            .pool_idle_timeout(POOL_IDLE_TIMEOUT)
+            .tcp_keepalive(TCP_KEEPALIVE)
+            .build()
+            .unwrap_or_default()
+    })
+    .clone()
+}
+
 #[derive(Clone)]
 pub struct JiraClient {
     site: String,
     auth: String,
+    /// A handle on the process-wide transport — see [`shared_http`]. Cheap to
+    /// clone; every clone reuses the same connection pool.
     http: reqwest::Client,
     /// Scan cache for the missing-worklog check — the one piece of state this
     /// client holds. Shared across clones (the session hands out copies) so
@@ -55,12 +83,7 @@ impl JiraClient {
         JiraClient {
             site: creds.site.trim_end_matches('/').to_string(),
             auth,
-            http: reqwest::Client::builder()
-                .timeout(HTTP_TIMEOUT)
-                .pool_idle_timeout(POOL_IDLE_TIMEOUT)
-                .tcp_keepalive(TCP_KEEPALIVE)
-                .build()
-                .unwrap_or_default(),
+            http: shared_http(),
             activity_cache: missing::ActivityCache::default(),
         }
     }

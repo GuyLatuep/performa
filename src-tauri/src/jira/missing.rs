@@ -175,20 +175,27 @@ impl JiraClient {
         // Escalation-project issues log their time on the linked source
         // issue, so it becomes the log target and its worklogs count too.
         let escalation_prefix = format!("{}-", config.escalation_project);
-        let escalated = if issue.key.starts_with(&escalation_prefix) {
-            self.linked_issue(&issue.key, &config.escalation_link)
-                .await?
-        } else {
-            None
-        };
+        let is_escalation = issue.key.starts_with(&escalation_prefix);
 
         // Fetch worklogs a day extra back so a long worklog reaching into
         // the lookback window is still seen.
         let worklog_after = cutoff - 86_400;
         let window = config.window_secs;
-        let mut covered = self
-            .covered_ranges(&issue.key, account_id, worklog_after, window)
-            .await?;
+
+        // Resolving the escalation link and reading this issue's own worklogs
+        // are independent lookups, so they go out together. Only the *target's*
+        // worklogs below genuinely have to wait on the link.
+        let (escalated, mut covered) = futures_util::try_join!(
+            async {
+                if is_escalation {
+                    self.linked_issue(&issue.key, &config.escalation_link).await
+                } else {
+                    Ok(None)
+                }
+            },
+            self.covered_ranges(&issue.key, account_id, worklog_after, window),
+        )?;
+
         if let Some((target_key, _)) = &escalated {
             covered.extend(
                 self.covered_ranges(target_key, account_id, worklog_after, window)
