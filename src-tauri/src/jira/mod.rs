@@ -22,6 +22,17 @@ use crate::creds::Credentials;
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// How long an unused connection is kept for reuse. reqwest's default is 90s,
+/// which every missing-worklog poll outlives (it runs a quarter-hour apart —
+/// see `POLL_MS` in the webview), so each scheduled scan would otherwise pay a
+/// fresh TCP + TLS handshake. Kept just past the poll interval so consecutive
+/// scans reuse the same connection.
+const POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(20 * 60);
+
+/// Keepalive probes on those long-idle connections, so a NAT or firewall that
+/// drops silent flows is noticed by us and not as a failed request.
+const TCP_KEEPALIVE: Duration = Duration::from_secs(60);
+
 // Jira's own error messages are a sentence or two; this only bites when the
 // response isn't Jira's error JSON at all and the raw body stands in.
 const MAX_ERROR_DETAIL_CHARS: usize = 500;
@@ -46,6 +57,8 @@ impl JiraClient {
             auth,
             http: reqwest::Client::builder()
                 .timeout(HTTP_TIMEOUT)
+                .pool_idle_timeout(POOL_IDLE_TIMEOUT)
+                .tcp_keepalive(TCP_KEEPALIVE)
                 .build()
                 .unwrap_or_default(),
             activity_cache: missing::ActivityCache::default(),
