@@ -83,21 +83,44 @@ export function useTimer(): ActiveTimer | null {
   return store.use();
 }
 
+/** Milliseconds until the elapsed count rolls over to the next whole second.
+ *  A `startedAt` in the future (a clock correction while the timer ran) waits
+ *  out the difference rather than returning something negative. */
+export function msToNextSecond(now: number, startedAt: number): number {
+  const elapsed = now - startedAt;
+  return elapsed < 0 ? -elapsed : 1000 - (elapsed % 1000);
+}
+
 /** Elapsed whole seconds since the timer started, ticking every second. */
 export function useElapsedSeconds(timer: ActiveTimer | null): number {
   const [now, setNow] = useState(() => Date.now());
+  // Keyed on the start time, not the timer object: a new object identity for
+  // the same running timer would restart the ticking on every render, and the
+  // start time is what the elapsed count is actually derived from. Stopping
+  // (timer → null) changes it to undefined, so the effect still re-runs and
+  // cancels the pending tick.
+  const startedAt = timer?.startedAt;
   useEffect(() => {
-    if (!timer) return;
+    if (startedAt === undefined) return;
     setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-    // Keyed on the start time, not the timer object: a new object identity for
-    // the same running timer would restart the interval on every render, and
-    // the start time is what the elapsed count is actually derived from.
-    // Stopping (timer → null) changes it to undefined, so the effect still
-    // re-runs and clears the interval.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timer?.startedAt]);
+    // Each tick aims at the moment the count actually changes instead of a
+    // flat second later. A fixed interval drifts — every wake-up lands a little
+    // late and the error accumulates — until the displayed clock visibly skips
+    // a second. Re-aiming from the current time each round keeps it honest,
+    // and keeps it in step with the tray's copy of the same clock.
+    let id: number;
+    const schedule = () => {
+      id = window.setTimeout(
+        () => {
+          setNow(Date.now());
+          schedule();
+        },
+        msToNextSecond(Date.now(), startedAt),
+      );
+    };
+    schedule();
+    return () => window.clearTimeout(id);
+  }, [startedAt]);
   if (!timer) return 0;
   return Math.max(0, Math.floor((now - timer.startedAt) / 1000));
 }

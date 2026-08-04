@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { formatClock, isPlayfulClock, roundUpToQuarterHour } from "./timer";
+import {
+  formatClock,
+  isPlayfulClock,
+  msToNextSecond,
+  roundUpToQuarterHour,
+} from "./timer";
 
 const KEY = "performa-active-timer";
 
@@ -18,6 +23,38 @@ describe("roundUpToQuarterHour", () => {
     expect(roundUpToQuarterHour(901)).toBe(1800);
     expect(roundUpToQuarterHour(3600)).toBe(3600);
     expect(roundUpToQuarterHour(3601)).toBe(4500);
+  });
+});
+
+describe("msToNextSecond", () => {
+  it("waits only for the rest of the current second", () => {
+    // The point of the exercise: a tick that arrives mid-second schedules the
+    // next one at the boundary, so the delay shrinks instead of the lateness
+    // accumulating into a skipped second.
+    expect(msToNextSecond(1_400, 0)).toBe(600);
+    expect(msToNextSecond(1_999, 0)).toBe(1);
+  });
+
+  it("waits a full second when already on a boundary", () => {
+    expect(msToNextSecond(0, 0)).toBe(1000);
+    expect(msToNextSecond(2_000, 0)).toBe(1000);
+  });
+
+  it("measures against the timer's start, not the epoch", () => {
+    expect(msToNextSecond(5_250, 4_000)).toBe(750);
+  });
+
+  it("never returns a negative delay for a start in the future", () => {
+    // A clock correction mid-timer; setTimeout would fire immediately and spin.
+    expect(msToNextSecond(0, 3_000)).toBe(3_000);
+  });
+
+  it("stays within a second however far the timer has run", () => {
+    for (const elapsed of [0, 1, 999, 1_000, 60_000, 3_600_500, 86_400_123]) {
+      const delay = msToNextSecond(elapsed, 0);
+      expect(delay).toBeGreaterThan(0);
+      expect(delay).toBeLessThanOrEqual(1000);
+    }
   });
 });
 

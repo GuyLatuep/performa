@@ -73,9 +73,18 @@ pub async fn timer_started(
     }
     *task = Some(tauri::async_runtime::spawn(async move {
         loop {
-            let elapsed = ((now_ms() - started_at) / 1000).max(0);
+            let now = now_ms();
+            let elapsed = ((now - started_at) / 1000).max(0);
             set_tray_text(&app, Some(format!("▶ {issue_key} {}", clock(elapsed))));
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            // Sleep to the moment the count next changes, not a flat second:
+            // redrawing the title takes time, so a fixed interval wakes a
+            // little later each round until the title skips a second. The
+            // webview's `useElapsedSeconds` aims at the same boundaries, which
+            // is what keeps the two clocks reading the same value.
+            tokio::time::sleep(std::time::Duration::from_millis(
+                ms_to_next_second(now, started_at) as u64,
+            ))
+            .await;
         }
     }));
     Ok(())
@@ -100,6 +109,18 @@ fn set_tray_text(app: &AppHandle, text: Option<String>) {
         } else {
             let _ = tray.set_tooltip(text);
         }
+    }
+}
+
+/// Milliseconds until the elapsed second count changes — mirrors
+/// `msToNextSecond` in the webview. A `started_at` in the future (a clock
+/// correction mid-timer) waits out the difference instead of going negative.
+fn ms_to_next_second(now: i64, started_at: i64) -> i64 {
+    let elapsed = now - started_at;
+    if elapsed < 0 {
+        -elapsed
+    } else {
+        1000 - elapsed % 1000
     }
 }
 
@@ -144,7 +165,7 @@ fn quit_via_close(app: &AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use super::clock;
+    use super::{clock, ms_to_next_second};
 
     #[test]
     fn clock_formats() {
@@ -152,5 +173,25 @@ mod tests {
         assert_eq!(clock(95), "01:35");
         assert_eq!(clock(3600), "1:00:00");
         assert_eq!(clock(3725), "1:02:05");
+    }
+
+    #[test]
+    fn sleeps_only_up_to_the_next_second_boundary() {
+        // Woken mid-second: wait out the remainder, not a full second.
+        assert_eq!(ms_to_next_second(1_400, 0), 600);
+        assert_eq!(ms_to_next_second(1_999, 0), 1);
+        // Exactly on a boundary: the count just changed, so the next one is a
+        // whole second away.
+        assert_eq!(ms_to_next_second(2_000, 0), 1000);
+        // The offset is measured against the timer's own start, not the epoch.
+        assert_eq!(ms_to_next_second(5_250, 4_000), 750);
+    }
+
+    #[test]
+    fn a_start_in_the_future_waits_rather_than_going_negative() {
+        // A clock correction can leave `started_at` ahead of now; a negative
+        // sleep would be cast to a nonsense u64.
+        assert_eq!(ms_to_next_second(0, 3_000), 3_000);
+        assert!(ms_to_next_second(0, 3_000) > 0);
     }
 }
