@@ -81,6 +81,65 @@ function logged<T>(
   );
 }
 
+/**
+ * How long a completed read stays servable from `cached`.
+ *
+ * Short on purpose: this exists to collapse the refetch storm from tabs
+ * unmounting and remounting (App renders one tab at a time, and the start and
+ * timesheet tabs ask for the same week), not to hold data for long. Anything
+ * the user changes in this app invalidates the cache outright — see
+ * `invalidateCachedReads` — so the window only ever defers picking up a
+ * worklog written somewhere else.
+ */
+const CACHE_TTL_MS = 60_000;
+
+interface CacheEntry<T> {
+  promise: Promise<T>;
+  /** Null while the call is still in flight: an unsettled entry never expires,
+   *  which is what makes concurrent callers share one request instead of
+   *  racing to start their own. */
+  storedAt: number | null;
+}
+
+const readCache = new Map<string, CacheEntry<unknown>>();
+
+/**
+ * Serve a read from cache when one is fresh, join the in-flight call when one
+ * is already running, and otherwise start it — keyed by `key`, which must
+ * encode the arguments.
+ *
+ * Only reads that are pure functions of their arguments belong here. Note that
+ * a cache hit bypasses `logged`, so a served-from-cache call is visible in the
+ * debug log by the *absence* of its line.
+ */
+function cached<T>(key: string, call: () => Promise<T>): Promise<T> {
+  const hit = readCache.get(key) as CacheEntry<T> | undefined;
+  const fresh =
+    hit && (hit.storedAt === null || Date.now() - hit.storedAt < CACHE_TTL_MS);
+  if (hit && fresh) return hit.promise;
+
+  const entry: CacheEntry<T> = { promise: call(), storedAt: null };
+  readCache.set(key, entry);
+  entry.promise.then(
+    () => {
+      entry.storedAt = Date.now();
+    },
+    () => {
+      // Never cache a failure: the next caller should get a real retry, not a
+      // rejected promise replayed for a minute. Guarded so a retry that has
+      // already replaced this entry survives.
+      if (readCache.get(key) === entry) readCache.delete(key);
+    },
+  );
+  return entry.promise;
+}
+
+/** Drop every cached read, so the next call goes to Jira for real. Called
+ *  after anything that writes a worklog. */
+export function invalidateCachedReads(): void {
+  readCache.clear();
+}
+
 const issues = (r: IssueSummary[]) => `${r.length} issue(s)`;
 const entries = (r: WorklogEntry[]) => `${r.length} entr(y/ies)`;
 
@@ -120,7 +179,9 @@ export const api = {
   },
   /** My issues due between 7 days ago and 14 days ahead, soonest first. */
   dueIssues(): Promise<IssueSummary[]> {
-    return logged("due_issues", () => invoke("due_issues"), issues);
+    return cached("due_issues", () =>
+      logged("due_issues", () => invoke("due_issues"), issues),
+    );
   },
   /** Best-effort: move the issue to the "in progress" workflow status. A
    *  no-op (not an error) when the workflow has no direct transition there. */
@@ -129,11 +190,14 @@ export const api = {
       invoke("start_issue_work", { issueKey }),
     );
   },
+  // The three worklog mutations each drop the read cache on success, so the
+  // invalidation lives with the write rather than at every call site that
+  // happens to trigger one.
   logWork(issueKey: string, worklog: WorklogInput): Promise<void> {
     return logged(
       `log_work(issueKey=${issueKey}, seconds=${worklog.timeSpentSeconds}, date=${worklog.date}, billable=${worklog.billable})`,
       () => invoke("log_work", { issueKey, worklog }),
-    );
+    ).then(invalidateCachedReads);
   },
   updateWorklog(
     issueKey: string,
@@ -143,19 +207,21 @@ export const api = {
     return logged(
       `update_worklog(issueKey=${issueKey}, worklogId=${worklogId}, seconds=${worklog.timeSpentSeconds})`,
       () => invoke("update_worklog", { issueKey, worklogId, worklog }),
-    );
+    ).then(invalidateCachedReads);
   },
   deleteWorklog(issueKey: string, worklogId: string): Promise<void> {
     return logged(
       `delete_worklog(issueKey=${issueKey}, worklogId=${worklogId})`,
       () => invoke("delete_worklog", { issueKey, worklogId }),
-    );
+    ).then(invalidateCachedReads);
   },
   listWorklogs(start: string, end: string): Promise<WorklogEntry[]> {
-    return logged(
-      `list_worklogs(start=${start}, end=${end})`,
-      () => invoke("list_worklogs", { start, end }),
-      entries,
+    return cached(`list_worklogs:${start}:${end}`, () =>
+      logged(
+        `list_worklogs(start=${start}, end=${end})`,
+        () => invoke("list_worklogs", { start, end }),
+        entries,
+      ),
     );
   },
   issueWorklogs(issueKey: string): Promise<WorklogEntry[]> {
