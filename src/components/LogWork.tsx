@@ -105,7 +105,12 @@ export default function LogWork({ site, onLogged, initialIssue }: Props) {
           <span className="summary">{selected.summary}</span>
         </div>
 
-        <WorklogFields draft={draft} patch={patch} seconds={seconds} />
+        <WorklogFields
+          draft={draft}
+          patch={patch}
+          seconds={seconds}
+          fastTabOrder
+        />
 
         {error && <p className="error">{error}</p>}
         {okMsg && <p className="success">{okMsg}</p>}

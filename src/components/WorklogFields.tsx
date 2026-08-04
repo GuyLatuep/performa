@@ -16,6 +16,9 @@ export interface WorklogDraft {
 
 export const DURATION_ERROR = "Enter a valid duration, e.g. 1h 30m";
 
+/** One-tap increments offered next to the duration preview, in seconds. */
+const QUICK_DURATIONS = [15 * 60, 30 * 60, 60 * 60];
+
 /** The draft as the backend's worklog payload. `seconds` comes from the
  *  parsed duration, which every caller has to validate first anyway — hence
  *  passing it in rather than re-parsing here. Note the inversion: the form
@@ -53,6 +56,10 @@ interface Props {
   patch: (p: Partial<WorklogDraft>) => void;
   seconds: number | null;
   durationLabel?: string;
+  /** Keep Tab on the straight path duration → comment → submit, leaving the
+   *  fields that usually stay at their default (date, start time, billability,
+   *  the quick-add buttons) reachable by click or shift-tab only. */
+  fastTabOrder?: boolean;
 }
 
 export function WorklogFields({
@@ -60,22 +67,44 @@ export function WorklogFields({
   patch,
   seconds,
   durationLabel = "Time spent",
+  fastTabOrder = false,
 }: Props) {
+  const skip = fastTabOrder ? -1 : undefined;
+  // Quick buttons add to whatever is already there, so "+30m" twice reads 1h.
+  // An unparseable draft counts as zero rather than blocking the shortcut.
+  const addDuration = (delta: number) =>
+    patch({ duration: formatDuration((seconds ?? 0) + delta) });
+
   return (
     <>
-      <label>
-        {durationLabel}
-        <input
-          type="text"
-          placeholder="1h 30m"
-          value={draft.duration}
-          onChange={(e) => patch({ duration: e.target.value })}
-          autoFocus
-        />
-        {seconds !== null && (
-          <span className="hint">= {formatDuration(seconds)}</span>
-        )}
-      </label>
+      <div className="duration-field">
+        <label>
+          {durationLabel}
+          <input
+            type="text"
+            placeholder="1h 30m"
+            value={draft.duration}
+            onChange={(e) => patch({ duration: e.target.value })}
+            autoFocus
+          />
+        </label>
+        <div className="duration-quick">
+          {QUICK_DURATIONS.map((delta) => (
+            <button
+              key={delta}
+              type="button"
+              className="duration-add"
+              tabIndex={skip}
+              onClick={() => addDuration(delta)}
+            >
+              +{formatDuration(delta)}
+            </button>
+          ))}
+          {seconds !== null && (
+            <span className="hint">= {formatDuration(seconds)}</span>
+          )}
+        </div>
+      </div>
 
       <div className="field-row">
         <label>
@@ -84,6 +113,7 @@ export function WorklogFields({
             type="date"
             value={draft.date}
             max={today()}
+            tabIndex={skip}
             onChange={(e) => patch({ date: e.target.value })}
           />
         </label>
@@ -92,6 +122,7 @@ export function WorklogFields({
           <input
             type="time"
             value={draft.time}
+            tabIndex={skip}
             onChange={(e) => patch({ time: e.target.value })}
           />
         </label>
@@ -110,6 +141,7 @@ export function WorklogFields({
         <input
           type="checkbox"
           checked={draft.nonBillable}
+          tabIndex={skip}
           onChange={(e) => patch({ nonBillable: e.target.checked })}
         />
         Non-billable
