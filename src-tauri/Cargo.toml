@@ -25,7 +25,13 @@ tauri-plugin-process = "2"
 tauri-plugin-notification = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+# `default-features = false` (for rustls over the system TLS stack) also drops
+# reqwest's default `http2`, so it has to be named explicitly: the worklog and
+# missing-worklog scans fan out several requests at once, and without h2 each
+# one needs its own TCP+TLS connection instead of multiplexing over one.
+# `gzip` is not a default either — Jira's JSON (ADF comment bodies, changelogs)
+# compresses well, and reqwest negotiates and decodes it transparently.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "http2", "gzip"] }
 keyring = { version = "3", features = ["apple-native", "windows-native"] }
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
