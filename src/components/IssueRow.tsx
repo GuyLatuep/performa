@@ -50,7 +50,7 @@ export default function IssueRow({
       )}
       {issue.status && (
         <span className="status-badge" title={`Status: ${issue.status}`}>
-          {issue.status}
+          {shortStatus(issue.status)}
         </span>
       )}
       {issue.dueDate && <DueBadge date={issue.dueDate} />}
@@ -70,6 +70,17 @@ export default function IssueRow({
       </button>
     </li>
   );
+}
+
+/** Collapse the "somebody else has it" statuses ("warte auf Support",
+ *  "Waiting for CTS", …) to one short label. Which party is waited on is in
+ *  the badge's tooltip; keeping it out of the badge itself is what lets the
+ *  status column stay narrow. Matched as a prefix so sibling statuses are
+ *  covered too, rather than a list of names that goes stale. */
+function shortStatus(status: string): string {
+  return /^(waiting for|warte[nt]? auf)\b/i.test(status.trim())
+    ? "Warten"
+    : status;
 }
 
 /** Highlight only the two ends of the scale — the names in between differ per

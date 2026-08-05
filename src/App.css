@@ -1224,7 +1224,7 @@ header {
    grid automatically. */
 .todo-list li {
   display: grid;
-  grid-template-columns: 22px 96px minmax(0, 1fr) 84px 160px 80px;
+  grid-template-columns: 22px 96px minmax(0, 1fr) 84px 116px 80px;
   gap: 6px;
   align-items: center;
 }
