@@ -40,6 +40,19 @@ export default function IssueRow({
       <button className="issue-select" onClick={() => onSelect(issue)}>
         <span className="summary">{issue.summary}</span>
       </button>
+      {issue.priority && (
+        <span
+          className={`priority-badge ${priorityClass(issue.priority)}`}
+          title={`Priority: ${issue.priority}`}
+        >
+          {issue.priority}
+        </span>
+      )}
+      {issue.status && (
+        <span className="status-badge" title={`Status: ${issue.status}`}>
+          {issue.status}
+        </span>
+      )}
       {issue.dueDate && <DueBadge date={issue.dueDate} />}
       <button
         className={`timer-start${isRunning ? " running" : ""}`}
@@ -57,6 +70,17 @@ export default function IssueRow({
       </button>
     </li>
   );
+}
+
+/** Highlight only the two ends of the scale — the names in between differ per
+ *  Jira site and carry no urgency worth colouring. Matched on the English and
+ *  German defaults, and left neutral for anything else. */
+function priorityClass(priority: string): string {
+  const p = priority.toLowerCase();
+  if (/highest|blocker|critical|sehr hoch|kritisch/.test(p)) return "urgent";
+  if (/^high|hoch/.test(p)) return "high";
+  if (/lowest|^low|niedrig|gering/.test(p)) return "low";
+  return "";
 }
 
 function DueBadge({ date }: { date: string }) {

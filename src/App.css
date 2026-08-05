@@ -1186,6 +1186,104 @@ header {
   color: var(--danger);
   border-color: var(--danger);
 }
+/* Status and priority markers on issue rows (todo tab), same idiom. Status
+   names are free-form per workflow, so the badge is sized to keep even a long
+   one from pushing the summary out of the row. */
+.status-badge,
+.priority-badge {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--muted);
+  border: 1px solid var(--hair);
+  padding: 1px 6px;
+}
+.priority-badge.urgent {
+  color: var(--danger);
+  border-color: var(--danger);
+  font-weight: 700;
+}
+.priority-badge.high {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.priority-badge.low {
+  opacity: 0.6;
+}
+/* Todo tab: the same issue rows, but laid out as a table so priority and
+   status line up in their own columns instead of floating after summaries of
+   different lengths. The header is a row like any other, so it shares the
+   grid automatically. */
+.todo-list li {
+  display: grid;
+  grid-template-columns: 22px 96px minmax(0, 1fr) 84px 160px 80px;
+  gap: 6px;
+  align-items: center;
+}
+.todo-list {
+  border-top: 1px solid var(--hair);
+}
+/* Pin each cell to its column by hand: not every issue carries a priority or
+   a status, and auto-placement would let the cells after a missing one slide
+   left — the exact misalignment this layout exists to fix. */
+.todo-list li > .pin-toggle {
+  grid-column: 1;
+}
+.todo-list li > .issue-open {
+  grid-column: 2;
+}
+.todo-list li > .issue-select {
+  grid-column: 3;
+}
+.todo-list li > .priority-badge {
+  grid-column: 4;
+}
+.todo-list li > .status-badge {
+  grid-column: 5;
+}
+.todo-list li > .timer-start {
+  grid-column: 6;
+}
+.todo-columns {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 7px 0;
+}
+/* The key and summary cells carry the row's own padding; align the headers
+   with the text inside them rather than with the cell edge. */
+.todo-columns span:nth-child(2),
+.todo-columns span:nth-child(3) {
+  padding-left: 8px;
+}
+/* One line per row — a wrapping summary would break the column rhythm. */
+.todo-list .issue-select {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* In a column of their own the badges no longer need to be shrink-wrapped. */
+.todo-list .status-badge,
+.todo-list .priority-badge {
+  max-width: 100%;
+  text-align: center;
+}
 /* Worklog template chips on the start tab. */
 .template-list {
   display: flex;

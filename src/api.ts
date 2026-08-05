@@ -17,6 +17,11 @@ export interface IssueSummary {
   summary: string;
   /** yyyy-MM-dd; only present on searches that request it (due_issues). */
   dueDate?: string;
+  /** Workflow status name; only present on searches that request it
+   *  (todo_issues). */
+  status?: string;
+  /** Priority name; only present on searches that request it (todo_issues). */
+  priority?: string;
 }
 
 export interface WorklogEntry {
@@ -181,6 +186,13 @@ export const api = {
   dueIssues(): Promise<IssueSummary[]> {
     return cached("due_issues", () =>
       logged("due_issues", () => invoke("due_issues"), issues),
+    );
+  },
+  /** Issues waiting on me: escalations I raised that are back in my court,
+   *  plus everything assigned to me that is still open. Urgent first. */
+  todoIssues(): Promise<IssueSummary[]> {
+    return cached("todo_issues", () =>
+      logged("todo_issues", () => invoke("todo_issues"), issues),
     );
   },
   /** Best-effort: move the issue to the "in progress" workflow status. A

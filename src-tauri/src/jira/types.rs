@@ -21,6 +21,21 @@ pub struct WorklogInput {
     pub billable: bool,
 }
 
+/// Which issues count as "waiting for me" on the todo tab. Two rules, OR'ed:
+/// issues in `author_project` the user raised themselves that are back in
+/// their court, and issues assigned to them anywhere that are still open.
+/// Both are expressed as status *exclusions* — every workflow has its own
+/// names for "nothing to do here", so listing those is shorter and more
+/// honest than trying to enumerate the actionable ones.
+pub struct TodoConfig {
+    /// Project the author rule applies to (the escalation project, "DEV").
+    pub author_project: String,
+    /// Statuses that mean "not mine to act on" for issues I raised.
+    pub author_idle_statuses: Vec<String>,
+    /// Statuses that mean "not mine to act on" for issues assigned to me.
+    pub assignee_idle_statuses: Vec<String>,
+}
+
 /// Tuning for the missing-worklog heuristic: how far back to look for own
 /// activity, how close a worklog must be to that activity to count, how long
 /// freshly created activity is left unflagged, and the workflow specifics of
@@ -62,6 +77,13 @@ pub struct IssueSummary {
     /// Backend-only — never sent to the frontend.
     #[serde(skip)]
     pub updated: Option<String>,
+    /// Workflow status name; only populated by searches that request it
+    /// (the todo tab, which shows what each issue is waiting on).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// Priority name; only populated by searches that request it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -126,6 +148,17 @@ pub struct SearchFields {
     pub duedate: Option<String>,
     #[serde(default)]
     pub updated: Option<String>,
+    #[serde(default)]
+    pub status: Option<NamedField>,
+    #[serde(default)]
+    pub priority: Option<NamedField>,
+}
+
+/// The shape Jira returns for the reference fields we only need the name of.
+#[derive(Deserialize)]
+pub struct NamedField {
+    #[serde(default)]
+    pub name: String,
 }
 
 #[derive(Deserialize)]

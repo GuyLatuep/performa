@@ -4,6 +4,7 @@ import { api, CredentialsMeta, IssueSummary } from "./api";
 import { logInfo } from "./log";
 import Settings from "./components/Settings";
 import Start from "./components/Start";
+import Todo from "./components/Todo";
 import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
 import TimerBar from "./components/TimerBar";
@@ -19,7 +20,7 @@ import {
 } from "./missing";
 import "./App.css";
 
-type Tab = "start" | "log" | "timesheet" | "missing";
+type Tab = "start" | "todo" | "log" | "timesheet" | "missing";
 
 // The English manual links to the German one via its language switcher.
 const HANDBOOK_URL =
@@ -179,6 +180,12 @@ export default function App() {
           Start
         </button>
         <button
+          className={tab === "todo" ? "active" : ""}
+          onClick={() => setTab("todo")}
+        >
+          Todo
+        </button>
+        <button
           className={tab === "log" ? "active" : ""}
           // A manual visit starts fresh, without a preselected issue — also
           // when the tab is already open.
@@ -212,6 +219,9 @@ export default function App() {
             onOpenMissing={() => setTab("missing")}
             onLogged={onLogged}
           />
+        )}
+        {tab === "todo" && (
+          <Todo site={creds.site} onSelectIssue={openLogTab} />
         )}
         {tab === "log" && (
           <LogWork

@@ -5,7 +5,8 @@ mod tray;
 
 use creds::{Credentials, CredentialsMeta};
 use jira::{
-    IssueSummary, JiraClient, MissingConfig, MissingWorklog, Myself, WorklogEntry, WorklogInput,
+    IssueSummary, JiraClient, MissingConfig, MissingWorklog, Myself, TodoConfig, WorklogEntry,
+    WorklogInput,
 };
 use tauri::State;
 
@@ -24,6 +25,34 @@ const MISSING_ESCALATION_LINK: &str = "is an escalation for";
 // that still accept worklogs; every other statusCategory=Done status (e.g.
 // "Geschlossen", "Closed", ...) is treated as no longer bookable.
 const MISSING_BOOKABLE_DONE_STATUSES: &[&str] = &["Gelöst", "Resolved"];
+
+// Which issues the todo tab lists, as the statuses that take an issue *off*
+// it. Issues the user raised in the escalation project are theirs again as
+// soon as the status leaves this set (i.e. the query came back to them);
+// everything assigned to them counts until it reaches a status where the ball
+// is somewhere else — closed, cancelled, or waiting on another party.
+const TODO_AUTHOR_IDLE_STATUSES: &[&str] = &[
+    "Fertig",
+    "Backlog",
+    "Rückfrage beantwortet",
+    "In Arbeit",
+    "Nicht umgesetzt",
+];
+const TODO_ASSIGNEE_IDLE_STATUSES: &[&str] = &[
+    "Canceled",
+    "Closed",
+    "Closed/Tested",
+    "Done",
+    "Fertig",
+    "Resolved",
+    "Escalated",
+    "Waiting for customer",
+    "Nicht umgesetzt",
+    "Commercial Review 1st Level",
+    "Commercial Review 2nd Level",
+    "Fixed 2nd Level",
+    "Waiting for DESIGNA Development",
+];
 
 // Status an issue is moved to when a timer starts on it (best-effort — see
 // `start_issue_work`).
@@ -180,6 +209,26 @@ async fn search_issues(
 async fn due_issues(state: State<'_, AppState>) -> Result<Vec<IssueSummary>, String> {
     let s = session(&state).await?;
     s.client.due_issues().await
+}
+
+/// Issues waiting on the current user: escalations they raised that are back
+/// in their court, plus everything assigned to them that is still open (shown
+/// on the todo tab).
+#[tauri::command]
+async fn todo_issues(state: State<'_, AppState>) -> Result<Vec<IssueSummary>, String> {
+    let s = session(&state).await?;
+    s.client.todo_issues(&todo_config()).await
+}
+
+/// The shipped todo-tab rules, alongside `missing_config` — one place to swap
+/// once these workflow specifics move into settings.
+fn todo_config() -> TodoConfig {
+    let owned = |names: &[&str]| names.iter().map(|s| s.to_string()).collect();
+    TodoConfig {
+        author_project: MISSING_ESCALATION_PROJECT.to_string(),
+        author_idle_statuses: owned(TODO_AUTHOR_IDLE_STATUSES),
+        assignee_idle_statuses: owned(TODO_ASSIGNEE_IDLE_STATUSES),
+    }
 }
 
 /// Move an issue to `TIMER_START_STATUS` when a timer starts on it. A no-op,
@@ -375,6 +424,7 @@ pub fn run() {
             current_user,
             search_issues,
             due_issues,
+            todo_issues,
             start_issue_work,
             log_work,
             update_worklog,

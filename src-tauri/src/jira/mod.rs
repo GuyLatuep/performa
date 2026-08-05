@@ -17,7 +17,9 @@ use futures_util::{stream, StreamExt, TryStreamExt};
 use serde::de::DeserializeOwned;
 
 use types::*;
-pub use types::{IssueSummary, MissingConfig, MissingWorklog, Myself, WorklogEntry, WorklogInput};
+pub use types::{
+    IssueSummary, MissingConfig, MissingWorklog, Myself, TodoConfig, WorklogEntry, WorklogInput,
+};
 
 use crate::creds::Credentials;
 
@@ -186,6 +188,15 @@ impl JiraClient {
         self.search_issues_fields(jql, 50, "summary,duedate").await
     }
 
+    /// Issues waiting on the current user — see [`build_todo_jql`].
+    ///
+    /// Deliberately without `duedate`: due dates are the start tab's subject,
+    /// and an extra badge here would only break the column alignment.
+    pub async fn todo_issues(&self, cfg: &TodoConfig) -> Result<Vec<IssueSummary>, String> {
+        self.search_issues_fields(&build_todo_jql(cfg), 100, "summary,status,priority")
+            .await
+    }
+
     async fn search_issues_fields(
         &self,
         jql: &str,
@@ -211,6 +222,8 @@ impl JiraClient {
                 summary: i.fields.summary,
                 due_date: i.fields.duedate,
                 updated: i.fields.updated,
+                status: i.fields.status.map(|s| s.name),
+                priority: i.fields.priority.map(|p| p.name),
             })
             .collect())
     }
@@ -464,6 +477,40 @@ pub fn build_search_jql(query: &str) -> String {
     format!("(summary ~ \"{esc}*\" OR text ~ \"{esc}\") ORDER BY updated DESC")
 }
 
+/// The todo tab's JQL: everything the current user is expected to act on.
+///
+/// Two rules, OR'ed, both phrased as status exclusions (see [`TodoConfig`]):
+/// issues in the escalation project that *I* raised and that are not currently
+/// somebody else's move, plus issues assigned to me anywhere that have not
+/// reached a status where nothing is left to do. Most urgent first, then most
+/// recently touched.
+pub fn build_todo_jql(cfg: &TodoConfig) -> String {
+    let author = format!(
+        "(project = \"{}\" AND {} AND creator = currentUser())",
+        escape_jql(&cfg.author_project),
+        not_in_statuses(&cfg.author_idle_statuses),
+    );
+    let assignee = format!(
+        "({} AND assignee = currentUser())",
+        not_in_statuses(&cfg.assignee_idle_statuses),
+    );
+    format!("({author} OR {assignee}) ORDER BY priority DESC, updated DESC")
+}
+
+/// `status NOT IN (…)` over the given names, or a tautology when the list is
+/// empty — `status not in ()` is a JQL syntax error.
+fn not_in_statuses(statuses: &[String]) -> String {
+    if statuses.is_empty() {
+        return "status IS NOT EMPTY".to_string();
+    }
+    let names = statuses
+        .iter()
+        .map(|s| format!("\"{}\"", escape_jql(s)))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("status NOT IN ({names})")
+}
+
 /// `ABC-123` shape: alphanumeric project key starting with a letter, then a
 /// numeric issue number.
 pub fn is_issue_key(s: &str) -> bool {
@@ -612,6 +659,33 @@ mod tests {
         assert!(build_search_jql("").starts_with("assignee = currentUser()"));
         assert_eq!(build_search_jql(" abc-12 "), "key = \"ABC-12\"");
         assert!(build_search_jql("login bug").starts_with("(summary ~ \"login bug*\""));
+    }
+
+    #[test]
+    fn todo_jql_covers_both_rules() {
+        let jql = build_todo_jql(&TodoConfig {
+            author_project: "DEV".to_string(),
+            author_idle_statuses: vec!["Fertig".to_string(), "In Arbeit".to_string()],
+            assignee_idle_statuses: vec!["Done".to_string()],
+        });
+        assert_eq!(
+            jql,
+            "((project = \"DEV\" AND status NOT IN (\"Fertig\", \"In Arbeit\") \
+             AND creator = currentUser()) OR (status NOT IN (\"Done\") \
+             AND assignee = currentUser())) ORDER BY priority DESC, updated DESC"
+        );
+    }
+
+    #[test]
+    fn todo_jql_stays_valid_without_excluded_statuses() {
+        // `status not in ()` would be a syntax error.
+        let jql = build_todo_jql(&TodoConfig {
+            author_project: "DEV".to_string(),
+            author_idle_statuses: vec![],
+            assignee_idle_statuses: vec![],
+        });
+        assert!(!jql.contains("NOT IN ()"));
+        assert!(jql.contains("status IS NOT EMPTY"));
     }
 
     #[test]

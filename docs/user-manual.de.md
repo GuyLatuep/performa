@@ -10,6 +10,7 @@ performa ist eine kleine Desktop-App (macOS + Windows) zum Erfassen deiner Arbei
 - [Erste Schritte](#erste-schritte)
 - [Die Oberfläche im Überblick](#die-oberfläche-im-überblick)
 - [Start-Tab (Dashboard)](#start-tab-dashboard)
+- [Todo-Tab](#todo-tab)
 - [Arbeit erfassen](#arbeit-erfassen)
 - [Der Timer](#der-timer)
 - [System-Tray / Menüleiste](#system-tray--menüleiste)
@@ -64,7 +65,7 @@ Das Hauptfenster besteht aus:
 - **Kopfzeile** — das performa-Zeichen, deine Konto-E-Mail, ein **Settings**-Link und **Sign out** (fragt nach Bestätigung; beim Abmelden wird das Token aus dem Schlüsselbund entfernt).
 - **Update-Banner** — erscheint nur, wenn ein neueres Release existiert ([Updates](#updates)).
 - **Timer-Leiste** — erscheint nur, während ein Timer läuft ([Der Timer](#der-timer)).
-- **Vier Tabs**: **Start**, **Log work**, **Timesheet**, **Missing worklog**. Die App öffnet sich auf **Start**.
+- **Fünf Tabs**: **Start**, **Todo**, **Log work**, **Timesheet**, **Missing worklog**. Die App öffnet sich auf **Start**.
 
 ## Start-Tab (Dashboard)
 
@@ -98,6 +99,19 @@ Deine gespeicherten Worklog-Vorlagen als Ein-Klick-Chips — siehe [Vorlagen](#v
 ### Missing worklogs
 
 Eine Vorschau der aktuellen Funde des Worklog-Wächters. Ein Klick auf einen Eintrag (oder **Open tab**) springt zum Missing-worklog-Tab. Ausgeblendet, wenn nichts fehlt.
+
+## Todo-Tab
+
+Alles, was gerade **bei dir liegt** — nach Priorität sortiert, bei gleicher Priorität die zuletzt geänderten zuerst. Zwei Regeln werden kombiniert:
+
+- **DEV-Vorgänge, die du selbst erstellt hast** und die wieder bei dir liegen — also jeder Status außer *Fertig*, *Backlog*, *Rückfrage beantwortet*, *In Arbeit* und *Nicht umgesetzt*.
+- **Vorgänge, die dir zugewiesen sind** (in jedem Projekt) und noch keinen Status erreicht haben, in dem jemand anderes am Zug ist — geschlossen, abgebrochen, gelöst, eskaliert, in der kaufmännischen Prüfung oder wartend auf Kunde bzw. DESIGNA Development.
+
+Die Zeilen funktionieren wie im Start-Tab (Anpinnen, im Browser öffnen, Klick auf die Zusammenfassung erfasst Zeit, **▶ start** startet einen Timer), sind hier aber tabellarisch angeordnet — Vorgangsschlüssel, Zusammenfassung, **Priorität** und **Status** jeweils in einer eigenen Spalte, sodass man die Liste von oben nach unten überfliegen kann. Fälligkeiten zeigt dieser Tab bewusst nicht; die sind Thema des Start-Tabs.
+
+Das Ergebnis wird eine Minute lang zwischengespeichert; **Refresh** holt es erneut aus Jira — praktisch direkt nachdem du einen Status im Browser geändert hast.
+
+> Die Statusnamen entsprechen dem DESIGNA-Jira und sind derzeit fest in der App hinterlegt; sie lassen sich noch nicht in den Einstellungen ändern.
 
 ## Arbeit erfassen
 

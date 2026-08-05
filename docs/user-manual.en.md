@@ -10,6 +10,7 @@ performa is a small desktop app (macOS + Windows) for logging your work hours on
 - [Getting started](#getting-started)
 - [The interface at a glance](#the-interface-at-a-glance)
 - [Start tab (dashboard)](#start-tab-dashboard)
+- [Todo tab](#todo-tab)
 - [Logging work](#logging-work)
 - [The timer](#the-timer)
 - [System tray / menu bar](#system-tray--menu-bar)
@@ -64,7 +65,7 @@ The main window consists of:
 - **Header** — the performa mark, your account email, a **Settings** link, and **Sign out** (asks for confirmation; signing out removes the token from the keychain).
 - **Update banner** — appears only when a newer release exists ([Updates](#updates)).
 - **Timer bar** — appears only while a timer is running ([The timer](#the-timer)).
-- **Four tabs**: **Start**, **Log work**, **Timesheet**, **Missing worklog**. The app opens on **Start**.
+- **Five tabs**: **Start**, **Todo**, **Log work**, **Timesheet**, **Missing worklog**. The app opens on **Start**.
 
 ## Start tab (dashboard)
 
@@ -98,6 +99,19 @@ Your saved worklog templates as one-click chips — see [Templates](#templates).
 ### Missing worklogs
 
 A preview of the current findings of the missing-worklog watcher. Clicking an item (or **Open tab**) jumps to the Missing worklog tab. Hidden when nothing is missing.
+
+## Todo tab
+
+Everything that is currently **waiting on you**, most urgent first (then most recently updated). Two rules are combined:
+
+- **DEV issues you raised yourself** that are back in your court — i.e. every status except *Fertig*, *Backlog*, *Rückfrage beantwortet*, *In Arbeit* and *Nicht umgesetzt*.
+- **Issues assigned to you** in any project that have not reached a status where the ball is somewhere else — closed, cancelled, resolved, escalated, in commercial review, or waiting for the customer or DESIGNA Development.
+
+The rows work like those on the Start tab (pin, open in browser, click the summary to log work, **▶ start** for a timer), but are laid out as a table — issue key, summary, **priority** and **status** each in a column of their own, so you can scan down them. There are no due badges here; due dates are the Start tab's subject.
+
+The result is cached for a minute; **Refresh** fetches it from Jira again — useful right after you changed a status in the browser.
+
+> The status names are the ones used on the DESIGNA Jira site and are currently built into the app; they are not yet configurable in Settings.
 
 ## Logging work
 
