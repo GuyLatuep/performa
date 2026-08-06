@@ -9,7 +9,16 @@ use jira::{
     IssueSummary, JiraClient, MissingConfig, MissingWorklog, Myself, TodoConfig, WorklogEntry,
     WorklogInput,
 };
-use tauri::State;
+use tauri::{Manager, State};
+use tauri_plugin_window_state::{StateFlags, WindowExt};
+
+// What the window remembers between launches. Deliberately not VISIBLE or
+// DECORATIONS: a window that happened to be hidden at exit would come back
+// hidden, with only the tray left to get it open again.
+const WINDOW_STATE_FLAGS: StateFlags = StateFlags::POSITION
+    .union(StateFlags::SIZE)
+    .union(StateFlags::MAXIMIZED)
+    .union(StateFlags::FULLSCREEN);
 
 // Tuning for the missing-worklog reminder: how far back to look for own
 // activity, how close a worklog must be to that activity to count, and how
@@ -413,22 +422,32 @@ pub fn run() {
             }
             cleanup::sweep_update_leftovers(app);
             tray::setup(app)?;
+            // The window is created hidden (`"visible": false` in
+            // tauri.conf.json) and only shown once it sits where the user left
+            // it — otherwise it appears at the size from the config and is
+            // then visibly resized. Both steps are best-effort, but `show`
+            // runs regardless: a failed restore must never leave the app
+            // without a window.
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.restore_state(WINDOW_STATE_FLAGS); // no-op on first run
+                let _ = w.show();
+            }
             Ok(())
         })
         // Remember how the window was left (size, position, maximized,
         // fullscreen) and restore it on the next launch; the width/height in
-        // tauri.conf.json only apply until there is saved state. Deliberately
-        // not the VISIBLE/DECORATIONS flags: a window that happened to be
-        // hidden at exit would then come back hidden, with only the tray to
-        // get it open again.
+        // tauri.conf.json only apply until there is saved state.
+        //
+        // `skip_initial_state` turns off the plugin's *own* restore — it runs
+        // from `on_window_ready`, which Tauri dispatches through
+        // `run_on_main_thread`, so it lands an event-loop turn after the
+        // window is already on screen and the move is visible. Restoring by
+        // hand above (before the window is shown) is what avoids that; saving,
+        // the state cache and the window listeners still come from the plugin.
         .plugin(
             tauri_plugin_window_state::Builder::default()
-                .with_state_flags(
-                    tauri_plugin_window_state::StateFlags::POSITION
-                        | tauri_plugin_window_state::StateFlags::SIZE
-                        | tauri_plugin_window_state::StateFlags::MAXIMIZED
-                        | tauri_plugin_window_state::StateFlags::FULLSCREEN,
-                )
+                .with_state_flags(WINDOW_STATE_FLAGS)
+                .skip_initial_state("main")
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
