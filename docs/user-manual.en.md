@@ -256,6 +256,10 @@ Quitting with unfinished business triggers a warning instead of silently losing 
 - **Timer still running** — shows the issue and elapsed time; stop the timer to log it first, or **Quit anyway** to discard the tracked time.
 - **Unlogged work pending** — findings are waiting in the Missing worklog tab; go back and log them, or **Quit anyway**.
 
+Before closing, performa re-checks Jira for unlogged work — silently, so a
+close with nothing pending just takes a moment longer; a dialog only appears
+when something turns up.
+
 This applies to the window's close button and to **Quit performa** in the tray menu alike.
 
 ## Updates

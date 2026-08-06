@@ -3,7 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { formatClock, getTimer, useElapsedSeconds, useTimer } from "../timer";
 import { getMissing, refreshMissing, useMissing } from "../missing";
 
-type Prompt = "timer" | "checking" | "missing" | null;
+type Prompt = "timer" | "missing" | null;
 
 // Intercepts the window close: if a timer is still running or unlogged-work
 // reminders are pending, block the close and warn in-app (native confirm()
@@ -35,10 +35,11 @@ export default function CloseGuard() {
         // quarter of an hour apart — re-check before letting the app go, or
         // work logged just before quitting slips past this guard entirely.
         // preventDefault has to happen synchronously, so the close is always
-        // blocked first and completed below if nothing turns up.
+        // blocked first and completed below if nothing turns up. The check
+        // itself stays silent: a dialog for the common case (nothing pending,
+        // window closes a moment later) only makes quitting look stuck.
         event.preventDefault();
         checking.current = true;
-        setPrompting("checking");
         await refreshMissing("close");
         checking.current = false;
         if (getMissing().length > 0) {
@@ -54,27 +55,6 @@ export default function CloseGuard() {
       });
     return () => unlisten?.();
   }, []);
-
-  if (prompting === "checking") {
-    return (
-      <div className="modal-backdrop">
-        <div className="modal">
-          <h3>Checking for unlogged work…</h3>
-          <p className="modal-sub">
-            Asking Jira whether anything from the last hours is still unlogged.
-          </p>
-          <div className="row">
-            <button
-              className="danger"
-              onClick={() => getCurrentWindow().destroy()}
-            >
-              Quit anyway
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (prompting === "timer" && timer) {
     return (

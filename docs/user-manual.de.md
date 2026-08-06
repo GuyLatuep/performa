@@ -256,6 +256,10 @@ Beim Beenden mit unerledigten Dingen erscheint eine Warnung, statt still Daten z
 - **Timer läuft noch** — zeigt Vorgang und verstrichene Zeit; stoppe den Timer, um sie zu erfassen, oder wähle **Quit anyway**, um die Zeit zu verwerfen.
 - **Unerfasste Arbeit offen** — im Missing-worklog-Tab warten Funde; geh zurück und erfasse sie, oder wähle **Quit anyway**.
 
+Vor dem Schließen fragt performa Jira noch einmal nach unerfasster Arbeit —
+still im Hintergrund, ein Schließen ohne offene Punkte dauert also nur einen
+Moment länger; ein Dialog erscheint nur, wenn etwas gefunden wird.
+
 Das gilt gleichermaßen für den Schließen-Button des Fensters und für **Quit performa** im Tray-Menü.
 
 ## Updates
