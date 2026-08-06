@@ -37,7 +37,14 @@ export default function IssueRow({
       >
         {issue.key}
       </button>
-      <button className="issue-select" onClick={() => onSelect(issue)}>
+      {/* The summary column is ellipsised (one line per row), so the full text
+          only exists in the tooltip — the narrower the window, the more of it
+          is cut off. */}
+      <button
+        className="issue-select"
+        title={issue.summary}
+        onClick={() => onSelect(issue)}
+      >
         <span className="summary">{issue.summary}</span>
       </button>
       {issue.priority && (
