@@ -415,6 +415,22 @@ pub fn run() {
             tray::setup(app)?;
             Ok(())
         })
+        // Remember how the window was left (size, position, maximized,
+        // fullscreen) and restore it on the next launch; the width/height in
+        // tauri.conf.json only apply until there is saved state. Deliberately
+        // not the VISIBLE/DECORATIONS flags: a window that happened to be
+        // hidden at exit would then come back hidden, with only the tray to
+        // get it open again.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED
+                        | tauri_plugin_window_state::StateFlags::FULLSCREEN,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
