@@ -1,3 +1,4 @@
+mod cleanup;
 mod creds;
 mod jira;
 mod logging;
@@ -410,6 +411,7 @@ pub fn run() {
             if let Err(e) = logging::init() {
                 eprintln!("logging::init failed: {e}");
             }
+            cleanup::sweep_update_leftovers(app);
             tray::setup(app)?;
             Ok(())
         })
