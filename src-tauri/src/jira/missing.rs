@@ -605,13 +605,19 @@ mod tests {
         // ABC-1 has no unlogged activity of its own — without DEV-9 there
         // would be no reminder at all.
         let found = vec![missing("DEV-9", "ABC-1"), missing("XYZ-2", "XYZ-2")];
-        assert_eq!(keys(&drop_linked_escalations(found)), vec!["DEV-9", "XYZ-2"]);
+        assert_eq!(
+            keys(&drop_linked_escalations(found)),
+            vec!["DEV-9", "XYZ-2"]
+        );
     }
 
     #[test]
     fn plain_issues_are_left_alone() {
         let found = vec![missing("ABC-1", "ABC-1"), missing("ABC-2", "ABC-2")];
-        assert_eq!(keys(&drop_linked_escalations(found)), vec!["ABC-1", "ABC-2"]);
+        assert_eq!(
+            keys(&drop_linked_escalations(found)),
+            vec!["ABC-1", "ABC-2"]
+        );
     }
 
     #[test]

@@ -130,7 +130,11 @@ impl JiraClient {
             if author.map(|a| a.account_id.as_str()) == Some(account_id) {
                 continue;
             }
-            if !c.body.as_ref().is_some_and(|b| mentions_user(b, account_id)) {
+            if !c
+                .body
+                .as_ref()
+                .is_some_and(|b| mentions_user(b, account_id))
+            {
                 continue;
             }
             let Some(ts) = parse_jira_ts(&c.created) else {
