@@ -22,6 +22,14 @@ import "./App.css";
 
 type Tab = "start" | "todo" | "log" | "timesheet" | "missing";
 
+const TAB_LABELS: Record<Tab, string> = {
+  start: "Start",
+  todo: "Todo",
+  log: "Log work",
+  timesheet: "Timesheet",
+  missing: "Missing worklog",
+};
+
 // The English manual links to the German one via its language switcher.
 const HANDBOOK_URL =
   "https://github.com/GuyLatuep/performa/blob/main/docs/user-manual.en.md";
@@ -40,6 +48,9 @@ export default function App() {
   // a changed `initialIssue` alone would not clear — least of all when it
   // changes from "no issue" to "no issue" (see `openLogTab`).
   const [logVisit, setLogVisit] = useState(0);
+  // Tab the log form was opened from, so it can offer a way straight back
+  // there. Null for a manual visit to the log tab — there is nowhere to return.
+  const [logOrigin, setLogOrigin] = useState<Tab | null>(null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const missingItems = useMissing();
@@ -121,6 +132,7 @@ export default function App() {
   /** Open the log-work tab, optionally with an issue preselected. */
   function openLogTab(issue: IssueSummary | null) {
     setLogIssue(issue);
+    setLogOrigin(issue ? tab : null);
     setLogVisit((v) => v + 1);
     setTab("log");
   }
@@ -229,6 +241,8 @@ export default function App() {
             site={creds.site}
             onLogged={onLogged}
             initialIssue={logIssue}
+            backLabel={logOrigin ? TAB_LABELS[logOrigin] : undefined}
+            onBack={logOrigin ? () => setTab(logOrigin) : undefined}
           />
         )}
         {tab === "timesheet" && (

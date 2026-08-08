@@ -113,7 +113,7 @@ impl JiraClient {
 
         // Candidates are independent — check them concurrently so the whole
         // scan finishes in seconds even with many recently touched issues.
-        let mut found: Vec<(i64, MissingWorklog)> = stream::iter(candidates)
+        let found: Vec<(i64, MissingWorklog)> = stream::iter(candidates)
             .map(|issue| {
                 let has_status_change = status_keys.contains(&issue.key);
                 self.check_candidate(
@@ -131,6 +131,8 @@ impl JiraClient {
             .into_iter()
             .flatten()
             .collect();
+
+        let mut found = drop_linked_escalations(found);
 
         // Issues that dropped out of the candidate set will not be asked about
         // again, so their entries would linger for the rest of the app run.
@@ -418,6 +420,19 @@ fn bookable_clause(bookable_done_statuses: &[String]) -> String {
     format!("(statusCategory != Done OR status in ({names}))")
 }
 
+/// An escalation issue books its time on the issue it is linked to. When that
+/// issue is on the list as well, a single worklog clears both reminders — two
+/// rows for one piece of work. Keep the issue the time actually lands on and
+/// drop the escalation; on its own (the linked issue has no unlogged activity
+/// of its own) the escalation stays, or the reminder would be lost entirely.
+fn drop_linked_escalations(found: Vec<(i64, MissingWorklog)>) -> Vec<(i64, MissingWorklog)> {
+    let listed: HashSet<String> = found.iter().map(|(_, m)| m.issue_key.clone()).collect();
+    found
+        .into_iter()
+        .filter(|(_, m)| m.log_key == m.issue_key || !listed.contains(&m.log_key))
+        .collect()
+}
+
 /// The period a worklog accounts for, stretched by `window_secs` on both
 /// sides: time is rarely booked at the exact minute the work happened.
 fn covered_range(started: i64, spent_secs: i64, window_secs: i64) -> (i64, i64) {
@@ -552,6 +567,49 @@ mod tests {
     fn no_activities_means_nothing_to_report() {
         assert!(newest_uncovered(&[], &[]).is_none());
         assert!(within_window(&[], CUTOFF, FLAG_BEFORE).is_empty());
+    }
+
+    /// A reminder row, booking its time on `log_key` (the issue itself unless
+    /// it is an escalation).
+    fn missing(issue_key: &str, log_key: &str) -> (i64, MissingWorklog) {
+        (
+            NOW,
+            MissingWorklog {
+                issue_key: issue_key.to_string(),
+                issue_summary: "summary".to_string(),
+                kind: "comment".to_string(),
+                detail: "worked on it".to_string(),
+                activity_at: format_rfc3339_local(NOW),
+                log_key: log_key.to_string(),
+                log_summary: "summary".to_string(),
+            },
+        )
+    }
+
+    fn keys(found: &[(i64, MissingWorklog)]) -> Vec<&str> {
+        found.iter().map(|(_, m)| m.issue_key.as_str()).collect()
+    }
+
+    #[test]
+    fn an_escalation_drops_when_its_log_target_is_listed_too() {
+        // Booking on ABC-1 clears both, so DEV-9 is a second row for the same
+        // work.
+        let found = vec![missing("DEV-9", "ABC-1"), missing("ABC-1", "ABC-1")];
+        assert_eq!(keys(&drop_linked_escalations(found)), vec!["ABC-1"]);
+    }
+
+    #[test]
+    fn a_lone_escalation_stays() {
+        // ABC-1 has no unlogged activity of its own — without DEV-9 there
+        // would be no reminder at all.
+        let found = vec![missing("DEV-9", "ABC-1"), missing("XYZ-2", "XYZ-2")];
+        assert_eq!(keys(&drop_linked_escalations(found)), vec!["DEV-9", "XYZ-2"]);
+    }
+
+    #[test]
+    fn plain_issues_are_left_alone() {
+        let found = vec![missing("ABC-1", "ABC-1"), missing("ABC-2", "ABC-2")];
+        assert_eq!(keys(&drop_linked_escalations(found)), vec!["ABC-1", "ABC-2"]);
     }
 
     #[test]

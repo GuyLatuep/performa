@@ -16,9 +16,19 @@ interface Props {
   onLogged: () => void;
   /** Issue to open the log form for right away (e.g. picked on the start tab). */
   initialIssue?: IssueSummary | null;
+  /** Name of the tab the form was opened from ("Todo", "Start", …). */
+  backLabel?: string;
+  /** Return to that tab. Absent on a manual visit to the log tab. */
+  onBack?: () => void;
 }
 
-export default function LogWork({ site, onLogged, initialIssue }: Props) {
+export default function LogWork({
+  site,
+  onLogged,
+  initialIssue,
+  backLabel,
+  onBack,
+}: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<IssueSummary[]>([]);
   const [searching, setSearching] = useState(false);
@@ -97,9 +107,19 @@ export default function LogWork({ site, onLogged, initialIssue }: Props) {
   if (selected) {
     return (
       <div className="panel">
-        <button className="link" onClick={() => setSelected(null)}>
-          ← Choose a different issue
-        </button>
+        <div className="back-row">
+          {/* Only while the issue the caller handed over is still the one on
+              screen: once another issue is picked here, the log tab is where
+              the user came from. */}
+          {onBack && selected === initialIssue && (
+            <button className="link" onClick={onBack}>
+              ← Back to {backLabel}
+            </button>
+          )}
+          <button className="link" onClick={() => setSelected(null)}>
+            ← Choose a different issue
+          </button>
+        </div>
         <div className="issue-chip">
           <span className="key">{selected.key}</span>
           <span className="summary">{selected.summary}</span>

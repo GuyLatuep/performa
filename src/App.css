@@ -591,6 +591,12 @@ header {
 .panel > button:not(.link):not(.icon) {
   width: 100%;
 }
+/* The two ways out of the log form, side by side above the issue chip. */
+.back-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
 
 /* ---------- Build info (settings screen) ---------- */
 .buildinfo {
