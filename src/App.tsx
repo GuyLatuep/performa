@@ -9,6 +9,7 @@ import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
 import TimerBar from "./components/TimerBar";
 import MissingWorklogs from "./components/MissingWorklogs";
+import Mentions from "./components/Mentions";
 import UpdateNotice from "./components/UpdateNotice";
 import Blockmark from "./components/Blockmark";
 import {
@@ -18,9 +19,14 @@ import {
   useMissing,
   useMissingUnseenCount,
 } from "./missing";
+import {
+  startMentionsPolling,
+  stopMentionsPolling,
+  useMentionsUnreadCount,
+} from "./mentions";
 import "./App.css";
 
-type Tab = "start" | "todo" | "log" | "timesheet" | "missing";
+type Tab = "start" | "todo" | "log" | "timesheet" | "missing" | "mentions";
 
 const TAB_LABELS: Record<Tab, string> = {
   start: "Start",
@@ -28,6 +34,7 @@ const TAB_LABELS: Record<Tab, string> = {
   log: "Log work",
   timesheet: "Timesheet",
   missing: "Missing worklog",
+  mentions: "Mentions",
 };
 
 // The English manual links to the German one via its language switcher.
@@ -55,6 +62,7 @@ export default function App() {
 
   const missingItems = useMissing();
   const missingUnseen = useMissingUnseenCount();
+  const mentionsUnread = useMentionsUnreadCount();
 
   async function refreshStatus() {
     try {
@@ -78,6 +86,13 @@ export default function App() {
     if (!signedIn) return;
     startMissingPolling();
     return stopMissingPolling;
+  }, [signedIn]);
+
+  // Same for @-mentions — the tab badge has to be right before it is opened.
+  useEffect(() => {
+    if (!signedIn) return;
+    startMentionsPolling();
+    return stopMentionsPolling;
   }, [signedIn]);
 
   // A single choke point for "which view is the user in" — covers every way
@@ -220,6 +235,15 @@ export default function App() {
           Missing worklog
           {missingItems.length > 0 && ` · ${missingItems.length}`}
         </button>
+        <button
+          className={`${tab === "mentions" ? "active" : ""}${
+            mentionsUnread > 0 ? " alert" : ""
+          }`}
+          onClick={() => setTab("mentions")}
+        >
+          Mentions
+          {mentionsUnread > 0 && ` · ${mentionsUnread}`}
+        </button>
       </nav>
 
       <main>
@@ -251,6 +275,7 @@ export default function App() {
         {tab === "missing" && (
           <MissingWorklogs site={creds.site} onLogged={onLogged} />
         )}
+        {tab === "mentions" && <Mentions site={creds.site} />}
       </main>
     </div>
   );

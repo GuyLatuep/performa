@@ -1083,6 +1083,30 @@ header {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* ---------- Mentions inbox ---------- */
+/* Unread mentions carry the accent down their left edge for the visit in which
+   they were opened — after that the row reads as an ordinary entry. */
+.mention-row.unread {
+  box-shadow: inset 3px 0 0 var(--accent);
+  padding-left: 11px;
+}
+.mention-row.unread .summary {
+  color: var(--ink);
+  font-weight: 500;
+}
+.mention-row .missing-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.unread-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+
 /* Marker on rows logged as non-billable. */
 .nb-tag {
   align-self: flex-start;

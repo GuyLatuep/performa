@@ -6,8 +6,8 @@ mod tray;
 
 use creds::{Credentials, CredentialsMeta};
 use jira::{
-    IssueSummary, JiraClient, MissingConfig, MissingWorklog, Myself, TodoConfig, WorklogEntry,
-    WorklogInput,
+    IssueSummary, JiraClient, Mention, MissingConfig, MissingWorklog, Myself, TodoConfig,
+    WorklogEntry, WorklogInput,
 };
 use tauri::{Manager, State};
 use tauri_plugin_window_state::{StateFlags, WindowExt};
@@ -35,6 +35,10 @@ const MISSING_ESCALATION_LINK: &str = "is an escalation for";
 // that still accept worklogs; every other statusCategory=Done status (e.g.
 // "Geschlossen", "Closed", ...) is treated as no longer bookable.
 const MISSING_BOOKABLE_DONE_STATUSES: &[&str] = &["Gelöst", "Resolved"];
+
+// How far the mentions inbox looks back. Two weeks covers the stretch a
+// mention stays actionable without making the candidate scan expensive.
+const MENTIONS_LOOKBACK_DAYS: u32 = 14;
 
 // Which issues the todo tab lists, as the statuses that take an issue *off*
 // it. Issues the user raised in the escalation project are theirs again as
@@ -78,6 +82,9 @@ const MAX_FRONTEND_LOG_CHARS: usize = 1000;
 struct Session {
     client: JiraClient,
     account_id: String,
+    /// How the user's mentions render in comment text — the mentions scan
+    /// needs it to narrow its candidate search (see `jira::mentions`).
+    display_name: String,
 }
 
 #[derive(Default)]
@@ -107,6 +114,7 @@ async fn session(state: &State<'_, AppState>) -> Result<Session, String> {
         .get_or_insert(Session {
             client,
             account_id: me.account_id,
+            display_name: me.display_name,
         })
         .clone())
 }
@@ -172,6 +180,7 @@ async fn save_credentials(
     *state.session.lock().await = Some(Session {
         client,
         account_id: me.account_id.clone(),
+        display_name: me.display_name.clone(),
     });
     Ok(me)
 }
@@ -325,6 +334,16 @@ async fn missing_worklogs(state: State<'_, AppState>) -> Result<Vec<MissingWorkl
         .await
 }
 
+/// Comments from the last two weeks that tag the current user — the data
+/// behind the "Mentions" tab.
+#[tauri::command]
+async fn mentions(state: State<'_, AppState>) -> Result<Vec<Mention>, String> {
+    let s = session(&state).await?;
+    s.client
+        .mentions(&s.account_id, &s.display_name, MENTIONS_LOOKBACK_DAYS)
+        .await
+}
+
 /// The shipped missing-worklog tuning. A single place to swap for
 /// user-configurable values once the workflow specifics move into settings.
 fn missing_config() -> MissingConfig {
@@ -469,6 +488,7 @@ pub fn run() {
             list_worklogs,
             issue_worklogs,
             missing_worklogs,
+            mentions,
             tray::timer_started,
             tray::timer_stopped,
             set_log_level,

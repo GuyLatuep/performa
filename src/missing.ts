@@ -1,6 +1,7 @@
 import { api, MissingWorklog } from "./api";
 import { logInfo } from "./log";
 import { notify } from "./notify";
+import { readSigSet, writeSigSet } from "./seen";
 import { createStore } from "./store";
 
 // Background watcher behind the "Missing worklog" tab: polls Jira for recent
@@ -35,18 +36,6 @@ let pollId: number | undefined;
 
 const sig = (item: MissingWorklog) => `${item.issueKey}@${item.activityAt}`;
 
-function readSigSet(key: string): Set<string> {
-  try {
-    const raw = JSON.parse(localStorage.getItem(key) ?? "[]");
-    if (Array.isArray(raw)) {
-      return new Set(raw.filter((s) => typeof s === "string"));
-    }
-  } catch {
-    /* ignore malformed storage */
-  }
-  return new Set();
-}
-
 const readSeen = () => readSigSet(SEEN_KEY);
 
 // Distinct from the seen-set: "seen" is the user's acknowledgment (stops the
@@ -55,7 +44,7 @@ async function notifyNew(items: MissingWorklog[]): Promise<void> {
   const notified = readSigSet(NOTIFIED_KEY);
   const fresh = items.filter((i) => !notified.has(sig(i)));
   // Pruned to the current findings so the set can't grow without bound.
-  localStorage.setItem(NOTIFIED_KEY, JSON.stringify(items.map(sig)));
+  writeSigSet(NOTIFIED_KEY, items.map(sig));
   if (fresh.length === 0) return;
   if (fresh.length === 1) {
     const item = fresh[0];
@@ -131,7 +120,7 @@ export function stopMissingPolling(): void {
 /** Acknowledge the current findings so the tab stops blinking for them. */
 export function markMissingSeen(): void {
   const state = store.get();
-  localStorage.setItem(SEEN_KEY, JSON.stringify(state.items.map(sig)));
+  writeSigSet(SEEN_KEY, state.items.map(sig));
   store.set({ ...state, unseenCount: countUnseen(state.items) });
 }
 

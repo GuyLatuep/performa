@@ -57,6 +57,19 @@ export interface MissingWorklog {
   logSummary: string;
 }
 
+/** A comment in which somebody tagged the current user. */
+export interface Mention {
+  issueKey: string;
+  issueSummary: string;
+  /** Jira's comment id — the row links straight to the comment with it. */
+  commentId: string;
+  /** Display name of whoever wrote the comment. */
+  author: string;
+  /** The comment text, collapsed to one bounded line. */
+  text: string;
+  createdAt: string; // RFC3339
+}
+
 /**
  * Every backend call goes through here so each one lands a single debug-log
  * line: what was requested (`label`, caller-supplied — must omit secrets
@@ -248,6 +261,13 @@ export const api = {
       "missing_worklogs",
       () => invoke("missing_worklogs"),
       (r) => `${r.length} item(s)`,
+    );
+  },
+  mentions(): Promise<Mention[]> {
+    return logged(
+      "mentions",
+      () => invoke("mentions"),
+      (r) => `${r.length} mention(s)`,
     );
   },
   /** Change the debug-log verbosity ("error" | "warn" | "info" | "debug"). */

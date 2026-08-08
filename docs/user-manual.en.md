@@ -16,6 +16,7 @@ performa is a small desktop app (macOS + Windows) for logging your work hours on
 - [System tray / menu bar](#system-tray--menu-bar)
 - [Timesheet](#timesheet)
 - [Missing worklogs](#missing-worklogs)
+- [Mentions](#mentions)
 - [Templates](#templates)
 - [Settings](#settings)
 - [Close protection](#close-protection)
@@ -65,7 +66,7 @@ The main window consists of:
 - **Header** — the performa mark, your account email, a **Settings** link, and **Sign out** (asks for confirmation; signing out removes the token from the keychain).
 - **Update banner** — appears only when a newer release exists ([Updates](#updates)).
 - **Timer bar** — appears only while a timer is running ([The timer](#the-timer)).
-- **Five tabs**: **Start**, **Todo**, **Log work**, **Timesheet**, **Missing worklog**. The app opens on **Start**.
+- **Six tabs**: **Start**, **Todo**, **Log work**, **Timesheet**, **Missing worklog**, **Mentions**. The app opens on **Start**.
 
 ## Start tab (dashboard)
 
@@ -223,7 +224,19 @@ Each finding shows:
 
 Clicking a finding opens an inline log form, prefilled with the **date and time of the flagged activity**, so the resulting worklog covers it and the reminder clears on the next check.
 
-> **Escalation issues:** for issues in the `DEV` project, the time is logged on the **linked escalation-source issue** instead (the issue linked as "is an escalation for"). The form shows both issues so it's always clear where the time goes.
+> **Escalation issues:** for issues in the `DEV` project, the time is logged on the **linked escalation-source issue** instead (the issue linked as "is an escalation for"). The form shows both issues so it's always clear where the time goes. When the source issue is on the list in its own right, the `DEV` row is left out — one worklog would clear both, and two rows for the same piece of work only add noise.
+
+## Mentions
+
+The **Mentions** tab is your Jira inbox for being tagged: every comment from the **last 14 days** in which somebody @-mentioned you.
+
+**How it finds them:** a mention is matched by your **account id** in the comment itself, not by your name appearing in the text — so somebody merely writing your name is not a hit, and a mention on an issue you have nothing else to do with still is. The scan runs **every 15 minutes** while you are signed in; **Check now** triggers it manually, and the tab shows when it last ran.
+
+Each row shows the issue, who wrote the comment, an excerpt, and how long ago it was. Clicking the row opens the **comment itself** in the browser; clicking the issue key opens the issue.
+
+**Read / unread:** new mentions raise a count badge and make the tab blink. **Opening the tab marks everything currently listed as read** — for that one visit the rows stay marked (accent bar and dot) so you can still see what was new. Your own comments never appear, and a mention already read stays read across restarts.
+
+A **desktop notification** is fired once per new mention.
 
 ## Templates
 

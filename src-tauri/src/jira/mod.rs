@@ -3,8 +3,9 @@
 //! stays out of the frontend and we sidestep browser CORS restrictions.
 //!
 //! Submodules: `types` holds the response shapes, `missing` the
-//! missing-worklog reminder heuristic.
+//! missing-worklog reminder heuristic, `mentions` the @-mention inbox.
 
+mod mentions;
 mod missing;
 mod types;
 
@@ -18,7 +19,8 @@ use serde::de::DeserializeOwned;
 
 use types::*;
 pub use types::{
-    IssueSummary, MissingConfig, MissingWorklog, Myself, TodoConfig, WorklogEntry, WorklogInput,
+    IssueSummary, Mention, MissingConfig, MissingWorklog, Myself, TodoConfig, WorklogEntry,
+    WorklogInput,
 };
 
 use crate::creds::Credentials;
@@ -87,6 +89,8 @@ pub struct JiraClient {
     /// client holds. Shared across clones (the session hands out copies) so
     /// the cache survives for the whole app run. See [`missing`].
     activity_cache: missing::ActivityCache,
+    /// The same idea for the mentions inbox — see [`mentions`].
+    mention_cache: mentions::MentionCache,
 }
 
 impl JiraClient {
@@ -98,6 +102,7 @@ impl JiraClient {
             auth,
             http: shared_http(),
             activity_cache: missing::ActivityCache::default(),
+            mention_cache: mentions::MentionCache::default(),
         }
     }
 
@@ -591,11 +596,19 @@ fn adf_paragraph(text: &str) -> serde_json::Value {
 }
 
 /// Flatten an ADF document to plain text by collecting all `text` nodes.
+///
+/// Mentions carry their rendered form ("@Malte Polzin") in `attrs.text`
+/// instead, and dropping it would leave a hole in the middle of the sentence —
+/// exactly where the mentions inbox has the most to say.
 fn adf_to_text(value: &serde_json::Value) -> String {
     fn walk(v: &serde_json::Value, out: &mut String) {
         match v {
             serde_json::Value::Object(map) => {
                 if let Some(serde_json::Value::String(t)) = map.get("text") {
+                    out.push_str(t);
+                } else if let Some(serde_json::Value::String(t)) =
+                    map.get("attrs").and_then(|a| a.get("text"))
+                {
                     out.push_str(t);
                 }
                 if let Some(content) = map.get("content") {
@@ -726,5 +739,20 @@ mod tests {
         let doc = adf_paragraph("hello world");
         assert_eq!(adf_to_text(&doc), "hello world");
         assert_eq!(adf_to_text(&adf_paragraph("")), "");
+    }
+
+    #[test]
+    fn adf_text_keeps_mentions_in_place() {
+        let doc = serde_json::json!({
+            "type": "doc",
+            "content": [{
+                "type": "paragraph",
+                "content": [
+                    { "type": "mention", "attrs": { "id": "557058:abc", "text": "@Malte" } },
+                    { "type": "text", "text": " please review" },
+                ]
+            }]
+        });
+        assert_eq!(adf_to_text(&doc), "@Malte please review");
     }
 }

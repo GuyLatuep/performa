@@ -127,6 +127,31 @@ pub struct MissingWorklog {
     pub log_summary: String,
 }
 
+/// One comment in which somebody tagged the current user — a row of the
+/// mentions inbox.
+#[derive(Serialize, Clone)]
+pub struct Mention {
+    #[serde(rename = "issueKey")]
+    pub issue_key: String,
+    #[serde(rename = "issueSummary")]
+    pub issue_summary: String,
+    /// Jira's id for the comment, so the row can link straight to it.
+    #[serde(rename = "commentId")]
+    pub comment_id: String,
+    /// Display name of whoever wrote the comment.
+    pub author: String,
+    /// The comment text, collapsed to one bounded line.
+    pub text: String,
+    /// RFC3339 timestamp of the comment.
+    #[serde(rename = "createdAt")]
+    pub created_at: String,
+    /// The same instant in epoch seconds. Backend-only: the lookback window
+    /// moves with the clock, so cached mentions are re-judged against it
+    /// without re-parsing `created_at`.
+    #[serde(skip)]
+    pub created_ts: i64,
+}
+
 // ----- Internal deserialization helpers -----
 
 #[derive(Deserialize)]
@@ -203,6 +228,10 @@ pub struct RawWorklog {
 pub struct WorklogAuthor {
     #[serde(rename = "accountId", default)]
     pub account_id: String,
+    /// Only read for comment authors (the mentions inbox names them); worklogs
+    /// are the user's own, so there is nobody to name there.
+    #[serde(rename = "displayName", default)]
+    pub display_name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -213,6 +242,8 @@ pub struct CommentListResp {
 
 #[derive(Deserialize)]
 pub struct RawComment {
+    #[serde(default)]
+    pub id: String,
     #[serde(default)]
     pub author: Option<WorklogAuthor>,
     #[serde(default)]

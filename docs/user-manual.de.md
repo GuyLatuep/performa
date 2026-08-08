@@ -16,6 +16,7 @@ performa ist eine kleine Desktop-App (macOS + Windows) zum Erfassen deiner Arbei
 - [System-Tray / Menüleiste](#system-tray--menüleiste)
 - [Timesheet](#timesheet)
 - [Missing Worklogs](#missing-worklogs)
+- [Erwähnungen](#erwähnungen)
 - [Vorlagen](#vorlagen)
 - [Einstellungen](#einstellungen)
 - [Schutz beim Beenden](#schutz-beim-beenden)
@@ -65,7 +66,7 @@ Das Hauptfenster besteht aus:
 - **Kopfzeile** — das performa-Zeichen, deine Konto-E-Mail, ein **Settings**-Link und **Sign out** (fragt nach Bestätigung; beim Abmelden wird das Token aus dem Schlüsselbund entfernt).
 - **Update-Banner** — erscheint nur, wenn ein neueres Release existiert ([Updates](#updates)).
 - **Timer-Leiste** — erscheint nur, während ein Timer läuft ([Der Timer](#der-timer)).
-- **Fünf Tabs**: **Start**, **Todo**, **Log work**, **Timesheet**, **Missing worklog**. Die App öffnet sich auf **Start**.
+- **Sechs Tabs**: **Start**, **Todo**, **Log work**, **Timesheet**, **Missing worklog**, **Mentions**. Die App öffnet sich auf **Start**.
 
 ## Start-Tab (Dashboard)
 
@@ -223,7 +224,19 @@ Jeder Fund zeigt:
 
 Ein Klick auf einen Fund öffnet ein Inline-Erfassungsformular, vorbelegt mit **Datum und Uhrzeit der gemeldeten Aktivität** — das entstehende Worklog deckt sie ab, und die Erinnerung verschwindet bei der nächsten Prüfung.
 
-> **Eskalationsvorgänge:** Bei Vorgängen im Projekt `DEV` wird die Zeit stattdessen auf dem **verknüpften Ursprungsvorgang** erfasst (dem Vorgang mit der Verknüpfung „is an escalation for“). Das Formular zeigt beide Vorgänge, damit immer klar ist, wohin die Zeit geht.
+> **Eskalationsvorgänge:** Bei Vorgängen im Projekt `DEV` wird die Zeit stattdessen auf dem **verknüpften Ursprungsvorgang** erfasst (dem Vorgang mit der Verknüpfung „is an escalation for“). Das Formular zeigt beide Vorgänge, damit immer klar ist, wohin die Zeit geht. Steht der Ursprungsvorgang selbst schon auf der Liste, entfällt die `DEV`-Zeile — ein Worklog räumt ohnehin beide ab, und zwei Zeilen für dieselbe Arbeit sind nur Rauschen.
+
+## Erwähnungen
+
+Der Tab **Mentions** ist dein Jira-Posteingang für Erwähnungen: alle Kommentare der **letzten 14 Tage**, in denen dich jemand mit @ markiert hat.
+
+**Wie sie gefunden werden:** Eine Erwähnung wird über deine **Account-ID** im Kommentar selbst erkannt, nicht darüber, dass dein Name im Text vorkommt — jemand, der deinen Namen bloß tippt, ist also kein Treffer, eine Erwähnung in einem Vorgang, mit dem du sonst nichts zu tun hast, dagegen schon. Die Prüfung läuft **alle 15 Minuten**, solange du angemeldet bist; **Check now** stößt sie manuell an, und der Tab zeigt den Zeitpunkt der letzten Prüfung.
+
+Jede Zeile zeigt den Vorgang, wer kommentiert hat, einen Auszug und wie lange es her ist. Ein Klick auf die Zeile öffnet **den Kommentar** im Browser, ein Klick auf den Vorgangsschlüssel den Vorgang.
+
+**Gelesen / ungelesen:** Neue Erwähnungen erzeugen eine Zähler-Markierung und lassen den Tab blinken. **Beim Öffnen des Tabs gilt alles aktuell Gelistete als gelesen** — für diesen einen Besuch bleiben die Zeilen markiert (Akzentbalken und Punkt), damit du noch siehst, was neu war. Eigene Kommentare tauchen nie auf, und eine gelesene Erwähnung bleibt auch nach einem Neustart gelesen.
+
+Pro neuer Erwähnung wird einmal eine **Desktop-Benachrichtigung** ausgelöst.
 
 ## Vorlagen
 

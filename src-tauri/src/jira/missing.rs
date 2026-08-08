@@ -319,7 +319,9 @@ impl JiraClient {
             .collect())
     }
 
-    async fn recent_comments(&self, issue_key: &str) -> Result<Vec<RawComment>, String> {
+    /// The issue's newest comments. Shared with the mentions inbox, which
+    /// reads the same page for a different question.
+    pub(super) async fn recent_comments(&self, issue_key: &str) -> Result<Vec<RawComment>, String> {
         let parsed: CommentListResp = self
             .get_json(
                 &format!("/rest/api/3/issue/{issue_key}/comment"),
