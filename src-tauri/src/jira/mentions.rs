@@ -197,9 +197,10 @@ fn mentions_user(body: &serde_json::Value, account_id: &str) -> bool {
     }
 }
 
-/// Collapse whitespace and cap the length so a long comment stays one line.
+/// Collapse whitespace and cap the length. The inbox wraps the excerpt over at
+/// most four lines, so the cap is sized to fill those rather than one line.
 fn excerpt(text: &str) -> String {
-    const MAX_CHARS: usize = 240;
+    const MAX_CHARS: usize = 500;
     let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
     if collapsed.chars().count() <= MAX_CHARS {
         return collapsed;
@@ -305,7 +306,7 @@ mod tests {
     #[test]
     fn excerpt_collapses_and_caps() {
         assert_eq!(excerpt("  a\n\tlong   comment "), "a long comment");
-        let long = "x".repeat(400);
-        assert_eq!(excerpt(&long).chars().count(), 241); // 240 + the ellipsis
+        let long = "x".repeat(800);
+        assert_eq!(excerpt(&long).chars().count(), 501); // 500 + the ellipsis
     }
 }

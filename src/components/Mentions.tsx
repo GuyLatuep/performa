@@ -98,21 +98,19 @@ function MentionRow({
     <div className={`worklog-row mention-row${unread ? " unread" : ""}`}>
       <div className="worklog-main">
         <button
-          className="key-link key"
+          className="mention-head"
           title={`Open ${item.issueKey} in browser`}
           onClick={() => openUrl(`${site}/browse/${item.issueKey}`)}
         >
-          {item.issueKey}
+          <span className="key">{item.issueKey}</span>
+          <span className="summary">{item.issueSummary}</span>
         </button>
         <button
-          className="issue-select"
+          className="mention-body"
           title="Open the comment in browser"
           onClick={() => openUrl(commentUrl)}
         >
-          <span className="summary">{item.issueSummary}</span>
-          <span className="comment">
-            {item.author}: {item.text ? `“${item.text}”` : "mentioned you"}
-          </span>
+          {item.author}: {item.text ? `“${item.text}”` : "mentioned you"}
         </button>
       </div>
       <span className="missing-meta">
