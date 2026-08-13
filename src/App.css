@@ -1149,12 +1149,23 @@ header {
   color: var(--ink);
   font-weight: 500;
 }
-/* Pinned to the top of a row that is now several lines tall. */
+/* Pinned to the top of a row that is now several lines tall, with the
+   log-work shortcut stacked underneath it. */
+.mention-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  align-self: flex-start;
+  gap: 2px;
+  flex: none;
+}
 .mention-row .missing-meta {
   display: flex;
   align-items: center;
-  align-self: flex-start;
   gap: 6px;
+}
+.mention-log {
+  white-space: nowrap;
 }
 .unread-dot {
   width: 7px;

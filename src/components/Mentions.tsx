@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Mention } from "../api";
+import { IssueSummary, Mention } from "../api";
 import { timeAgo } from "../time";
 import {
   markMentionsRead,
@@ -14,12 +14,14 @@ import {
 
 interface Props {
   site: string;
+  /** Open the log-work form for the mentioned issue. */
+  onLogWork: (issue: IssueSummary) => void;
 }
 
 // Inbox of comments that tag the user. Opening the tab marks everything listed
 // as read; the rows stay highlighted for this visit so it is still visible
 // what was new when the tab was opened.
-export default function Mentions({ site }: Props) {
+export default function Mentions({ site, onLogWork }: Props) {
   const items = useMentions();
   const error = useMentionsError();
   const lastChecked = useMentionsLastChecked();
@@ -73,6 +75,7 @@ export default function Mentions({ site }: Props) {
           item={item}
           site={site}
           unread={unread.has(mentionId(item))}
+          onLogWork={onLogWork}
         />
       ))}
     </div>
@@ -83,10 +86,12 @@ function MentionRow({
   item,
   site,
   unread,
+  onLogWork,
 }: {
   item: Mention;
   site: string;
   unread: boolean;
+  onLogWork: (issue: IssueSummary) => void;
 }) {
   // Jira scrolls to and highlights the comment itself with this parameter,
   // which is the whole point of clicking a mention.
@@ -113,10 +118,21 @@ function MentionRow({
           {item.author}: {item.text ? `“${item.text}”` : "mentioned you"}
         </button>
       </div>
-      <span className="missing-meta">
-        {unread && <span className="unread-dot" title="Unread" />}
-        {timeAgo(item.createdAt)}
-      </span>
+      <div className="mention-side">
+        <span className="missing-meta">
+          {unread && <span className="unread-dot" title="Unread" />}
+          {timeAgo(item.createdAt)}
+        </span>
+        <button
+          className="link mention-log"
+          title={`Log work on ${item.issueKey}`}
+          onClick={() =>
+            onLogWork({ key: item.issueKey, summary: item.issueSummary })
+          }
+        >
+          Log work
+        </button>
+      </div>
     </div>
   );
 }

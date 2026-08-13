@@ -275,7 +275,9 @@ export default function App() {
         {tab === "missing" && (
           <MissingWorklogs site={creds.site} onLogged={onLogged} />
         )}
-        {tab === "mentions" && <Mentions site={creds.site} />}
+        {tab === "mentions" && (
+          <Mentions site={creds.site} onLogWork={openLogTab} />
+        )}
       </main>
     </div>
   );
