@@ -6,6 +6,7 @@
 //! node holding the mentioned account's id, which is exact where a text search
 //! is only a guess.
 
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -56,7 +57,7 @@ impl JiraClient {
             .flatten()
             .collect();
 
-        found.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        newest_first(&mut found);
         log::debug!("mentions: {} mention(s) found", found.len());
         Ok(found)
     }
@@ -163,6 +164,14 @@ impl JiraClient {
         );
         Ok(within_lookback(&mentions, cutoff))
     }
+}
+
+/// Newest first, ordered by the instant rather than by `created_at`: that
+/// string carries a local UTC offset, and comparing offset-bearing strings is
+/// not chronological. When summer time ends the same wall-clock hour occurs
+/// twice with two different offsets, and the later of the two sorts first.
+fn newest_first(mentions: &mut [Mention]) {
+    mentions.sort_by_key(|m| Reverse(m.created_ts));
 }
 
 /// Mentions still inside the lookback window.
@@ -287,6 +296,29 @@ mod tests {
             created_at: format_rfc3339_local(ts),
             created_ts: ts,
         }
+    }
+
+    /// A mention whose rendered timestamp disagrees with its instant, as every
+    /// mention written in the repeated hour at the end of summer time does.
+    fn mention_displayed_as(ts: i64, created_at: &str) -> Mention {
+        Mention {
+            created_at: created_at.to_string(),
+            ..mention_at(ts)
+        }
+    }
+
+    #[test]
+    fn the_newest_mention_comes_first_across_the_end_of_summer_time() {
+        // Both are 26 October 2025, both read "02:something" locally, but
+        // 02:10+01:00 is a full hour *after* 02:30+02:00. Sorting the strings
+        // would put them the wrong way round.
+        let earlier = mention_displayed_as(1_761_438_600, "2025-10-26T02:30:00+02:00");
+        let later = mention_displayed_as(1_761_441_000, "2025-10-26T02:10:00+01:00");
+
+        let mut all = vec![earlier, later];
+        newest_first(&mut all);
+
+        assert_eq!(all[0].created_ts, 1_761_441_000);
     }
 
     #[test]
