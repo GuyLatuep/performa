@@ -230,7 +230,7 @@ Ein Klick auf einen Fund öffnet ein Inline-Erfassungsformular, vorbelegt mit **
 
 Der Tab **Mentions** ist dein Jira-Posteingang für Erwähnungen: alle Kommentare der **letzten 14 Tage**, in denen dich jemand mit @ markiert hat.
 
-**Wie sie gefunden werden:** Eine Erwähnung wird über deine **Account-ID** im Kommentar selbst erkannt, nicht darüber, dass dein Name im Text vorkommt — jemand, der deinen Namen bloß tippt, ist also kein Treffer, eine Erwähnung in einem Vorgang, mit dem du sonst nichts zu tun hast, dagegen schon. Die Prüfung läuft **alle 15 Minuten**, solange du angemeldet bist; **Check now** stößt sie manuell an, und der Tab zeigt den Zeitpunkt der letzten Prüfung.
+**Wie sie gefunden werden:** Eine Erwähnung wird über deine **Account-ID** im Kommentar selbst erkannt, nicht darüber, dass dein Name im Text vorkommt — jemand, der deinen Namen bloß tippt, ist also kein Treffer, eine Erwähnung in einem Vorgang, mit dem du sonst nichts zu tun hast, dagegen schon. Die Prüfung läuft **alle 3 Minuten**, solange du angemeldet bist; **Check now** stößt sie manuell an, und der Tab zeigt den Zeitpunkt der letzten Prüfung.
 
 Jede Zeile zeigt den Vorgang, wer kommentiert hat, einen Auszug und wie lange es her ist. Ein Klick auf die Zeile öffnet **den Kommentar** im Browser, ein Klick auf den Vorgangsschlüssel den Vorgang.
 

@@ -51,7 +51,7 @@ export default function Mentions({ site, onLogWork }: Props) {
       <div className="missing-head">
         <span className="hint">
           Comments from the last 14 days in which somebody @-mentioned you.
-          Rechecked every 15 minutes.
+          Rechecked every 3 minutes.
         </span>
         <div className="missing-actions">
           <button className="link" onClick={refresh} disabled={busy}>

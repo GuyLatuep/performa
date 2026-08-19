@@ -11,10 +11,14 @@ import { createStore } from "./store";
 
 const READ_KEY = "performa-mentions-read";
 const NOTIFIED_KEY = "performa-mentions-notified";
-// One search pair plus a comment fetch per candidate issue, so the same wide
-// interval as the missing-worklog scan. Jira mails about mentions anyway —
-// this tab is the standing overview, not the first alarm.
-const POLL_MS = 15 * 60 * 1000;
+// This inbox is meant to stand in for Jira's mention mails, so it has to be
+// the first alarm rather than a standing overview — hence a much tighter
+// interval than the missing-worklog scan, which reports on work already done
+// and does not care about minutes. The extra cost is bounded: the per-issue
+// cache is keyed on the issue's `updated` timestamp, so a re-scan re-reads
+// comments only for issues that actually changed. Nothing notifies while the
+// app is closed; that is a limit of a desktop app, not something to poll away.
+const POLL_MS = 3 * 60 * 1000;
 
 interface MentionsState {
   items: Mention[];

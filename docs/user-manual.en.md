@@ -230,7 +230,7 @@ Clicking a finding opens an inline log form, prefilled with the **date and time 
 
 The **Mentions** tab is your Jira inbox for being tagged: every comment from the **last 14 days** in which somebody @-mentioned you.
 
-**How it finds them:** a mention is matched by your **account id** in the comment itself, not by your name appearing in the text — so somebody merely writing your name is not a hit, and a mention on an issue you have nothing else to do with still is. The scan runs **every 15 minutes** while you are signed in; **Check now** triggers it manually, and the tab shows when it last ran.
+**How it finds them:** a mention is matched by your **account id** in the comment itself, not by your name appearing in the text — so somebody merely writing your name is not a hit, and a mention on an issue you have nothing else to do with still is. The scan runs **every 3 minutes** while you are signed in; **Check now** triggers it manually, and the tab shows when it last ran.
 
 Each row shows the issue, who wrote the comment, an excerpt, and how long ago it was. Clicking the row opens the **comment itself** in the browser; clicking the issue key opens the issue.
 
