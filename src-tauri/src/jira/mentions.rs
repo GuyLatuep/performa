@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::Local;
-use futures_util::{stream, StreamExt, TryStreamExt};
+use futures_util::{stream, StreamExt};
 
 use super::types::*;
 use super::{
@@ -63,17 +63,32 @@ impl JiraClient {
             candidates.issues.len(),
             candidates.issues.iter().map(|i| &i.key).collect::<Vec<_>>()
         );
-        let (truncated, name_search_skipped) =
+        let (mut truncated, name_search_skipped) =
             (candidates.truncated, candidates.name_search_skipped);
 
-        let mut found: Vec<Mention> = stream::iter(candidates.issues)
+        // Per issue, not all-or-nothing: one issue that has become unreadable
+        // — permissions changed, comment deleted, Jira rate-limiting this one
+        // request — must not throw away every mention found on the other
+        // hundred. Only a scan in which nothing at all succeeded is an error.
+        let outcomes: Vec<Result<Vec<Mention>, String>> = stream::iter(candidates.issues)
             .map(|issue| self.issue_mentions(issue, account_id, cutoff))
             .buffer_unordered(MAX_INFLIGHT)
-            .try_collect::<Vec<Vec<Mention>>>()
-            .await?
-            .into_iter()
-            .flatten()
-            .collect();
+            .collect()
+            .await;
+
+        let attempted = outcomes.len();
+        let (mut found, failures) = split_outcomes(outcomes)?;
+        if !failures.is_empty() {
+            // An issue that could not be read may well have held a mention, so
+            // the scan is incomplete in exactly the sense the inbox already
+            // reports — same banner, no new concept.
+            truncated = true;
+            log::warn!(
+                "mentions: {} of {attempted} issue(s) could not be read: {}",
+                failures.len(),
+                failures.join("; ")
+            );
+        }
 
         newest_first(&mut found);
         log::debug!(
@@ -211,6 +226,28 @@ impl JiraClient {
         );
         Ok(within_lookback(&mentions, cutoff))
     }
+}
+
+/// Separate the mentions that were found from the errors that stopped the
+/// rest. Fails only when nothing at all could be read: as long as one issue
+/// answered, its mentions are worth showing, and the caller reports the gap
+/// rather than discarding the lot.
+fn split_outcomes(
+    outcomes: Vec<Result<Vec<Mention>, String>>,
+) -> Result<(Vec<Mention>, Vec<String>), String> {
+    let attempted = outcomes.len();
+    let mut found = Vec::new();
+    let mut failures = Vec::new();
+    for outcome in outcomes {
+        match outcome {
+            Ok(mentions) => found.extend(mentions),
+            Err(err) => failures.push(err),
+        }
+    }
+    if attempted > 0 && failures.len() == attempted {
+        return Err(failures.swap_remove(0));
+    }
+    Ok((found, failures))
 }
 
 /// Newest first, ordered by the instant rather than by `created_at`: that
@@ -378,6 +415,39 @@ mod tests {
         let parse = |s: &str| serde_json::from_str::<SearchResp>(s).unwrap();
         assert!(parse(full_last_page).next_page_token.is_none());
         assert!(parse(short_but_more).next_page_token.is_some());
+    }
+
+    #[test]
+    fn one_unreadable_issue_does_not_lose_the_others() {
+        let outcomes = vec![
+            Ok(vec![mention_at(100)]),
+            Err("Jira returned 403: no permission".to_string()),
+            Ok(vec![mention_at(200)]),
+        ];
+
+        let (found, failures) = split_outcomes(outcomes).unwrap();
+
+        assert_eq!(found.len(), 2);
+        assert_eq!(failures.len(), 1);
+    }
+
+    #[test]
+    fn a_scan_where_every_issue_failed_is_an_error() {
+        let outcomes: Vec<Result<Vec<Mention>, String>> = vec![
+            Err("Jira returned 429: rate limited".to_string()),
+            Err("Jira returned 429: rate limited".to_string()),
+        ];
+
+        assert!(split_outcomes(outcomes).is_err());
+    }
+
+    #[test]
+    fn having_nothing_to_scan_is_not_a_failure() {
+        // No candidate issues is an ordinary quiet fortnight, not an outage.
+        let (found, failures) = split_outcomes(vec![]).unwrap();
+
+        assert!(found.is_empty());
+        assert!(failures.is_empty());
     }
 
     #[test]
