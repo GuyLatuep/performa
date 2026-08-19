@@ -10,10 +10,12 @@ import {
 
 // Desktop notifications reach for a Tauri plugin that does not exist under
 // vitest; `notifyNew` runs on every refresh, so it has to be stubbed out.
+// Permission is granted here so the tests below can see what would be sent.
+const sendNotification = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/plugin-notification", () => ({
-  isPermissionGranted: async () => false,
-  requestPermission: async () => "denied",
-  sendNotification: () => {},
+  isPermissionGranted: async () => true,
+  requestPermission: async () => "granted",
+  sendNotification,
 }));
 
 const mockInvoke = vi.mocked(invoke);
@@ -36,6 +38,7 @@ function backendReturns(items: Mention[]) {
 
 beforeEach(() => {
   mockInvoke.mockReset();
+  sendNotification.mockClear();
   localStorage.clear();
 });
 
@@ -102,5 +105,55 @@ describe("read state", () => {
     await refreshMentions();
 
     expect(unreadMentionIds()).toEqual(new Set(["ABC-2:10002"]));
+  });
+});
+
+describe("notifications", () => {
+  it("stays quiet about the backlog the first scan turns up", async () => {
+    // A fresh install finds a fortnight of mentions at once. Every one of them
+    // already arrived by mail; announcing them now would be pure noise.
+    backendReturns([mention("ABC-1", "10001"), mention("ABC-2", "10002")]);
+    await refreshMentions();
+
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("announces a mention that arrives after the first scan", async () => {
+    backendReturns([mention("ABC-1", "10001")]);
+    await refreshMentions();
+
+    backendReturns([mention("ABC-1", "10001"), mention("ABC-2", "10002")]);
+    await refreshMentions();
+
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ title: expect.stringContaining("ABC-2") }),
+    );
+  });
+
+  it("treats an empty first scan as having looked", async () => {
+    // Nothing found is still a completed scan, so the next mention is new.
+    backendReturns([]);
+    await refreshMentions();
+
+    backendReturns([mention("ABC-1", "10001")]);
+    await refreshMentions();
+
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not treat a failed first check as having looked", async () => {
+    // The scan never completed, so the mentions it would have found are still
+    // backlog rather than news.
+    mockInvoke.mockImplementation(async (command) => {
+      if (command === "mentions") throw new Error("Jira returned 503");
+      return undefined;
+    });
+    await refreshMentions();
+
+    backendReturns([mention("ABC-1", "10001")]);
+    await refreshMentions();
+
+    expect(sendNotification).not.toHaveBeenCalled();
   });
 });

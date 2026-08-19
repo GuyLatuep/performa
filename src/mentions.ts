@@ -1,7 +1,7 @@
 import { api, Mention } from "./api";
 import { logInfo } from "./log";
 import { notify } from "./notify";
-import { readSigSet, writeSigSet } from "./seen";
+import { hasSigSet, readSigSet, writeSigSet } from "./seen";
 import { createStore } from "./store";
 
 // Background watcher behind the "Mentions" tab: polls Jira for comments that
@@ -45,8 +45,15 @@ export const mentionId = (item: Mention) =>
 // Distinct from the read set: "read" is the user's acknowledgment (clears the
 // badge), "notified" only prevents duplicate desktop notifications.
 async function notifyNew(items: Mention[]): Promise<void> {
+  // The very first scan turns up the whole lookback window at once — a
+  // fortnight the user has long since read in Jira. Record it as already
+  // announced instead of raising a toast about a backlog; only what appears
+  // after this first scan is news.
+  const firstScan = !hasSigSet(NOTIFIED_KEY);
   const notified = readSigSet(NOTIFIED_KEY);
-  const fresh = items.filter((i) => !notified.has(mentionId(i)));
+  const fresh = firstScan
+    ? []
+    : items.filter((i) => !notified.has(mentionId(i)));
   // Pruned to the current findings so the set can't grow without bound.
   writeSigSet(NOTIFIED_KEY, items.map(mentionId));
   if (fresh.length === 0) return;
