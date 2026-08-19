@@ -65,6 +65,8 @@ impl JiraClient {
         );
         let (mut truncated, name_search_skipped) =
             (candidates.truncated, candidates.name_search_skipped);
+        let scanned: std::collections::HashSet<String> =
+            candidates.issues.iter().map(|i| i.key.clone()).collect();
 
         // Per issue, not all-or-nothing: one issue that has become unreadable
         // — permissions changed, comment deleted, Jira rate-limiting this one
@@ -78,6 +80,14 @@ impl JiraClient {
 
         let attempted = outcomes.len();
         let (mut found, failures) = split_outcomes(outcomes)?;
+
+        // Issues that dropped out of the candidate set will not be asked about
+        // again, so their entries would linger for the rest of the app run —
+        // and this app is meant to stay open all day.
+        self.mention_cache
+            .lock()
+            .await
+            .retain(|key, _| scanned.contains(key));
         if !failures.is_empty() {
             // An issue that could not be read may well have held a mention, so
             // the scan is incomplete in exactly the sense the inbox already
