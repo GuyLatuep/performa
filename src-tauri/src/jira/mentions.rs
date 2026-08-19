@@ -19,9 +19,20 @@ use super::{
 };
 
 /// How many issues each candidate search may return. Neither net is a precise
-/// query, so this is a budget rather than a limit that "fits": past it, the
-/// scan reports itself as truncated instead of pretending it saw everything.
+/// query, so this is a budget rather than a limit that "fits": when Jira says
+/// there is a further page, the scan reports itself as truncated instead of
+/// pretending it saw everything.
 const CANDIDATE_LIMIT: u32 = 100;
+
+/// The issues one scan will look at, and what it could not reach.
+struct Candidates {
+    issues: Vec<IssueSummary>,
+    /// A net had a further page that was never fetched.
+    truncated: bool,
+    /// The display-name net never ran, so the whole "issues I have nothing
+    /// else to do with" half of the search is missing.
+    name_search_skipped: bool,
+}
 
 /// Mentions found on one issue, plus the `updated` timestamp they were found
 /// at. A comment cannot be written or edited without moving `updated`, so an
@@ -46,14 +57,16 @@ impl JiraClient {
         lookback_days: u32,
     ) -> Result<MentionScan, String> {
         let cutoff = Local::now().timestamp() - lookback_days as i64 * 86_400;
-        let (candidates, truncated) = self.mention_candidates(display_name, lookback_days).await?;
+        let candidates = self.mention_candidates(display_name, lookback_days).await?;
         log::debug!(
             "mentions: {} candidate issue(s) to scan: {:?}",
-            candidates.len(),
-            candidates.iter().map(|i| &i.key).collect::<Vec<_>>()
+            candidates.issues.len(),
+            candidates.issues.iter().map(|i| &i.key).collect::<Vec<_>>()
         );
+        let (truncated, name_search_skipped) =
+            (candidates.truncated, candidates.name_search_skipped);
 
-        let mut found: Vec<Mention> = stream::iter(candidates)
+        let mut found: Vec<Mention> = stream::iter(candidates.issues)
             .map(|issue| self.issue_mentions(issue, account_id, cutoff))
             .buffer_unordered(MAX_INFLIGHT)
             .try_collect::<Vec<Vec<Mention>>>()
@@ -75,6 +88,7 @@ impl JiraClient {
         Ok(MentionScan {
             mentions: found,
             truncated,
+            name_search_skipped,
         })
     }
 
@@ -83,13 +97,13 @@ impl JiraClient {
     /// name it renders as — and being mentioned does not make you a watcher, so
     /// the "issues I have to do with" net misses exactly the case that matters
     /// most. False positives are harmless; the ADF check below sorts them out.
-    /// Returns the candidates and whether either net filled its budget, which
-    /// means it was cut short and mentions may lie beyond it.
+    /// Returns the candidates along with what the search could not reach —
+    /// see [`Candidates`].
     async fn mention_candidates(
         &self,
         display_name: &str,
         lookback_days: u32,
-    ) -> Result<(Vec<IssueSummary>, bool), String> {
+    ) -> Result<Candidates, String> {
         // Bound before the calls: a `format!` temporary passed straight into a
         // future would be dropped while that future still borrows it.
         let involved_jql = format!(
@@ -101,22 +115,26 @@ impl JiraClient {
             "comment ~ \"{}\" AND updated >= \"-{lookback_days}d\" ORDER BY updated DESC",
             escape_jql(display_name)
         );
-        let involved = self.search_issues_dated(&involved_jql, CANDIDATE_LIMIT);
+        let involved = self.search_issues_dated_page(&involved_jql, CANDIDATE_LIMIT);
 
         // An empty display name would search for the empty string, which
         // matches everything — skip that net rather than scan the whole site.
+        let name_search_skipped = display_name.trim().is_empty();
         let truncated;
-        let mut candidates = if display_name.trim().is_empty() {
-            // Only one net ran, so the text net's blind spot is unconditional
-            // here rather than a matter of budget — see the comment above.
-            truncated = true;
-            involved.await?
+        let mut candidates = if name_search_skipped {
+            let (issues, has_more) = involved.await?;
+            truncated = has_more;
+            issues
         } else {
-            let (by_text, involved) = futures_util::try_join!(
-                self.search_issues_dated(&text_jql, CANDIDATE_LIMIT),
+            let ((by_text, text_more), (involved, involved_more)) = futures_util::try_join!(
+                self.search_issues_dated_page(&text_jql, CANDIDATE_LIMIT),
                 involved
             )?;
-            truncated = filled_budget(&by_text) || filled_budget(&involved);
+            // Jira's own word on whether a page was the last one. Counting the
+            // rows instead would guess wrong both ways: `/search/jql` may
+            // return fewer than asked for and still have more, and a page that
+            // happens to come back exactly full is often the whole answer.
+            truncated = text_more || involved_more;
             let mut merged = by_text;
             merged.extend(involved);
             merged
@@ -126,7 +144,11 @@ impl JiraClient {
         // every mention on it twice.
         let mut seen = std::collections::HashSet::new();
         candidates.retain(|i| seen.insert(i.key.clone()));
-        Ok((candidates, truncated))
+        Ok(Candidates {
+            issues: candidates,
+            truncated,
+            name_search_skipped,
+        })
     }
 
     /// The mentions of `account_id` in one issue's recent comments.
@@ -189,12 +211,6 @@ impl JiraClient {
         );
         Ok(within_lookback(&mentions, cutoff))
     }
-}
-
-/// Did this net come back full? Then it was cut off at the budget and there
-/// are candidate issues it never returned.
-fn filled_budget(net: &[IssueSummary]) -> bool {
-    net.len() as u32 >= CANDIDATE_LIMIT
 }
 
 /// Newest first, ordered by the instant rather than by `created_at`: that
@@ -352,26 +368,16 @@ mod tests {
         assert_eq!(all[0].created_ts, 1_761_441_000);
     }
 
-    fn candidates(n: u32) -> Vec<IssueSummary> {
-        (0..n)
-            .map(|i| IssueSummary {
-                key: format!("ABC-{i}"),
-                summary: "summary".to_string(),
-                due_date: None,
-                updated: None,
-                status: None,
-                priority: None,
-            })
-            .collect()
-    }
-
     #[test]
-    fn a_net_that_came_back_full_counts_as_cut_off() {
-        // Exactly full is the ambiguous case: Jira returning the budget is
-        // indistinguishable from Jira having no more to give, so it counts as
-        // cut off rather than as complete.
-        assert!(filled_budget(&candidates(CANDIDATE_LIMIT)));
-        assert!(!filled_budget(&candidates(CANDIDATE_LIMIT - 1)));
+    fn a_full_page_without_a_next_token_is_not_truncated() {
+        // The pagination contract this scan relies on: `nextPageToken` is the
+        // signal, so a page that came back exactly full is still complete, and
+        // a short page can still have more behind it.
+        let full_last_page = r#"{"issues":[],"maxResults":100}"#;
+        let short_but_more = r#"{"issues":[],"nextPageToken":"abc"}"#;
+        let parse = |s: &str| serde_json::from_str::<SearchResp>(s).unwrap();
+        assert!(parse(full_last_page).next_page_token.is_none());
+        assert!(parse(short_but_more).next_page_token.is_some());
     }
 
     #[test]

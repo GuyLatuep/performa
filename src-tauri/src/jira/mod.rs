@@ -237,7 +237,18 @@ impl JiraClient {
         jql: &str,
         max_results: u32,
     ) -> Result<Vec<IssueSummary>, String> {
-        self.search_issues_fields(jql, max_results, "summary,updated")
+        Ok(self.search_issues_dated_page(jql, max_results).await?.0)
+    }
+
+    /// As [`search_issues_dated`](Self::search_issues_dated), plus whether
+    /// Jira reported a further page. Callers that present their result as
+    /// complete need that flag: a page is not proof there is nothing after it.
+    async fn search_issues_dated_page(
+        &self,
+        jql: &str,
+        max_results: u32,
+    ) -> Result<(Vec<IssueSummary>, bool), String> {
+        self.search_issues_fields_page(jql, max_results, "summary,updated")
             .await
     }
 
@@ -264,6 +275,19 @@ impl JiraClient {
         max_results: u32,
         fields: &str,
     ) -> Result<Vec<IssueSummary>, String> {
+        Ok(self
+            .search_issues_fields_page(jql, max_results, fields)
+            .await?
+            .0)
+    }
+
+    /// One page of a search, with Jira's own word on whether more follows.
+    async fn search_issues_fields_page(
+        &self,
+        jql: &str,
+        max_results: u32,
+        fields: &str,
+    ) -> Result<(Vec<IssueSummary>, bool), String> {
         let parsed: SearchResp = self
             .get_json(
                 "/rest/api/3/search/jql",
@@ -275,7 +299,8 @@ impl JiraClient {
                 "search",
             )
             .await?;
-        Ok(parsed
+        let has_more = parsed.next_page_token.is_some();
+        let issues = parsed
             .issues
             .into_iter()
             .map(|i| IssueSummary {
@@ -286,7 +311,8 @@ impl JiraClient {
                 status: i.fields.status.map(|s| s.name),
                 priority: i.fields.priority.map(|p| p.name),
             })
-            .collect())
+            .collect();
+        Ok((issues, has_more))
     }
 
     /// Move `issue_key` to the workflow status named `target_status`

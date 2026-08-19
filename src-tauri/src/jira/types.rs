@@ -139,14 +139,22 @@ pub struct MissingWorklog {
     pub log_summary: String,
 }
 
-/// The outcome of one mentions scan. Carries `truncated` because the scan
-/// cannot see every mention: it looks at a bounded number of candidate issues,
-/// and when that bound is reached there may be more it never opened. The inbox
+/// The outcome of one mentions scan. Carries its own blind spots because the
+/// scan cannot see every mention: it looks at a bounded number of candidate
+/// issues, and it needs a display name to search comment text for. The inbox
 /// says so rather than presenting a short list as the whole truth.
 #[derive(Serialize, Clone)]
 pub struct MentionScan {
     pub mentions: Vec<Mention>,
+    /// A candidate search had a further page it never fetched, so there are
+    /// issues this scan never opened.
     pub truncated: bool,
+    /// The display-name net did not run at all (no display name on the
+    /// account), so mentions on issues the user is not otherwise involved
+    /// with cannot be found — a blind spot of a different shape from
+    /// `truncated`, and one no amount of budget would close.
+    #[serde(rename = "nameSearchSkipped")]
+    pub name_search_skipped: bool,
 }
 
 /// One comment in which somebody tagged the current user — a row of the
@@ -179,6 +187,12 @@ pub struct Mention {
 #[derive(Deserialize)]
 pub struct SearchResp {
     pub issues: Vec<SearchIssue>,
+    /// Set when the search has a further page. `/search/jql` is token
+    /// paginated and may hand back fewer issues than `maxResults` while still
+    /// having more to give, so this — not a full-looking page — is the only
+    /// reliable "there is more" signal.
+    #[serde(default, rename = "nextPageToken")]
+    pub next_page_token: Option<String>,
 }
 
 #[derive(Deserialize)]
