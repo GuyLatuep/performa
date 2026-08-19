@@ -10,6 +10,7 @@ import {
   useMentions,
   useMentionsError,
   useMentionsLastChecked,
+  useMentionsNameSearchSkipped,
   useMentionsTruncated,
 } from "../mentions";
 
@@ -27,6 +28,7 @@ export default function Mentions({ site, onLogWork }: Props) {
   const error = useMentionsError();
   const lastChecked = useMentionsLastChecked();
   const truncated = useMentionsTruncated();
+  const nameSearchSkipped = useMentionsNameSearchSkipped();
   const [busy, setBusy] = useState(false);
   // Captured once per visit, before the effect below acknowledges them —
   // reading it live would clear the highlighting in the same render.
@@ -67,8 +69,15 @@ export default function Mentions({ site, onLogWork }: Props) {
 
       {error && <p className="error">{error}</p>}
       {!error && !lastChecked && <p className="muted empty">Checking…</p>}
-      {!error && lastChecked && items.length === 0 && (
-        <p className="muted empty">No mentions found in the last 14 days.</p>
+      {/* Above the list — and above the empty state especially: "nothing
+          found" must not read as "nothing exists" when the scan knows it did
+          not look everywhere. */}
+      {!error && nameSearchSkipped && (
+        <p className="mention-partial">
+          Your Jira account has no display name, so the search of comment text
+          cannot run. Only issues you are otherwise involved with are looked at
+          — a mention on any other issue is not listed here.
+        </p>
       )}
       {!error && truncated && (
         <p className="mention-partial">
@@ -77,6 +86,9 @@ export default function Mentions({ site, onLogWork }: Props) {
           could open — a mention on one of the issues it skipped is not listed
           here.
         </p>
+      )}
+      {!error && lastChecked && items.length === 0 && (
+        <p className="muted empty">No mentions found in the last 14 days.</p>
       )}
 
       {items.map((item) => (

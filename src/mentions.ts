@@ -11,6 +11,12 @@ import { createStore } from "./store";
 
 const READ_KEY = "performa-mentions-read";
 const NOTIFIED_KEY = "performa-mentions-notified";
+// Which account the two sets above were collected for. Both are statements
+// about one person's inbox, and localStorage outlives a sign-out.
+const OWNER_KEY = "performa-mentions-owner";
+// Ceiling on the notified set. It is pruned towards the current findings, but
+// not down to them (see `notifyNew`), so it needs a bound of its own.
+const MAX_NOTIFIED = 500;
 // This inbox is meant to stand in for Jira's mention mails, so it has to be
 // the first alarm rather than a standing overview — hence a much tighter
 // interval than the missing-worklog scan, which reports on work already done
@@ -29,6 +35,9 @@ interface MentionsState {
   /** The last scan hit the ceiling on issues it was willing to look at, so
    *  the list below may be missing mentions nobody ever saw. */
   truncated: boolean;
+  /** The account has no display name, so the scan could only look at issues
+   *  the user is otherwise involved with. */
+  nameSearchSkipped: boolean;
 }
 
 const store = createStore<MentionsState>({
@@ -37,9 +46,12 @@ const store = createStore<MentionsState>({
   lastError: null,
   lastChecked: null,
   truncated: false,
+  nameSearchSkipped: false,
 });
 
 let pollId: number | undefined;
+// The scan currently running, if any — see `refreshMentions`.
+let inFlight: Promise<void> | null = null;
 
 /** Identity of one mention. A comment can only be edited, never re-created
  *  under the same id, so this stays stable across scans. */
@@ -58,8 +70,12 @@ async function notifyNew(items: Mention[]): Promise<void> {
   const fresh = firstScan
     ? []
     : items.filter((i) => !notified.has(mentionId(i)));
-  // Pruned to the current findings so the set can't grow without bound.
-  writeSigSet(NOTIFIED_KEY, items.map(mentionId));
+  // Kept for a while beyond the current findings, newest first, and only then
+  // bounded. Pruning straight down to this scan's items would re-announce an
+  // old mention as soon as its issue dropped out of the candidate search and
+  // came back — which the bounded candidate list makes routine.
+  const remembered = [...items.map(mentionId), ...notified];
+  writeSigSet(NOTIFIED_KEY, [...new Set(remembered)].slice(0, MAX_NOTIFIED));
   if (fresh.length === 0) return;
   if (fresh.length === 1) {
     const item = fresh[0];
@@ -105,18 +121,31 @@ export function unreadMentionIds(): Set<string> {
 
 /** `source` only labels the debug log — "why did this check run", separate
  *  from the generic request/result line `api.mentions()` already logs. */
-export async function refreshMentions(
+export function refreshMentions(
   source: "poll" | "manual" = "poll",
 ): Promise<void> {
+  // One scan at a time. A scan can outlast the poll interval (a cold cache
+  // opens every candidate issue), and two in flight would read the notified
+  // set before either wrote it — announcing the same mention twice — and then
+  // land their results in completion order.
+  inFlight ??= runRefresh(source).finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function runRefresh(source: "poll" | "manual"): Promise<void> {
   logInfo(`mention check triggered (${source})`);
   const previous = store.get().items;
   let items = previous;
   let truncated = store.get().truncated;
+  let nameSearchSkipped = store.get().nameSearchSkipped;
   let lastError: string | null = null;
   try {
     const scan = await api.mentions();
     items = scan.mentions;
     truncated = scan.truncated;
+    nameSearchSkipped = scan.nameSearchSkipped;
     await notifyNew(items);
   } catch (err) {
     lastError = String(err);
@@ -126,6 +155,7 @@ export async function refreshMentions(
     unreadCount: countUnread(items),
     lastError,
     truncated,
+    nameSearchSkipped,
     lastChecked: new Date().toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -133,8 +163,22 @@ export async function refreshMentions(
   });
 }
 
-export function startMentionsPolling(): void {
+/** Bind the stored read and notified sets to `account`, dropping them if they
+ *  were collected for somebody else. Without this a second account inherits
+ *  the first one's read marks, and its whole fortnight of mentions counts as
+ *  unseen news — a notification about a backlog nobody here has seen.
+ *  Signing back in as the same account keeps everything. */
+export function claimMentionsFor(account: string): void {
+  if (localStorage.getItem(OWNER_KEY) === account) return;
+  localStorage.removeItem(NOTIFIED_KEY);
+  localStorage.removeItem(READ_KEY);
+  localStorage.setItem(OWNER_KEY, account);
+}
+
+/** `account` identifies whose inbox this is — see `claimMentionsFor`. */
+export function startMentionsPolling(account: string): void {
   if (pollId !== undefined) return;
+  claimMentionsFor(account);
   refreshMentions();
   pollId = window.setInterval(refreshMentions, POLL_MS);
 }
@@ -149,6 +193,7 @@ export function stopMentionsPolling(): void {
     lastError: null,
     lastChecked: null,
     truncated: false,
+    nameSearchSkipped: false,
   });
 }
 
@@ -184,4 +229,12 @@ export function getMentionsTruncated(): boolean {
 
 export function useMentionsTruncated(): boolean {
   return store.useSelector((s) => s.truncated);
+}
+
+export function getMentionsNameSearchSkipped(): boolean {
+  return store.get().nameSearchSkipped;
+}
+
+export function useMentionsNameSearchSkipped(): boolean {
+  return store.useSelector((s) => s.nameSearchSkipped);
 }

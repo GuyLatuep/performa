@@ -6,6 +6,7 @@ import {
   getMentionsTruncated,
   markMentionsRead,
   refreshMentions,
+  claimMentionsFor,
   unreadMentionIds,
 } from "./mentions";
 
@@ -33,7 +34,9 @@ const mention = (issueKey: string, commentId: string): Mention => ({
 /** What the backend answers the next time the scan runs. */
 function backendReturns(items: Mention[], truncated = false) {
   mockInvoke.mockImplementation(async (command) =>
-    command === "mentions" ? { mentions: items, truncated } : undefined,
+    command === "mentions"
+      ? { mentions: items, truncated, nameSearchSkipped: false }
+      : undefined,
   );
 }
 
@@ -143,6 +146,31 @@ describe("notifications", () => {
     expect(sendNotification).toHaveBeenCalledTimes(1);
   });
 
+  it("stays quiet about a mention that only dropped out for a scan", async () => {
+    // The candidate search is bounded, so an issue can fall out of one scan
+    // and be back in the next. That is not a new mention.
+    backendReturns([mention("ABC-1", "10001")]);
+    await refreshMentions();
+
+    backendReturns([]);
+    await refreshMentions();
+
+    backendReturns([mention("ABC-1", "10001")]);
+    await refreshMentions();
+
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("announces a mention once even when two scans overlap", async () => {
+    backendReturns([]);
+    await refreshMentions();
+
+    backendReturns([mention("ABC-1", "10001")]);
+    await Promise.all([refreshMentions("poll"), refreshMentions("manual")]);
+
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+  });
+
   it("does not treat a failed first check as having looked", async () => {
     // The scan never completed, so the mentions it would have found are still
     // backlog rather than news.
@@ -190,5 +218,34 @@ describe("incomplete scans", () => {
     await refreshMentions();
 
     expect(getMentionsTruncated()).toBe(true);
+  });
+});
+
+describe("switching accounts", () => {
+  it("starts over when somebody else signs in", async () => {
+    backendReturns([mention("ABC-1", "10001")]);
+    claimMentionsFor("acme.atlassian.net|first@example.com");
+    await refreshMentions();
+    markMentionsRead();
+
+    // A second account's fortnight of mentions is not news the first
+    // account's notified set can vouch for, nor is it already read.
+    claimMentionsFor("acme.atlassian.net|second@example.com");
+    await refreshMentions();
+
+    expect(sendNotification).not.toHaveBeenCalled();
+    expect(unreadMentionIds()).toEqual(new Set(["ABC-1:10001"]));
+  });
+
+  it("keeps the state when the same account signs back in", async () => {
+    backendReturns([mention("ABC-1", "10001")]);
+    claimMentionsFor("acme.atlassian.net|first@example.com");
+    await refreshMentions();
+    markMentionsRead();
+
+    claimMentionsFor("acme.atlassian.net|first@example.com");
+    await refreshMentions();
+
+    expect(unreadMentionIds()).toEqual(new Set());
   });
 });

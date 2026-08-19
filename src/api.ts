@@ -64,15 +64,17 @@ export interface MissingWorklog {
   logSummary: string;
 }
 
-/** A comment in which somebody tagged the current user. */
-/** The outcome of one mentions scan. `truncated` means a candidate search
- *  came back full, so there may be mentions the scan never looked at — the
+/** The outcome of one mentions scan, with the blind spots it knows about:
+ *  `truncated` means a candidate search had a page it never fetched, and
+ *  `nameSearchSkipped` that the display-name net could not run at all. The
  *  inbox says so rather than presenting a short list as the whole truth. */
 export interface MentionScan {
   mentions: Mention[];
   truncated: boolean;
+  nameSearchSkipped: boolean;
 }
 
+/** A comment in which somebody tagged the current user. */
 export interface Mention {
   issueKey: string;
   issueSummary: string;
@@ -337,7 +339,8 @@ export const api = {
       "mentions",
       () => invoke("mentions"),
       (r) =>
-        `${r.mentions.length} mention(s)${r.truncated ? ", search truncated" : ""}`,
+        `${r.mentions.length} mention(s)${r.truncated ? ", search truncated" : ""}` +
+        `${r.nameSearchSkipped ? ", name search skipped" : ""}`,
     );
   },
   /** Change the debug-log verbosity ("error" | "warn" | "info" | "debug"). */

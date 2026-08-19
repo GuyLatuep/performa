@@ -93,11 +93,14 @@ export default function App() {
   }, [signedIn]);
 
   // Same for @-mentions — the tab badge has to be right before it is opened.
+  // Keyed on the account rather than on `signedIn`: read and notified state
+  // belongs to whoever's inbox it was collected from.
+  const mentionsAccount = creds ? `${creds.site}|${creds.email}` : null;
   useEffect(() => {
-    if (!signedIn) return;
-    startMentionsPolling();
+    if (!mentionsAccount) return;
+    startMentionsPolling(mentionsAccount);
     return stopMentionsPolling;
-  }, [signedIn]);
+  }, [mentionsAccount]);
 
   // A single choke point for "which view is the user in" — covers every way
   // a tab can change (nav click, start-tab shortcuts) without instrumenting
