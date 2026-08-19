@@ -282,7 +282,7 @@ label.checkbox input:checked {
 }
 .error {
   font-family: var(--font-mono);
-  color: var(--ink);
+  color: var(--accent-ink);
   background: var(--accent);
   padding: 8px 10px;
   font-size: 12px;
