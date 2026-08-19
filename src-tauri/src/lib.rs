@@ -6,9 +6,11 @@ mod tray;
 
 use creds::{Credentials, CredentialsMeta};
 use jira::{
-    IssueSummary, JiraClient, Mention, MissingConfig, MissingWorklog, Myself, TodoConfig,
-    WorklogEntry, WorklogInput,
+    IssueSummary, JiraClient, Mention, MissingConfig, MissingWorklog, Myself, ProjectSummary,
+    TodoConfig, WorklogEntry, WorklogInput,
 };
+use std::collections::BTreeMap;
+
 use tauri::{Manager, State};
 use tauri_plugin_window_state::{StateFlags, WindowExt};
 
@@ -40,33 +42,13 @@ const MISSING_BOOKABLE_DONE_STATUSES: &[&str] = &["Gelöst", "Resolved"];
 // mention stays actionable without making the candidate scan expensive.
 const MENTIONS_LOOKBACK_DAYS: u32 = 14;
 
-// Which issues the todo tab lists, as the statuses that take an issue *off*
-// it. Issues the user raised in the escalation project are theirs again as
-// soon as the status leaves this set (i.e. the query came back to them);
-// everything assigned to them counts until it reaches a status where the ball
-// is somewhere else — closed, cancelled, or waiting on another party.
-const TODO_AUTHOR_IDLE_STATUSES: &[&str] = &[
-    "Fertig",
-    "Backlog",
-    "Rückfrage beantwortet",
-    "In Arbeit",
-    "Nicht umgesetzt",
-];
-const TODO_ASSIGNEE_IDLE_STATUSES: &[&str] = &[
-    "Canceled",
-    "Closed",
-    "Closed/Tested",
-    "Done",
-    "Fertig",
-    "Resolved",
-    "Escalated",
-    "Waiting for customer",
-    "Nicht umgesetzt",
-    "Commercial Review 1st Level",
-    "Commercial Review 2nd Level",
-    "Fixed 2nd Level",
-    "Waiting for DESIGNA Development",
-];
+// Bounds on the todo tab's ignored-status list, which the webview supplies
+// from local settings. Not a security boundary on its own (every name is still
+// JQL-escaped) — just a cap on how much a corrupt settings entry can push into
+// one query.
+const MAX_IGNORED_PROJECTS: usize = 200;
+const MAX_IGNORED_STATUSES: usize = 100;
+const MAX_STATUS_NAME_CHARS: usize = 255;
 
 // Status an issue is moved to when a timer starts on it (best-effort — see
 // `start_issue_work`).
@@ -129,6 +111,57 @@ fn checked_issue_key(key: &str) -> Result<&str, String> {
     } else {
         Err(format!("invalid issue key '{key}'"))
     }
+}
+
+/// Project keys are interpolated into a URL path, so hold them to the shape
+/// Jira actually allows.
+fn checked_project_key(key: &str) -> Result<&str, String> {
+    let mut chars = key.chars();
+    let ok = key.len() >= 2
+        && key.len() <= 20
+        && matches!(chars.next(), Some(c) if c.is_ascii_alphabetic())
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_');
+    if ok {
+        Ok(key)
+    } else {
+        Err(format!("invalid project key '{key}'"))
+    }
+}
+
+/// Bound what settings can push into the todo JQL: entries under a key that
+/// isn't a project are dropped, as are projects that end up ignoring nothing,
+/// and the number of projects is capped. Silently — a stale settings entry
+/// must never break the tab.
+fn checked_ignored_statuses(
+    ignored: BTreeMap<String, Vec<String>>,
+) -> BTreeMap<String, Vec<String>> {
+    ignored
+        .into_iter()
+        .filter(|(project, _)| checked_project_key(project).is_ok())
+        .map(|(project, names)| (project, checked_status_names(names)))
+        .filter(|(_, names)| !names.is_empty())
+        .take(MAX_IGNORED_PROJECTS)
+        .collect()
+}
+
+/// Bound one project's list: blanks dropped, duplicates collapsed, over-long
+/// names and an over-long list truncated. The names are JQL-escaped downstream
+/// regardless — this only caps how much a corrupt entry can push into a query.
+fn checked_status_names(names: Vec<String>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for name in names {
+        let name = name.trim();
+        if name.is_empty() || name.chars().count() > MAX_STATUS_NAME_CHARS {
+            continue;
+        }
+        if !out.iter().any(|kept| kept == name) {
+            out.push(name.to_string());
+        }
+        if out.len() >= MAX_IGNORED_STATUSES {
+            break;
+        }
+    }
+    out
 }
 
 fn checked_worklog_id(id: &str) -> Result<&str, String> {
@@ -230,23 +263,48 @@ async fn due_issues(state: State<'_, AppState>) -> Result<Vec<IssueSummary>, Str
     s.client.due_issues().await
 }
 
-/// Issues waiting on the current user: escalations they raised that are back
-/// in their court, plus everything assigned to them that is still open (shown
-/// on the todo tab).
+/// Issues waiting on the current user: escalations they raised, plus
+/// everything assigned to them, minus anything already done or in one of the
+/// statuses they chose to ignore (shown on the todo tab).
+///
+/// `ignored_statuses` comes from the webview rather than a constant here:
+/// every Jira workflow names its "somebody else's move" states differently,
+/// so the list is a setting the user fills from their own site.
 #[tauri::command]
-async fn todo_issues(state: State<'_, AppState>) -> Result<Vec<IssueSummary>, String> {
+async fn todo_issues(
+    state: State<'_, AppState>,
+    ignored_statuses: BTreeMap<String, Vec<String>>,
+) -> Result<Vec<IssueSummary>, String> {
     let s = session(&state).await?;
-    s.client.todo_issues(&todo_config()).await
+    s.client.todo_issues(&todo_config(ignored_statuses)).await
 }
 
-/// The shipped todo-tab rules, alongside `missing_config` — one place to swap
-/// once these workflow specifics move into settings.
-fn todo_config() -> TodoConfig {
-    let owned = |names: &[&str]| names.iter().map(|s| s.to_string()).collect();
+/// The projects the user can see — the scope picker behind the ignored-status
+/// setting.
+#[tauri::command]
+async fn jira_projects(state: State<'_, AppState>) -> Result<Vec<ProjectSummary>, String> {
+    let s = session(&state).await?;
+    s.client.projects().await
+}
+
+/// The still-open status names one project's workflows use. Done-category
+/// statuses aren't offered: the todo query drops those anyway.
+#[tauri::command]
+async fn project_statuses(
+    state: State<'_, AppState>,
+    project_key: String,
+) -> Result<Vec<String>, String> {
+    checked_project_key(&project_key)?;
+    let s = session(&state).await?;
+    s.client.project_open_statuses(&project_key).await
+}
+
+/// The todo-tab rules, alongside `missing_config`. Only the escalation project
+/// is still shipped as a constant; the statuses come from settings.
+fn todo_config(ignored_statuses: BTreeMap<String, Vec<String>>) -> TodoConfig {
     TodoConfig {
         author_project: MISSING_ESCALATION_PROJECT.to_string(),
-        author_idle_statuses: owned(TODO_AUTHOR_IDLE_STATUSES),
-        assignee_idle_statuses: owned(TODO_ASSIGNEE_IDLE_STATUSES),
+        ignored_statuses: checked_ignored_statuses(ignored_statuses),
     }
 }
 
@@ -481,6 +539,8 @@ pub fn run() {
             search_issues,
             due_issues,
             todo_issues,
+            jira_projects,
+            project_statuses,
             start_issue_work,
             log_work,
             update_worklog,
@@ -502,6 +562,59 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn project_keys_are_validated() {
+        assert!(checked_project_key("DEV").is_ok());
+        assert!(checked_project_key("AB1").is_ok());
+        assert!(checked_project_key("MY_PROJ").is_ok());
+        // A key reaches a URL path, so path tricks must not survive.
+        assert!(checked_project_key("").is_err());
+        assert!(checked_project_key("A").is_err());
+        assert!(checked_project_key("1DEV").is_err());
+        assert!(checked_project_key("../secret").is_err());
+        assert!(checked_project_key("DEV/statuses").is_err());
+        assert!(checked_project_key("DEV%20").is_err());
+    }
+
+    #[test]
+    fn ignored_projects_are_validated() {
+        let map = |pairs: &[(&str, &[&str])]| -> BTreeMap<String, Vec<String>> {
+            pairs
+                .iter()
+                .map(|(p, names)| (p.to_string(), names.iter().map(|s| s.to_string()).collect()))
+                .collect()
+        };
+        let checked = checked_ignored_statuses(map(&[
+            ("DEV", &["Backlog"]),
+            // Not a project key — a settings entry can't smuggle one in.
+            ("../secret", &["Backlog"]),
+            // Nothing left to ignore, so no term is worth generating.
+            ("OPS", &[]),
+            ("SUP", &["   "]),
+        ]));
+
+        assert_eq!(checked.keys().collect::<Vec<_>>(), vec!["DEV"]);
+    }
+
+    #[test]
+    fn ignored_status_names_are_bounded() {
+        let owned =
+            |names: &[&str]| -> Vec<String> { names.iter().map(|s| s.to_string()).collect() };
+        assert_eq!(
+            checked_status_names(owned(&["  Waiting  ", "", "   ", "Waiting"])),
+            vec!["Waiting"],
+        );
+        // An over-long name is dropped, not truncated — a half-name would
+        // silently filter on the wrong status.
+        let long = "x".repeat(MAX_STATUS_NAME_CHARS + 1);
+        assert!(checked_status_names(vec![long]).is_empty());
+
+        let many: Vec<String> = (0..MAX_IGNORED_STATUSES + 20)
+            .map(|i| format!("Status {i}"))
+            .collect();
+        assert_eq!(checked_status_names(many).len(), MAX_IGNORED_STATUSES);
+    }
 
     #[test]
     fn site_normalization() {

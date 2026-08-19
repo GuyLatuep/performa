@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, invalidateCachedReads, IssueSummary } from "../api";
 import { usePinnedIssues } from "../pins";
+import { useIgnoredStatuses } from "../todoStatuses";
 import IssueRow from "./IssueRow";
 
 interface Props {
@@ -17,12 +18,14 @@ export default function Todo({ site, onSelectIssue }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const pinnedKeys = new Set(usePinnedIssues().map((p) => p.key));
+  // Part of the query, so a change in settings has to re-run the effect.
+  const ignoredStatuses = useIgnoredStatuses();
 
   useEffect(() => {
     let cancelled = false;
     setIssues(null);
     setError(null);
-    api.todoIssues().then(
+    api.todoIssues(ignoredStatuses).then(
       (list) => {
         if (!cancelled) setIssues(list);
       },
@@ -36,7 +39,7 @@ export default function Todo({ site, onSelectIssue }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [reloadKey, ignoredStatuses]);
 
   // Statuses change in Jira, not here, so the 60s read cache would otherwise
   // hide a change the user just made in the browser.

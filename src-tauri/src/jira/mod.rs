@@ -9,6 +9,7 @@ mod mentions;
 mod missing;
 mod types;
 
+use std::collections::BTreeMap;
 use std::sync::OnceLock;
 use std::time::Duration;
 
@@ -19,8 +20,8 @@ use serde::de::DeserializeOwned;
 
 use types::*;
 pub use types::{
-    IssueSummary, Mention, MissingConfig, MissingWorklog, Myself, TodoConfig, WorklogEntry,
-    WorklogInput,
+    IssueSummary, Mention, MissingConfig, MissingWorklog, Myself, ProjectSummary, TodoConfig,
+    WorklogEntry, WorklogInput,
 };
 
 use crate::creds::Credentials;
@@ -48,6 +49,11 @@ const TCP_KEEPALIVE: Duration = Duration::from_secs(60);
 /// work Jira is asked to do concurrently. Lower it again if Jira starts
 /// answering 429.
 const MAX_INFLIGHT: usize = 16;
+
+/// Page size for `/project/search` (Jira's own maximum), and a stop so a site
+/// with an implausible number of projects can't spin the paging loop.
+const PROJECT_PAGE: u32 = 50;
+const MAX_PROJECTS: usize = 500;
 
 // Jira's own error messages are a sentence or two; this only bites when the
 // response isn't Jira's error JSON at all and the raw body stands in.
@@ -164,6 +170,56 @@ impl JiraClient {
 
     pub async fn myself(&self) -> Result<Myself, String> {
         self.get_json("/rest/api/3/myself", &[], "user").await
+    }
+
+    /// Every project the user can see, key-ordered — the scope picker behind
+    /// the todo tab's ignored-status setting.
+    ///
+    /// Paged: Jira caps a page at [`PROJECT_PAGE`], so a site with more
+    /// projects than that would silently offer only the first page.
+    pub async fn projects(&self) -> Result<Vec<ProjectSummary>, String> {
+        let mut out: Vec<ProjectSummary> = Vec::new();
+        let mut start = 0u32;
+        loop {
+            let page: ProjectSearchResp = self
+                .get_json(
+                    "/rest/api/3/project/search",
+                    &[
+                        ("startAt", start.to_string()),
+                        ("maxResults", PROJECT_PAGE.to_string()),
+                        ("orderBy", "key".to_string()),
+                        // Archived and deleted projects can't hold work the
+                        // todo tab would ever list.
+                        ("status", "live".to_string()),
+                    ],
+                    "project search",
+                )
+                .await?;
+            let fetched = page.values.len() as u32;
+            out.extend(page.values.into_iter().map(|p| ProjectSummary {
+                key: p.key,
+                name: p.name,
+            }));
+            if page.is_last || fetched == 0 || out.len() >= MAX_PROJECTS {
+                break;
+            }
+            start += fetched;
+        }
+        Ok(out)
+    }
+
+    /// The status names one project's workflows use that are *not* in the Done
+    /// category — the candidates for the todo tab's ignore list. Done-category
+    /// statuses are left out because the query already excludes them.
+    pub async fn project_open_statuses(&self, project_key: &str) -> Result<Vec<String>, String> {
+        let raw: Vec<RawIssueTypeStatuses> = self
+            .get_json(
+                &format!("/rest/api/3/project/{project_key}/statuses"),
+                &[],
+                "project statuses",
+            )
+            .await?;
+        Ok(open_status_names(raw))
     }
 
     pub async fn search_issues(
@@ -484,36 +540,96 @@ pub fn build_search_jql(query: &str) -> String {
 
 /// The todo tab's JQL: everything the current user is expected to act on.
 ///
-/// Two rules, OR'ed, both phrased as status exclusions (see [`TodoConfig`]):
-/// issues in the escalation project that *I* raised and that are not currently
-/// somebody else's move, plus issues assigned to me anywhere that have not
-/// reached a status where nothing is left to do. Most urgent first, then most
-/// recently touched.
+/// Two rules, OR'ed: issues in the escalation project that *I* raised, plus
+/// issues assigned to me anywhere. Both start from `statusCategory != Done`
+/// and subtract the statuses the user ignores. The author rule is already
+/// pinned to one project, so only that project's list applies to it; the
+/// assignee rule spans every project, so each project's list is subtracted
+/// separately. Most urgent first, then most recently touched.
 pub fn build_todo_jql(cfg: &TodoConfig) -> String {
+    let author_ignored = cfg
+        .ignored_statuses
+        .get(&cfg.author_project)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
     let author = format!(
         "(project = \"{}\" AND {} AND creator = currentUser())",
         escape_jql(&cfg.author_project),
-        not_in_statuses(&cfg.author_idle_statuses),
+        open_in_one_project(author_ignored),
     );
     let assignee = format!(
         "({} AND assignee = currentUser())",
-        not_in_statuses(&cfg.assignee_idle_statuses),
+        open_across_projects(&cfg.ignored_statuses),
     );
     format!("({author} OR {assignee}) ORDER BY priority DESC, updated DESC")
 }
 
-/// `status NOT IN (…)` over the given names, or a tautology when the list is
-/// empty — `status not in ()` is a JQL syntax error.
-fn not_in_statuses(statuses: &[String]) -> String {
-    if statuses.is_empty() {
-        return "status IS NOT EMPTY".to_string();
+/// "Still needs somebody", for a clause whose project is already pinned: the
+/// status names alone are enough to subtract.
+///
+/// `statusCategory != Done` carries the clause on its own when nothing is
+/// ignored — which it has to, since `status not in ()` is a JQL syntax error.
+fn open_in_one_project(ignored: &[String]) -> String {
+    if ignored.is_empty() {
+        return "statusCategory != Done".to_string();
     }
-    let names = statuses
+    format!(
+        "statusCategory != Done AND status NOT IN ({})",
+        quoted(ignored)
+    )
+}
+
+/// "Still needs somebody", across every project: each configured project
+/// subtracts only its own statuses, so ignoring "In Arbeit" in one workflow
+/// leaves it visible in the others. Projects with nothing ignored contribute
+/// no term at all.
+fn open_across_projects(ignored: &BTreeMap<String, Vec<String>>) -> String {
+    let mut clause = "statusCategory != Done".to_string();
+    for (project, statuses) in ignored {
+        if statuses.is_empty() {
+            continue;
+        }
+        clause.push_str(&format!(
+            " AND NOT (project = \"{}\" AND status IN ({}))",
+            escape_jql(project),
+            quoted(statuses),
+        ));
+    }
+    clause
+}
+
+/// `"a", "b"` — JQL-escaped and quoted, ready for an `IN (…)` list.
+fn quoted(names: &[String]) -> String {
+    names
         .iter()
         .map(|s| format!("\"{}\"", escape_jql(s)))
         .collect::<Vec<_>>()
-        .join(", ");
-    format!("status NOT IN ({names})")
+        .join(", ")
+}
+
+/// Flatten `/project/{key}/statuses` down to the names worth offering: Jira
+/// answers per issue type, so the same status arrives once per type that uses
+/// it. Deduped case-insensitively and sorted, so the picker is stable.
+///
+/// Split out from the request purely so it can be tested without a network
+/// call.
+fn open_status_names(raw: Vec<RawIssueTypeStatuses>) -> Vec<String> {
+    let mut names: Vec<String> = raw
+        .into_iter()
+        .flat_map(|t| t.statuses)
+        // A status with no category is kept: offering one too many beats
+        // hiding a real status the user wants to filter on.
+        .filter(|s| {
+            !s.name.is_empty()
+                && s.status_category
+                    .as_ref()
+                    .is_none_or(|c| !c.key.eq_ignore_ascii_case("done"))
+        })
+        .map(|s| s.name)
+        .collect();
+    names.sort_by_key(|n| n.to_lowercase());
+    names.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+    names
 }
 
 /// `ABC-123` shape: alphanumeric project key starting with a letter, then a
@@ -674,31 +790,96 @@ mod tests {
         assert!(build_search_jql("login bug").starts_with("(summary ~ \"login bug*\""));
     }
 
+    fn todo_cfg(ignored: &[(&str, &[&str])]) -> TodoConfig {
+        TodoConfig {
+            author_project: "DEV".to_string(),
+            ignored_statuses: ignored
+                .iter()
+                .map(|(project, statuses)| {
+                    (
+                        project.to_string(),
+                        statuses.iter().map(|s| s.to_string()).collect(),
+                    )
+                })
+                .collect(),
+        }
+    }
+
     #[test]
     fn todo_jql_covers_both_rules() {
-        let jql = build_todo_jql(&TodoConfig {
-            author_project: "DEV".to_string(),
-            author_idle_statuses: vec!["Fertig".to_string(), "In Arbeit".to_string()],
-            assignee_idle_statuses: vec!["Done".to_string()],
-        });
+        let cfg = todo_cfg(&[("DEV", &["Rückfrage beantwortet"])]);
         assert_eq!(
-            jql,
-            "((project = \"DEV\" AND status NOT IN (\"Fertig\", \"In Arbeit\") \
-             AND creator = currentUser()) OR (status NOT IN (\"Done\") \
+            build_todo_jql(&cfg),
+            "((project = \"DEV\" AND statusCategory != Done \
+             AND status NOT IN (\"Rückfrage beantwortet\") \
+             AND creator = currentUser()) OR (statusCategory != Done \
+             AND NOT (project = \"DEV\" AND status IN (\"Rückfrage beantwortet\")) \
              AND assignee = currentUser())) ORDER BY priority DESC, updated DESC"
         );
     }
 
     #[test]
-    fn todo_jql_stays_valid_without_excluded_statuses() {
-        // `status not in ()` would be a syntax error.
-        let jql = build_todo_jql(&TodoConfig {
-            author_project: "DEV".to_string(),
-            author_idle_statuses: vec![],
-            assignee_idle_statuses: vec![],
-        });
-        assert!(!jql.contains("NOT IN ()"));
-        assert!(jql.contains("status IS NOT EMPTY"));
+    fn todo_jql_keeps_each_project_to_its_own_statuses() {
+        // The whole point of per-project lists: "In Arbeit" ignored in OPS
+        // must stay visible in DEV.
+        let jql = build_todo_jql(&todo_cfg(&[
+            ("OPS", &["In Arbeit"]),
+            ("SUP", &["Waiting for customer"]),
+        ]));
+        assert!(jql.contains("NOT (project = \"OPS\" AND status IN (\"In Arbeit\"))"));
+        assert!(jql.contains("NOT (project = \"SUP\" AND status IN (\"Waiting for customer\"))"));
+        // Nothing ignored in the escalation project, so its rule is unnarrowed.
+        assert!(jql.contains("(project = \"DEV\" AND statusCategory != Done AND creator"));
+    }
+
+    #[test]
+    fn todo_jql_filters_both_clauses_on_status_category() {
+        // Both rules have to be narrowed, or the tab fills with done issues
+        // through whichever half was left open.
+        let jql = build_todo_jql(&todo_cfg(&[("DEV", &["Backlog"])]));
+        assert_eq!(jql.matches("statusCategory != Done").count(), 2);
+    }
+
+    #[test]
+    fn todo_jql_stays_valid_without_ignored_statuses() {
+        // `status not in ()` would be a syntax error; the category rule has to
+        // carry the clause on its own. An empty list contributes no term.
+        let jql = build_todo_jql(&todo_cfg(&[("OPS", &[])]));
+        assert!(!jql.contains("NOT IN"));
+        assert!(!jql.contains("OPS"));
+        assert_eq!(jql.matches("statusCategory != Done").count(), 2);
+    }
+
+    #[test]
+    fn todo_jql_escapes_project_and_status_names() {
+        // Both come from webview-writable settings — the one place user data
+        // reaches raw JQL.
+        let jql = build_todo_jql(&todo_cfg(&[("OPS", &["say \"hi\"", "back\\slash"])]));
+        assert!(jql.contains("\"say \\\"hi\\\"\""));
+        assert!(jql.contains("\"back\\\\slash\""));
+    }
+
+    #[test]
+    fn open_status_names_flattens_dedupes_and_drops_done() {
+        // Jira answers per issue type, so shared statuses repeat.
+        let raw: Vec<RawIssueTypeStatuses> = serde_json::from_str(
+            r#"[
+              {"statuses": [
+                {"name": "In Arbeit", "statusCategory": {"key": "indeterminate"}},
+                {"name": "Fertig", "statusCategory": {"key": "done"}}
+              ]},
+              {"statuses": [
+                {"name": "In Arbeit", "statusCategory": {"key": "indeterminate"}},
+                {"name": "Backlog", "statusCategory": {"key": "new"}},
+                {"name": "Unkategorisiert"}
+              ]}
+            ]"#,
+        )
+        .expect("fixture parses");
+        assert_eq!(
+            open_status_names(raw),
+            vec!["Backlog", "In Arbeit", "Unkategorisiert"]
+        );
     }
 
     #[test]

@@ -1,6 +1,8 @@
 //! Request and response types: the public ones exchanged with the frontend,
 //! and the raw shapes used to deserialize Jira's API responses.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 // ----- Request types (deserialized from the frontend) -----
@@ -22,18 +24,20 @@ pub struct WorklogInput {
 }
 
 /// Which issues count as "waiting for me" on the todo tab. Two rules, OR'ed:
-/// issues in `author_project` the user raised themselves that are back in
-/// their court, and issues assigned to them anywhere that are still open.
-/// Both are expressed as status *exclusions* — every workflow has its own
-/// names for "nothing to do here", so listing those is shorter and more
-/// honest than trying to enumerate the actionable ones.
+/// issues in `author_project` the user raised themselves, and issues assigned
+/// to them anywhere. Both are narrowed by Jira's own `statusCategory != Done`
+/// (which every workflow has, whatever it calls its statuses) plus the
+/// statuses the user chose to ignore — the "open, but somebody else's move"
+/// states Jira has no category for.
 pub struct TodoConfig {
     /// Project the author rule applies to (the escalation project, "DEV").
     pub author_project: String,
-    /// Statuses that mean "not mine to act on" for issues I raised.
-    pub author_idle_statuses: Vec<String>,
-    /// Statuses that mean "not mine to act on" for issues assigned to me.
-    pub assignee_idle_statuses: Vec<String>,
+    /// Ignored status names per project key. Per project because the same name
+    /// can carry different weight in different workflows, and because the
+    /// assignee rule spans every project the user works in. Sorted (it is a
+    /// `BTreeMap`) so the generated JQL is stable, and already trimmed,
+    /// deduped and bounded at the IPC boundary.
+    pub ignored_statuses: BTreeMap<String, Vec<String>>,
 }
 
 /// Tuning for the missing-worklog heuristic: how far back to look for own
@@ -84,6 +88,14 @@ pub struct IssueSummary {
     /// Priority name; only populated by searches that request it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<String>,
+}
+
+/// A project the user can see. Only the settings screen asks for these — it
+/// uses the key to look up which statuses to offer.
+#[derive(Serialize)]
+pub struct ProjectSummary {
+    pub key: String,
+    pub name: String,
 }
 
 #[derive(Serialize)]
@@ -184,6 +196,47 @@ pub struct SearchFields {
 pub struct NamedField {
     #[serde(default)]
     pub name: String,
+}
+
+/// One page of `/project/search`. Paged, so `is_last` decides whether to ask
+/// for another.
+#[derive(Deserialize)]
+pub struct ProjectSearchResp {
+    #[serde(default)]
+    pub values: Vec<RawProject>,
+    #[serde(rename = "isLast", default)]
+    pub is_last: bool,
+}
+
+#[derive(Deserialize)]
+pub struct RawProject {
+    pub key: String,
+    #[serde(default)]
+    pub name: String,
+}
+
+/// `/project/{key}/statuses` answers per issue type, each carrying the full
+/// status list for its own workflow — so the same status arrives once per type.
+#[derive(Deserialize)]
+pub struct RawIssueTypeStatuses {
+    #[serde(default)]
+    pub statuses: Vec<RawStatus>,
+}
+
+#[derive(Deserialize)]
+pub struct RawStatus {
+    #[serde(default)]
+    pub name: String,
+    #[serde(rename = "statusCategory", default)]
+    pub status_category: Option<RawStatusCategory>,
+}
+
+#[derive(Deserialize)]
+pub struct RawStatusCategory {
+    /// Locale-independent: "new" | "indeterminate" | "done". The sibling
+    /// `name` is translated, so only this may be compared against.
+    #[serde(default)]
+    pub key: String,
 }
 
 #[derive(Deserialize)]

@@ -36,7 +36,41 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("reference data", () => {
+  // Projects and statuses are asked for by the settings screen only, and never
+  // change as a result of anything this app does — so unlike the read cache,
+  // theirs must not be dropped when a worklog is written.
+  it("asks for the project list once per process", async () => {
+    await api.jiraProjects();
+    await api.jiraProjects();
+    invalidateCachedReads();
+    await api.jiraProjects();
+
+    expect(callsTo("jira_projects")).toHaveLength(1);
+  });
+
+  it("keeps each project's statuses apart", async () => {
+    await api.projectStatuses("DEV");
+    await api.projectStatuses("DEV");
+    await api.projectStatuses("OPS");
+
+    expect(callsTo("project_statuses")).toHaveLength(2);
+  });
+});
+
 describe("cached reads", () => {
+  it("keys the todo query on the ignored statuses", async () => {
+    await api.todoIssues({ DEV: ["Backlog", "Review"] });
+    await api.todoIssues({ DEV: ["Backlog", "Review"] });
+    expect(callsTo("todo_issues")).toHaveLength(1);
+
+    // A different selection is a different query, and must not be served the
+    // previous answer out of the cache — including when only another project's
+    // list changed.
+    await api.todoIssues({ DEV: ["Backlog", "Review"], OPS: ["Backlog"] });
+    expect(callsTo("todo_issues")).toHaveLength(2);
+  });
+
   it("collapses repeat calls with the same arguments into one", async () => {
     await api.listWorklogs("2026-08-03", "2026-08-09");
     await api.listWorklogs("2026-08-03", "2026-08-09");

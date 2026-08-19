@@ -256,6 +256,16 @@ button.duration-add:hover {
   flex: 1;
 }
 
+/* The ignored-status list in settings: as many rows as the project has
+   statuses, so it scrolls rather than pushing the tab buttons off-screen. */
+.status-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
 /* Checkbox variant of the form label (e.g. non-billable). */
 label.checkbox {
   flex-direction: row;

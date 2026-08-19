@@ -24,6 +24,13 @@ export interface IssueSummary {
   priority?: string;
 }
 
+/** A project the user can see. Only the settings screen asks for these — the
+ *  key scopes which statuses the ignore-list picker offers. */
+export interface ProjectSummary {
+  key: string;
+  name: string;
+}
+
 export interface WorklogEntry {
   id: string;
   issueKey: string;
@@ -158,6 +165,27 @@ export function invalidateCachedReads(): void {
   readCache.clear();
 }
 
+/**
+ * Jira's project and status catalogues, held for the life of the process.
+ *
+ * Deliberately not `cached`: that map is dropped on every worklog write, which
+ * has nothing to do with reference data, and its 60s window would have the
+ * settings screen re-ask Jira each time it is opened. A failed call is dropped
+ * so one offline moment isn't replayed forever.
+ */
+const refCache = new Map<string, Promise<unknown>>();
+
+function memo<T>(key: string, call: () => Promise<T>): Promise<T> {
+  const hit = refCache.get(key) as Promise<T> | undefined;
+  if (hit) return hit;
+  const promise = call();
+  refCache.set(key, promise);
+  promise.catch(() => {
+    if (refCache.get(key) === promise) refCache.delete(key);
+  });
+  return promise;
+}
+
 const issues = (r: IssueSummary[]) => `${r.length} issue(s)`;
 const entries = (r: WorklogEntry[]) => `${r.length} entr(y/ies)`;
 
@@ -201,11 +229,44 @@ export const api = {
       logged("due_issues", () => invoke("due_issues"), issues),
     );
   },
-  /** Issues waiting on me: escalations I raised that are back in my court,
-   *  plus everything assigned to me that is still open. Urgent first. */
-  todoIssues(): Promise<IssueSummary[]> {
-    return cached("todo_issues", () =>
-      logged("todo_issues", () => invoke("todo_issues"), issues),
+  /** Issues waiting on me: escalations I raised, plus everything assigned to
+   *  me, minus anything done or in a status I chose to ignore in its project.
+   *  Urgent first.
+   *
+   *  `ignoredStatuses` is part of the query, so it has to be part of the cache
+   *  key too. Settings hands over a normalized value (sorted projects, sorted
+   *  names), so serializing it is enough to key on the selection rather than
+   *  on the order the boxes were ticked in. */
+  todoIssues(
+    ignoredStatuses: Record<string, string[]>,
+  ): Promise<IssueSummary[]> {
+    const projects = Object.keys(ignoredStatuses);
+    return cached(`todo_issues:${JSON.stringify(ignoredStatuses)}`, () =>
+      logged(
+        `todo_issues(ignored in ${projects.length} project(s))`,
+        () => invoke("todo_issues", { ignoredStatuses }),
+        issues,
+      ),
+    );
+  },
+  /** Projects I can see — scopes the status picker in settings. */
+  jiraProjects(): Promise<ProjectSummary[]> {
+    return memo("jira_projects", () =>
+      logged(
+        "jira_projects",
+        () => invoke("jira_projects"),
+        (r) => `${r.length} project(s)`,
+      ),
+    );
+  },
+  /** Status names one project's workflows use that are not already done. */
+  projectStatuses(projectKey: string): Promise<string[]> {
+    return memo(`project_statuses:${projectKey}`, () =>
+      logged(
+        `project_statuses(projectKey=${projectKey})`,
+        () => invoke("project_statuses", { projectKey }),
+        (r) => `${r.length} status(es)`,
+      ),
     );
   },
   /** Best-effort: move the issue to the "in progress" workflow status. A

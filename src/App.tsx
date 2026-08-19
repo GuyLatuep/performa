@@ -11,6 +11,7 @@ import TimerBar from "./components/TimerBar";
 import MissingWorklogs from "./components/MissingWorklogs";
 import Mentions from "./components/Mentions";
 import UpdateNotice from "./components/UpdateNotice";
+import WhatsNew from "./components/WhatsNew";
 import Blockmark from "./components/Blockmark";
 import {
   refreshMissing,
@@ -46,6 +47,9 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editingCreds, setEditingCreds] = useState(false);
+  // Settings tab to land on when the screen is opened from somewhere with an
+  // opinion about it (the todo-filter notice); cleared on the way out.
+  const [settingsTab, setSettingsTab] = useState<"todo" | undefined>();
   const [tab, setTab] = useState<Tab>("start");
   const [refreshKey, setRefreshKey] = useState(0);
   // Issue picked on the start tab, opened directly in the log-work form.
@@ -128,9 +132,18 @@ export default function App() {
     return (
       <Settings
         existing={creds}
-        onCancel={editingCreds ? () => setEditingCreds(false) : undefined}
+        initialTab={settingsTab}
+        onCancel={
+          editingCreds
+            ? () => {
+                setEditingCreds(false);
+                setSettingsTab(undefined);
+              }
+            : undefined
+        }
         onSaved={async () => {
           setEditingCreds(false);
+          setSettingsTab(undefined);
           await refreshStatus();
         }}
       />
@@ -194,6 +207,13 @@ export default function App() {
           )}
         </div>
       </header>
+
+      <WhatsNew
+        onOpenSettings={() => {
+          setSettingsTab("todo");
+          setEditingCreds(true);
+        }}
+      />
 
       <UpdateNotice />
 
