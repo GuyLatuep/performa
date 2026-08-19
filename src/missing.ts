@@ -41,6 +41,8 @@ const store = createStore<MissingState>({
 let pollId: number | undefined;
 // The delayed opening scan — see `INITIAL_DELAY_MS`.
 let firstRunId: number | undefined;
+// The scan currently running, if any — see `refreshMissing`.
+let inFlight: Promise<void> | null = null;
 
 const sig = (item: MissingWorklog) => `${item.issueKey}@${item.activityAt}`;
 
@@ -85,8 +87,22 @@ export function getMissing(): MissingWorklog[] {
 
 /** `source` only labels the debug log — "why did this check run", separate
  *  from the generic request/result line `api.missingWorklogs()` already logs. */
-export async function refreshMissing(
+export function refreshMissing(
   source: "poll" | "manual" | "post-log" | "close" = "poll",
+): Promise<void> {
+  // One scan at a time, as in the mentions inbox. This one has more ways to be
+  // triggered than the poll — logging work and closing the app both ask for a
+  // fresh check — so two can overlap without the interval being anywhere near
+  // the scan duration, and they would announce the same finding twice and land
+  // their results in completion order.
+  inFlight ??= runRefresh(source).finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function runRefresh(
+  source: "poll" | "manual" | "post-log" | "close",
 ): Promise<void> {
   logInfo(`missing-worklog check triggered (${source})`);
   const previous = store.get().items;

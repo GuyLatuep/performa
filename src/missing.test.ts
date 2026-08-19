@@ -136,3 +136,18 @@ describe("opening scan", () => {
     expect(scansRun()).toHaveLength(0);
   });
 });
+
+describe("overlapping scans", () => {
+  it("does not start a second scan while one is running", async () => {
+    // Logging work and closing the app both ask for a check of their own, so
+    // an overlap does not need the interval to be near the scan duration.
+    backendReturns([]);
+
+    await Promise.all([refreshMissing("manual"), refreshMissing("post-log")]);
+
+    const scans = mockInvoke.mock.calls.filter(
+      (call) => call[0] === "missing_worklogs",
+    );
+    expect(scans).toHaveLength(1);
+  });
+});
