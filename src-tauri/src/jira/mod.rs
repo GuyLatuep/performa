@@ -9,7 +9,8 @@ mod mentions;
 mod missing;
 mod types;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 use std::sync::OnceLock;
 use std::time::Duration;
 
@@ -97,7 +98,40 @@ pub struct JiraClient {
     activity_cache: missing::ActivityCache,
     /// The same idea for the mentions inbox — see [`mentions`].
     mention_cache: mentions::MentionCache,
+    /// Comment pages both scans read — see [`JiraClient::recent_comments`].
+    comment_cache: CommentCache,
 }
+
+/// One issue's comment page, with the `updated` stamp it was read at and when
+/// that happened.
+struct CachedComments {
+    updated: Option<String>,
+    fetched_at: i64,
+    comments: Vec<RawComment>,
+}
+
+impl CachedComments {
+    /// Reusable while the issue has not been touched since the page was read
+    /// and the entry has not expired. A missing `updated` on either side means
+    /// the page cannot be proved current — refetch rather than serve it.
+    fn is_fresh_for(&self, updated: Option<&str>, now: i64) -> bool {
+        let unchanged = matches!(
+            (self.updated.as_deref(), updated),
+            (Some(cached), Some(current)) if cached == current
+        );
+        unchanged && now - self.fetched_at < COMMENT_CACHE_SECS
+    }
+}
+
+type CommentCache = Arc<tokio::sync::Mutex<HashMap<String, CachedComments>>>;
+
+/// How long a fetched comment page stays reusable. A comment cannot be written
+/// or edited without moving the issue's `updated`, so a matching stamp already
+/// proves the page current and this could be kept indefinitely — the window is
+/// only there to bound what the map holds, since the pages carry full comment
+/// bodies. Wide enough to span the missing-worklog interval, which is the gap
+/// the sharing exists to cover.
+const COMMENT_CACHE_SECS: i64 = 20 * 60;
 
 impl JiraClient {
     pub fn new(creds: &Credentials) -> Self {
@@ -109,11 +143,60 @@ impl JiraClient {
             http: shared_http(),
             activity_cache: missing::ActivityCache::default(),
             mention_cache: mentions::MentionCache::default(),
+            comment_cache: CommentCache::default(),
         }
     }
 
     fn url(&self, path: &str) -> String {
         format!("{}{}", self.site, path)
+    }
+
+    /// The issue's newest comments, read once for both scans that want them:
+    /// the mentions inbox looks for who was tagged, the missing-worklog scan
+    /// for what the user did. They run on different intervals over heavily
+    /// overlapping candidates, and each keeps its own cache of *conclusions*,
+    /// so without this the same page was fetched twice whenever the two
+    /// coincided — the heaviest call in the app, doubled.
+    ///
+    /// `updated` is the issue's timestamp: a comment cannot be written or
+    /// edited without moving it, so a matching stamp proves the cached page
+    /// current. A missing stamp on either side cannot prove that — refetch.
+    pub(super) async fn recent_comments(
+        &self,
+        issue_key: &str,
+        updated: Option<&str>,
+    ) -> Result<Vec<RawComment>, String> {
+        let now = Local::now().timestamp();
+        if let Some(hit) = self.comment_cache.lock().await.get(issue_key) {
+            if hit.is_fresh_for(updated, now) {
+                return Ok(hit.comments.clone());
+            }
+        }
+
+        let parsed: CommentListResp = self
+            .get_json(
+                &format!("/rest/api/3/issue/{issue_key}/comment"),
+                &[
+                    ("orderBy", "-created".to_string()),
+                    ("maxResults", "30".to_string()),
+                ],
+                "comment",
+            )
+            .await?;
+
+        let mut cache = self.comment_cache.lock().await;
+        // Dropping what has expired here keeps the map from holding pages for
+        // issues nobody asks about any more.
+        cache.retain(|_, e| now - e.fetched_at < COMMENT_CACHE_SECS);
+        cache.insert(
+            issue_key.to_string(),
+            CachedComments {
+                updated: updated.map(str::to_string),
+                fetched_at: now,
+                comments: parsed.comments.clone(),
+            },
+        );
+        Ok(parsed.comments)
     }
 
     /// Turn a non-2xx response into a readable error including Jira's message.
@@ -789,6 +872,38 @@ fn extract_error_message(body: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn cached_page(updated: Option<&str>, fetched_at: i64) -> CachedComments {
+        CachedComments {
+            updated: updated.map(str::to_string),
+            fetched_at,
+            comments: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_comment_page_is_reused_until_the_issue_moves_or_it_expires() {
+        let now = 1_700_000_000;
+        let stamp = Some("2026-08-19T10:00:00.000+0200");
+        let page = cached_page(stamp, now);
+
+        assert!(page.is_fresh_for(stamp, now));
+        // The issue was touched, so a comment may have been written or edited.
+        assert!(!page.is_fresh_for(Some("2026-08-19T11:00:00.000+0200"), now));
+        // Still provably current, but dropped anyway to bound the map.
+        assert!(!page.is_fresh_for(stamp, now + COMMENT_CACHE_SECS));
+    }
+
+    #[test]
+    fn a_page_without_a_timestamp_is_never_reused() {
+        // Nothing to compare against means the page cannot be proved current.
+        let now = 1_700_000_000;
+        let stamp = Some("2026-08-19T10:00:00.000+0200");
+
+        assert!(!cached_page(None, now).is_fresh_for(stamp, now));
+        assert!(!cached_page(stamp, now).is_fresh_for(None, now));
+        assert!(!cached_page(None, now).is_fresh_for(None, now));
+    }
 
     #[test]
     fn issue_key_shapes() {

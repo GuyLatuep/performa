@@ -301,7 +301,7 @@ pub struct RawWorklog {
     pub comment: Option<serde_json::Value>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct WorklogAuthor {
     #[serde(rename = "accountId", default)]
     pub account_id: String,
@@ -317,7 +317,7 @@ pub struct CommentListResp {
     pub comments: Vec<RawComment>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct RawComment {
     #[serde(default)]
     pub id: String,

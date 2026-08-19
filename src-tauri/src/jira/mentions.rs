@@ -198,7 +198,10 @@ impl JiraClient {
         }
 
         let mut mentions = Vec::new();
-        for c in self.recent_comments(&issue.key).await? {
+        for c in self
+            .recent_comments(&issue.key, issue.updated.as_deref())
+            .await?
+        {
             let author = c.author.as_ref();
             if author.map(|a| a.account_id.as_str()) == Some(account_id) {
                 continue;

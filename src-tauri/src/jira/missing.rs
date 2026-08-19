@@ -250,7 +250,10 @@ impl JiraClient {
         }
 
         let mut activities = Vec::new();
-        for c in self.recent_comments(&issue.key).await? {
+        for c in self
+            .recent_comments(&issue.key, issue.updated.as_deref())
+            .await?
+        {
             if c.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
                 continue;
             }
@@ -317,22 +320,6 @@ impl JiraClient {
             .filter_map(|w| parse_jira_ts(&w.started).map(|s| (s, w.time_spent_seconds)))
             .map(|(start, spent)| covered_range(start, spent, window_secs))
             .collect())
-    }
-
-    /// The issue's newest comments. Shared with the mentions inbox, which
-    /// reads the same page for a different question.
-    pub(super) async fn recent_comments(&self, issue_key: &str) -> Result<Vec<RawComment>, String> {
-        let parsed: CommentListResp = self
-            .get_json(
-                &format!("/rest/api/3/issue/{issue_key}/comment"),
-                &[
-                    ("orderBy", "-created".to_string()),
-                    ("maxResults", "30".to_string()),
-                ],
-                "comment",
-            )
-            .await?;
-        Ok(parsed.comments)
     }
 
     async fn changelog_page(
