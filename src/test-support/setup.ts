@@ -26,6 +26,12 @@ function memoryStorage(): Storage {
 
 vi.stubGlobal("localStorage", memoryStorage());
 
+// The pollers schedule themselves through `window.setTimeout` / `setInterval`,
+// which node does not provide under that name. Pointing `window` at the global
+// object keeps them pointed at the real (and, under fake timers, the faked)
+// timer functions rather than at a second set of stubs.
+vi.stubGlobal("window", globalThis);
+
 // Tauri's real `invoke` reads window.__TAURI_INTERNALS__ and throws outright
 // when it is missing, which would break at import time rather than resolve to
 // a rejected promise.

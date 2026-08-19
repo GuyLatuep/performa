@@ -16,6 +16,12 @@ const NOTIFIED_KEY = "performa-missing-notified";
 // missed in between still surfaces at the next run, on "Check now", or when
 // closing the app — the reminder is not time-critical.
 const POLL_MS = 15 * 60 * 1000;
+// Both watchers start the moment the user signs in, and both begin with a cold
+// per-issue cache — the one run in which every candidate issue costs a request.
+// Colliding makes the app's heaviest burst its very first one, while the window
+// is still being drawn. The mentions inbox is the alarm and goes first; this
+// scan reports on work already done, so it loses nothing by waiting.
+const INITIAL_DELAY_MS = 20 * 1000;
 
 interface MissingState {
   items: MissingWorklog[];
@@ -33,6 +39,8 @@ const store = createStore<MissingState>({
 });
 
 let pollId: number | undefined;
+// The delayed opening scan — see `INITIAL_DELAY_MS`.
+let firstRunId: number | undefined;
 
 const sig = (item: MissingWorklog) => `${item.issueKey}@${item.activityAt}`;
 
@@ -106,14 +114,17 @@ export async function refreshMissing(
 
 export function startMissingPolling(): void {
   if (pollId !== undefined) return;
-  refreshMissing();
+  firstRunId = window.setTimeout(refreshMissing, INITIAL_DELAY_MS);
   pollId = window.setInterval(refreshMissing, POLL_MS);
 }
 
 export function stopMissingPolling(): void {
   if (pollId === undefined) return;
   window.clearInterval(pollId);
+  // Signing out during the opening delay must not fire a scan afterwards.
+  window.clearTimeout(firstRunId);
   pollId = undefined;
+  firstRunId = undefined;
   store.set({ items: [], unseenCount: 0, lastError: null, lastChecked: null });
 }
 

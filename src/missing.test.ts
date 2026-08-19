@@ -1,7 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MissingWorklog } from "./api";
-import { getMissing, refreshMissing } from "./missing";
+import {
+  getMissing,
+  refreshMissing,
+  startMissingPolling,
+  stopMissingPolling,
+} from "./missing";
 
 // Desktop notifications reach for a Tauri plugin that does not exist under
 // vitest; `notifyNew` runs on every refresh, so it has to be stubbed out.
@@ -90,5 +95,44 @@ describe("refreshMissing", () => {
     await refreshMissing();
 
     expect(getMissing()).toBe(first);
+  });
+});
+
+describe("opening scan", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    stopMissingPolling();
+    vi.useRealTimers();
+  });
+
+  /** Which backend commands the scan has asked for so far. Debug logging goes
+   *  over the same bridge, so the command name is what to look at. */
+  const scansRun = () =>
+    mockInvoke.mock.calls.filter((call) => call[0] === "missing_worklogs");
+
+  it("lets the mentions scan go first", async () => {
+    // Both watchers start at sign-in with a cold cache. This one holds back so
+    // the app's heaviest burst is not also its first.
+    backendReturns([]);
+    startMissingPolling();
+
+    expect(scansRun()).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(20 * 1000);
+
+    expect(scansRun()).toHaveLength(1);
+  });
+
+  it("does not scan after a sign-out during the delay", async () => {
+    backendReturns([]);
+    startMissingPolling();
+    stopMissingPolling();
+
+    await vi.advanceTimersByTimeAsync(20 * 1000);
+
+    expect(scansRun()).toHaveLength(0);
   });
 });
