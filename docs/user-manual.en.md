@@ -232,6 +232,8 @@ The **Mentions** tab is your Jira inbox for being tagged: every comment from the
 
 **How it finds them:** a mention is matched by your **account id** in the comment itself, not by your name appearing in the text — so somebody merely writing your name is not a hit, and a mention on an issue you have nothing else to do with still is. The scan runs **every 3 minutes** while you are signed in; **Check now** triggers it manually, and the tab shows when it last ran.
 
+**What it can miss:** Jira has no "my mentions" search, so performa first picks a bounded set of recently updated issues and then reads their comments. Two consequences: only a limited number of issues is opened per scan, and one of the two ways of picking them looks for your **display name** in the comment text — if that name changes, or the list of recent issues is longer than the scan can open, a mention can go unseen. When a scan is cut short this way the tab says so above the list. An empty list therefore means "nothing found where it looked", not "nothing exists".
+
 Each row shows the issue, who wrote the comment, an excerpt, and how long ago it was. Clicking the row opens the **comment itself** in the browser; clicking the issue key opens the issue.
 
 **Read / unread:** new mentions raise a count badge and make the tab blink. **Opening the tab marks everything currently listed as read** — for that one visit the rows stay marked (accent bar and dot) so you can still see what was new. Your own comments never appear, and a mention already read stays read across restarts.

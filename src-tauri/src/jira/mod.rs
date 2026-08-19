@@ -20,7 +20,7 @@ use serde::de::DeserializeOwned;
 
 use types::*;
 pub use types::{
-    IssueSummary, Mention, MissingConfig, MissingWorklog, Myself, ProjectSummary, TodoConfig,
+    IssueSummary, MentionScan, MissingConfig, MissingWorklog, Myself, ProjectSummary, TodoConfig,
     WorklogEntry, WorklogInput,
 };
 

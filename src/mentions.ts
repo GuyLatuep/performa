@@ -26,6 +26,9 @@ interface MentionsState {
   lastError: string | null;
   /** HH:mm of the last completed check. */
   lastChecked: string | null;
+  /** The last scan hit the ceiling on issues it was willing to look at, so
+   *  the list below may be missing mentions nobody ever saw. */
+  truncated: boolean;
 }
 
 const store = createStore<MentionsState>({
@@ -33,6 +36,7 @@ const store = createStore<MentionsState>({
   unreadCount: 0,
   lastError: null,
   lastChecked: null,
+  truncated: false,
 });
 
 let pollId: number | undefined;
@@ -107,9 +111,12 @@ export async function refreshMentions(
   logInfo(`mention check triggered (${source})`);
   const previous = store.get().items;
   let items = previous;
+  let truncated = store.get().truncated;
   let lastError: string | null = null;
   try {
-    items = await api.mentions();
+    const scan = await api.mentions();
+    items = scan.mentions;
+    truncated = scan.truncated;
     await notifyNew(items);
   } catch (err) {
     lastError = String(err);
@@ -118,6 +125,7 @@ export async function refreshMentions(
     items: sameItems(previous, items) ? previous : items,
     unreadCount: countUnread(items),
     lastError,
+    truncated,
     lastChecked: new Date().toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -135,7 +143,13 @@ export function stopMentionsPolling(): void {
   if (pollId === undefined) return;
   window.clearInterval(pollId);
   pollId = undefined;
-  store.set({ items: [], unreadCount: 0, lastError: null, lastChecked: null });
+  store.set({
+    items: [],
+    unreadCount: 0,
+    lastError: null,
+    lastChecked: null,
+    truncated: false,
+  });
 }
 
 /** Mark everything currently listed as read. Pruning to the current findings
@@ -162,4 +176,12 @@ export function useMentionsError(): string | null {
 
 export function useMentionsLastChecked(): string | null {
   return store.useSelector((s) => s.lastChecked);
+}
+
+export function getMentionsTruncated(): boolean {
+  return store.get().truncated;
+}
+
+export function useMentionsTruncated(): boolean {
+  return store.useSelector((s) => s.truncated);
 }

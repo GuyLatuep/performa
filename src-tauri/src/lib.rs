@@ -6,7 +6,7 @@ mod tray;
 
 use creds::{Credentials, CredentialsMeta};
 use jira::{
-    IssueSummary, JiraClient, Mention, MissingConfig, MissingWorklog, Myself, ProjectSummary,
+    IssueSummary, JiraClient, MentionScan, MissingConfig, MissingWorklog, Myself, ProjectSummary,
     TodoConfig, WorklogEntry, WorklogInput,
 };
 use std::collections::BTreeMap;
@@ -395,7 +395,7 @@ async fn missing_worklogs(state: State<'_, AppState>) -> Result<Vec<MissingWorkl
 /// Comments from the last two weeks that tag the current user — the data
 /// behind the "Mentions" tab.
 #[tauri::command]
-async fn mentions(state: State<'_, AppState>) -> Result<Vec<Mention>, String> {
+async fn mentions(state: State<'_, AppState>) -> Result<MentionScan, String> {
     let s = session(&state).await?;
     s.client
         .mentions(&s.account_id, &s.display_name, MENTIONS_LOOKBACK_DAYS)

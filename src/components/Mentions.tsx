@@ -10,6 +10,7 @@ import {
   useMentions,
   useMentionsError,
   useMentionsLastChecked,
+  useMentionsTruncated,
 } from "../mentions";
 
 interface Props {
@@ -25,6 +26,7 @@ export default function Mentions({ site, onLogWork }: Props) {
   const items = useMentions();
   const error = useMentionsError();
   const lastChecked = useMentionsLastChecked();
+  const truncated = useMentionsTruncated();
   const [busy, setBusy] = useState(false);
   // Captured once per visit, before the effect below acknowledges them —
   // reading it live would clear the highlighting in the same render.
@@ -66,7 +68,15 @@ export default function Mentions({ site, onLogWork }: Props) {
       {error && <p className="error">{error}</p>}
       {!error && !lastChecked && <p className="muted empty">Checking…</p>}
       {!error && lastChecked && items.length === 0 && (
-        <p className="muted empty">Nobody mentioned you. Enjoy the quiet.</p>
+        <p className="muted empty">No mentions found in the last 14 days.</p>
+      )}
+      {!error && truncated && (
+        <p className="mention-partial">
+          Jira offers no “my mentions” search, so this looks through a limited
+          number of recently updated issues. This time there were more than it
+          could open — a mention on one of the issues it skipped is not listed
+          here.
+        </p>
       )}
 
       {items.map((item) => (
@@ -123,6 +133,11 @@ function MentionRow({
           {unread && <span className="unread-dot" title="Unread" />}
           {timeAgo(item.createdAt)}
         </span>
+        {/* A deliberate exception to the line between the two inboxes: a
+            Mention is something to go and look at, and logging forgotten time
+            is the missing-worklog tab's job. It is here by user request,
+            because being pinged is often the moment work starts — hence the
+            shortcut, demoted so the row still reads as "go look at this". */}
         <button
           className="link mention-log"
           title={`Log work on ${item.issueKey}`}

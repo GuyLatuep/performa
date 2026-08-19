@@ -1149,6 +1149,17 @@ header {
   background: none;
   color: var(--ink);
 }
+/* Shown when the candidate search was cut short: the list below is real but
+   incomplete, and saying so beats implying the inbox is the whole picture. */
+.mention-partial {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  border-left: 3px solid var(--muted);
+  padding: 6px 0 6px 9px;
+  margin: 0 0 10px;
+}
 /* Unread mentions carry the accent down their left edge for the visit in which
    they were opened — after that the row reads as an ordinary entry. */
 .mention-row.unread {
@@ -1174,8 +1185,19 @@ header {
   align-items: center;
   gap: 6px;
 }
-.mention-log {
+/* A mention says somebody wants something from you, so the row's own buttons —
+   open the issue, open the comment — are what it is for. Logging time is the
+   other tab's subject, and this shortcut is a convenience on top: muted and
+   without the usual link underline at rest, picking both up only on hover.
+   `button.` on the selector to outweigh `button.link` above. */
+button.mention-log {
   white-space: nowrap;
+  color: var(--muted);
+  font-weight: 400;
+  text-decoration: none;
+}
+button.mention-log:hover {
+  text-decoration: underline;
 }
 .unread-dot {
   width: 7px;

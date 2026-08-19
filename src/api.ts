@@ -65,6 +65,14 @@ export interface MissingWorklog {
 }
 
 /** A comment in which somebody tagged the current user. */
+/** The outcome of one mentions scan. `truncated` means a candidate search
+ *  came back full, so there may be mentions the scan never looked at — the
+ *  inbox says so rather than presenting a short list as the whole truth. */
+export interface MentionScan {
+  mentions: Mention[];
+  truncated: boolean;
+}
+
 export interface Mention {
   issueKey: string;
   issueSummary: string;
@@ -324,11 +332,12 @@ export const api = {
       (r) => `${r.length} item(s)`,
     );
   },
-  mentions(): Promise<Mention[]> {
+  mentions(): Promise<MentionScan> {
     return logged(
       "mentions",
       () => invoke("mentions"),
-      (r) => `${r.length} mention(s)`,
+      (r) =>
+        `${r.mentions.length} mention(s)${r.truncated ? ", search truncated" : ""}`,
     );
   },
   /** Change the debug-log verbosity ("error" | "warn" | "info" | "debug"). */

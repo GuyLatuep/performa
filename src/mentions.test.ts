@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Mention } from "./api";
 import {
   getMentions,
+  getMentionsTruncated,
   markMentionsRead,
   refreshMentions,
   unreadMentionIds,
@@ -30,9 +31,9 @@ const mention = (issueKey: string, commentId: string): Mention => ({
 });
 
 /** What the backend answers the next time the scan runs. */
-function backendReturns(items: Mention[]) {
+function backendReturns(items: Mention[], truncated = false) {
   mockInvoke.mockImplementation(async (command) =>
-    command === "mentions" ? items : undefined,
+    command === "mentions" ? { mentions: items, truncated } : undefined,
   );
 }
 
@@ -155,5 +156,39 @@ describe("notifications", () => {
     await refreshMentions();
 
     expect(sendNotification).not.toHaveBeenCalled();
+  });
+});
+
+describe("incomplete scans", () => {
+  it("reports a scan that ran out of issues to look at", async () => {
+    backendReturns([mention("ABC-1", "10001")], true);
+    await refreshMentions();
+
+    expect(getMentionsTruncated()).toBe(true);
+  });
+
+  it("clears the flag once a scan gets through everything", async () => {
+    backendReturns([mention("ABC-1", "10001")], true);
+    await refreshMentions();
+
+    backendReturns([mention("ABC-1", "10001")], false);
+    await refreshMentions();
+
+    expect(getMentionsTruncated()).toBe(false);
+  });
+
+  it("keeps the warning up when the next check fails", async () => {
+    // The list on screen is still the truncated one, so the caveat about it
+    // has to stay with it.
+    backendReturns([mention("ABC-1", "10001")], true);
+    await refreshMentions();
+
+    mockInvoke.mockImplementation(async (command) => {
+      if (command === "mentions") throw new Error("Jira returned 503");
+      return undefined;
+    });
+    await refreshMentions();
+
+    expect(getMentionsTruncated()).toBe(true);
   });
 });

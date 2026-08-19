@@ -139,6 +139,16 @@ pub struct MissingWorklog {
     pub log_summary: String,
 }
 
+/// The outcome of one mentions scan. Carries `truncated` because the scan
+/// cannot see every mention: it looks at a bounded number of candidate issues,
+/// and when that bound is reached there may be more it never opened. The inbox
+/// says so rather than presenting a short list as the whole truth.
+#[derive(Serialize, Clone)]
+pub struct MentionScan {
+    pub mentions: Vec<Mention>,
+    pub truncated: bool,
+}
+
 /// One comment in which somebody tagged the current user — a row of the
 /// mentions inbox.
 #[derive(Serialize, Clone)]

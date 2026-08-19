@@ -18,6 +18,11 @@ use super::{
     adf_to_text, escape_jql, format_rfc3339_local, parse_jira_ts, JiraClient, MAX_INFLIGHT,
 };
 
+/// How many issues each candidate search may return. Neither net is a precise
+/// query, so this is a budget rather than a limit that "fits": past it, the
+/// scan reports itself as truncated instead of pretending it saw everything.
+const CANDIDATE_LIMIT: u32 = 100;
+
 /// Mentions found on one issue, plus the `updated` timestamp they were found
 /// at. A comment cannot be written or edited without moving `updated`, so an
 /// entry stays valid until the issue is touched again.
@@ -39,9 +44,9 @@ impl JiraClient {
         account_id: &str,
         display_name: &str,
         lookback_days: u32,
-    ) -> Result<Vec<Mention>, String> {
+    ) -> Result<MentionScan, String> {
         let cutoff = Local::now().timestamp() - lookback_days as i64 * 86_400;
-        let candidates = self.mention_candidates(display_name, lookback_days).await?;
+        let (candidates, truncated) = self.mention_candidates(display_name, lookback_days).await?;
         log::debug!(
             "mentions: {} candidate issue(s) to scan: {:?}",
             candidates.len(),
@@ -58,8 +63,19 @@ impl JiraClient {
             .collect();
 
         newest_first(&mut found);
-        log::debug!("mentions: {} mention(s) found", found.len());
-        Ok(found)
+        log::debug!(
+            "mentions: {} mention(s) found{}",
+            found.len(),
+            if truncated {
+                " (candidate search truncated — there may be more)"
+            } else {
+                ""
+            }
+        );
+        Ok(MentionScan {
+            mentions: found,
+            truncated,
+        })
     }
 
     /// Issues that might carry a mention. Two nets, because neither alone is
@@ -67,11 +83,13 @@ impl JiraClient {
     /// name it renders as — and being mentioned does not make you a watcher, so
     /// the "issues I have to do with" net misses exactly the case that matters
     /// most. False positives are harmless; the ADF check below sorts them out.
+    /// Returns the candidates and whether either net filled its budget, which
+    /// means it was cut short and mentions may lie beyond it.
     async fn mention_candidates(
         &self,
         display_name: &str,
         lookback_days: u32,
-    ) -> Result<Vec<IssueSummary>, String> {
+    ) -> Result<(Vec<IssueSummary>, bool), String> {
         // Bound before the calls: a `format!` temporary passed straight into a
         // future would be dropped while that future still borrows it.
         let involved_jql = format!(
@@ -83,15 +101,22 @@ impl JiraClient {
             "comment ~ \"{}\" AND updated >= \"-{lookback_days}d\" ORDER BY updated DESC",
             escape_jql(display_name)
         );
-        let involved = self.search_issues_dated(&involved_jql, 50);
+        let involved = self.search_issues_dated(&involved_jql, CANDIDATE_LIMIT);
 
         // An empty display name would search for the empty string, which
         // matches everything — skip that net rather than scan the whole site.
+        let truncated;
         let mut candidates = if display_name.trim().is_empty() {
+            // Only one net ran, so the text net's blind spot is unconditional
+            // here rather than a matter of budget — see the comment above.
+            truncated = true;
             involved.await?
         } else {
-            let (by_text, involved) =
-                futures_util::try_join!(self.search_issues_dated(&text_jql, 50), involved)?;
+            let (by_text, involved) = futures_util::try_join!(
+                self.search_issues_dated(&text_jql, CANDIDATE_LIMIT),
+                involved
+            )?;
+            truncated = filled_budget(&by_text) || filled_budget(&involved);
             let mut merged = by_text;
             merged.extend(involved);
             merged
@@ -101,7 +126,7 @@ impl JiraClient {
         // every mention on it twice.
         let mut seen = std::collections::HashSet::new();
         candidates.retain(|i| seen.insert(i.key.clone()));
-        Ok(candidates)
+        Ok((candidates, truncated))
     }
 
     /// The mentions of `account_id` in one issue's recent comments.
@@ -164,6 +189,12 @@ impl JiraClient {
         );
         Ok(within_lookback(&mentions, cutoff))
     }
+}
+
+/// Did this net come back full? Then it was cut off at the budget and there
+/// are candidate issues it never returned.
+fn filled_budget(net: &[IssueSummary]) -> bool {
+    net.len() as u32 >= CANDIDATE_LIMIT
 }
 
 /// Newest first, ordered by the instant rather than by `created_at`: that
@@ -319,6 +350,28 @@ mod tests {
         newest_first(&mut all);
 
         assert_eq!(all[0].created_ts, 1_761_441_000);
+    }
+
+    fn candidates(n: u32) -> Vec<IssueSummary> {
+        (0..n)
+            .map(|i| IssueSummary {
+                key: format!("ABC-{i}"),
+                summary: "summary".to_string(),
+                due_date: None,
+                updated: None,
+                status: None,
+                priority: None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_net_that_came_back_full_counts_as_cut_off() {
+        // Exactly full is the ambiguous case: Jira returning the budget is
+        // indistinguishable from Jira having no more to give, so it counts as
+        // cut off rather than as complete.
+        assert!(filled_budget(&candidates(CANDIDATE_LIMIT)));
+        assert!(!filled_budget(&candidates(CANDIDATE_LIMIT - 1)));
     }
 
     #[test]
