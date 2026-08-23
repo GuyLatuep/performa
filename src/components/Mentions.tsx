@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { IssueSummary, Mention } from "../api";
 import IssueView from "./IssueView";
+import { recordEvent } from "../achievements";
+import AchievementToast from "./AchievementToast";
 import { timeAgo } from "../time";
 import {
   markMentionsRead,
@@ -28,6 +30,7 @@ export default function Mentions({ site, onLogged }: Props) {
   // A Mention means somebody wants something from you, and the expected
   // response is to go and look at the issue — so a row opens it.
   const [opened, setOpened] = useState<IssueSummary | null>(null);
+  const [awards, setAwards] = useState<string[]>([]);
   const items = useMentions();
   const error = useMentionsError();
   const lastChecked = useMentionsLastChecked();
@@ -37,6 +40,13 @@ export default function Mentions({ site, onLogged }: Props) {
   // Captured once per visit, before the effect below acknowledges them —
   // reading it live would clear the highlighting in the same render.
   const [unread, setUnread] = useState(unreadMentionIds);
+
+  // Only after a real check: an empty list before the first scan means "not
+  // looked yet", which is not an achievement.
+  useEffect(() => {
+    if (lastChecked && items.length === 0)
+      setAwards(recordEvent({ kind: "mentionsEmpty" }));
+  }, [items, lastChecked]);
 
   useEffect(() => {
     // A poll landing while the tab is open brings its own new mentions; they
@@ -71,6 +81,7 @@ export default function Mentions({ site, onLogged }: Props) {
 
   return (
     <div className="panel">
+      <AchievementToast queue={awards} />
       <div className="missing-head">
         <span className="hint">
           Comments from the last 14 days in which somebody @-mentioned you.

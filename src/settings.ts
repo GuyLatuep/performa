@@ -8,6 +8,7 @@ import { createStore } from "./store";
 const HOURS_KEY = "performa-daily-hours";
 const WEEKENDS_KEY = "performa-show-weekends";
 const LOG_LEVEL_KEY = "performa-log-level";
+const FUN_MODE_KEY = "performa-fun-mode";
 const DEFAULT_DAILY_HOURS = 8;
 const DEFAULT_LOG_LEVEL: LogLevel = "error";
 
@@ -23,6 +24,9 @@ function readHours(): number {
 const hoursStore = createStore<number>(readHours());
 const weekendsStore = createStore<boolean>(
   localStorage.getItem(WEEKENDS_KEY) === "true",
+);
+const funModeStore = createStore<boolean>(
+  localStorage.getItem(FUN_MODE_KEY) === "true",
 );
 
 export function getDailyHours(): number {
@@ -80,4 +84,17 @@ export function setLogLevel(level: LogLevel): void {
 
 export function useLogLevel(): LogLevel {
   return logLevelStore.use();
+}
+
+export function getFunMode(): boolean {
+  return funModeStore.get();
+}
+
+export function setFunMode(on: boolean): void {
+  localStorage.setItem(FUN_MODE_KEY, String(on));
+  funModeStore.set(on);
+}
+
+export function useFunMode(): boolean {
+  return funModeStore.use();
 }

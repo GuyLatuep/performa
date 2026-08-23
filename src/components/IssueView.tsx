@@ -10,6 +10,7 @@ import {
 import { OfferedTransition } from "../transitions";
 import { useIssueFieldConfig } from "../issueFieldNames";
 import { logInfo } from "../log";
+import { recordEvent } from "../achievements";
 import IssueActions from "./IssueActions";
 import IssueAttachments from "./IssueAttachments";
 import IssueDescription from "./IssueDescription";
@@ -94,6 +95,7 @@ export default function IssueView({
       try {
         await api.transitionIssue(issue.key, entry.id, fields);
         logInfo(`moved ${issue.key} via ${entry.name}`);
+        recordEvent({ kind: "transitioned" });
         setScreen(null);
         reload();
       } catch (err) {

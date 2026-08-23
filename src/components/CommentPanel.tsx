@@ -11,6 +11,7 @@ import {
 import CommentMirror from "./CommentMirror";
 import MentionPicker from "./MentionPicker";
 import { logInfo } from "../log";
+import { recordEvent } from "../achievements";
 import { useDismissOnOutside } from "../dismiss";
 
 /** Write one comment, of the kind the row selected. Which kinds exist at all
@@ -150,6 +151,7 @@ export default function CommentPanel({
     try {
       const mentions = usedMentions(text, picked);
       await api.addComment(issueKey, text, action.public, mentions);
+      recordEvent({ kind: "commented" });
       logInfo(
         `posted ${action.label.toLowerCase()} on ${issueKey}` +
           `${mentions.length > 0 ? ` mentioning ${mentions.length}` : ""}`,

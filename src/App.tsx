@@ -9,6 +9,16 @@ import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
 import TimerBar from "./components/TimerBar";
 import MissingWorklogs from "./components/MissingWorklogs";
+import { playCheer, playFanfare } from "./fun";
+import {
+  getAchievementState,
+  isMilestoneLog,
+  recordEvent,
+} from "./achievements";
+import { onWorklogFiled } from "./worklogEvents";
+import AchievementToast from "./components/AchievementToast";
+import { useFunMode } from "./settings";
+import Confetti from "./components/Confetti";
 import Mentions from "./components/Mentions";
 import UpdateNotice from "./components/UpdateNotice";
 import WhatsNew from "./components/WhatsNew";
@@ -54,6 +64,11 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   // Issue picked on the start tab, opened directly in the log-work form.
   const [logIssue, setLogIssue] = useState<IssueSummary | null>(null);
+  /** Bumped to fire a burst of confetti, with the size it should be. */
+  const [confetti, setConfetti] = useState(0);
+  const [confettiPieces, setConfettiPieces] = useState(0);
+  /** Titles earned but not yet shown. */
+  const [awards, setAwards] = useState<string[]>([]);
   // Counts entries into the log tab. Used as LogWork's key so every visit
   // remounts it: the component keeps the picked issue in its own state, which
   // a changed `initialIssue` alone would not clear — least of all when it
@@ -67,6 +82,7 @@ export default function App() {
   const missingItems = useMissing();
   const missingUnseen = useMissingUnseenCount();
   const mentionsUnread = useMentionsUnreadCount();
+  const funMode = useFunMode();
 
   async function refreshStatus() {
     try {
@@ -108,6 +124,27 @@ export default function App() {
   useEffect(() => {
     if (signedIn) logInfo(`view: ${tab}`);
   }, [signedIn, tab]);
+
+  // The celebrating, kept apart from the refreshing: this one needs to know
+  // what was logged, which `api.logWork` announces.
+  useEffect(
+    () =>
+      onWorklogFiled((worklog) => {
+        if (!funMode) return;
+        const earned = recordEvent({
+          kind: "logged",
+          date: worklog.date,
+          time: worklog.time,
+        });
+        // Rarer and louder every tenth time, counted after this one landed.
+        if (isMilestoneLog(getAchievementState().loggedCount)) playFanfare();
+        else playCheer();
+        setConfettiPieces(confettiFor(worklog.timeSpentSeconds));
+        setConfetti((c) => c + 1);
+        if (earned.length > 0) setAwards(earned);
+      }),
+    [funMode],
+  );
 
   if (!loaded) {
     return <div className="loading">Loading…</div>;
@@ -220,6 +257,8 @@ export default function App() {
 
       <UpdateNotice />
 
+      <Confetti trigger={confetti} pieces={confettiPieces} />
+      <AchievementToast queue={awards} />
       <TimerBar onLogged={onLogged} />
 
       <nav className="tabs">
@@ -302,4 +341,17 @@ export default function App() {
       </main>
     </div>
   );
+}
+
+/**
+ * How much confetti a worklog is worth.
+ *
+ * A quarter of an hour gets a handful and a full day gets the cannon, on a
+ * curve rather than a straight line — the difference between fifteen minutes
+ * and an hour should be visible, and the difference between seven hours and
+ * eight need not be.
+ */
+function confettiFor(seconds: number): number {
+  const hours = Math.max(0, seconds) / 3600;
+  return Math.round(20 + 130 * Math.min(1, Math.sqrt(hours / 8)));
 }

@@ -15,6 +15,8 @@ import {
   WorklogFields,
 } from "./WorklogFields";
 import MissingRow, { missingRowKey } from "./MissingRow";
+import { recordEvent } from "../achievements";
+import AchievementToast from "./AchievementToast";
 
 interface Props {
   site: string;
@@ -30,11 +32,19 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
   const lastChecked = useMissingLastChecked();
   const [busy, setBusy] = useState(false);
   const [logging, setLogging] = useState<MissingWorklog | null>(null);
+  const [awards, setAwards] = useState<string[]>([]);
 
   // Viewing the tab acknowledges the current findings (stops the blinking).
   useEffect(() => {
     markMissingSeen();
   }, [items]);
+
+  // Only after a real check: nothing found before the first scan means "not
+  // looked yet", which is not an achievement.
+  useEffect(() => {
+    if (lastChecked && items.length === 0)
+      setAwards(recordEvent({ kind: "missingEmpty" }));
+  }, [items, lastChecked]);
 
   async function refresh() {
     setBusy(true);
@@ -58,6 +68,7 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
 
   return (
     <div className="panel">
+      <AchievementToast queue={awards} />
       <div className="missing-head">
         <span className="hint">
           Issues you commented on or moved in the last 24 hours without logging

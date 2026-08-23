@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { logError, logInfo } from "./log";
 import type { PickedMention } from "./mentionInput";
+import { reportWorklogFiled } from "./worklogEvents";
 
 export interface Myself {
   accountId: string;
@@ -441,7 +442,12 @@ export const api = {
     return logged(
       `log_work(issueKey=${issueKey}, seconds=${worklog.timeSpentSeconds}, date=${worklog.date}, billable=${worklog.billable})`,
       () => invoke("log_work", { issueKey, worklog }),
-    ).then(invalidateCachedReads);
+    ).then(() => {
+      invalidateCachedReads();
+      // Announced here for the same reason the invalidation lives here: every
+      // way of logging time goes through this one call.
+      reportWorklogFiled(worklog);
+    });
   },
   updateWorklog(
     issueKey: string,

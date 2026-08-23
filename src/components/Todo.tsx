@@ -4,6 +4,8 @@ import { usePinnedIssues } from "../pins";
 import { useIgnoredStatuses } from "../todoStatuses";
 import IssueRow from "./IssueRow";
 import IssueView from "./IssueView";
+import { useKonamiCode } from "../konami";
+import { useFunMode } from "../settings";
 
 interface Props {
   site: string;
@@ -17,6 +19,13 @@ interface Props {
 export default function Todo({ site, onLogged }: Props) {
   const [issues, setIssues] = useState<IssueSummary[] | null>(null);
   const [opened, setOpened] = useState<IssueSummary | null>(null);
+  const funMode = useFunMode();
+  const [allClosed, setAllClosed] = useState(false);
+  const dismiss = useCallback(() => setAllClosed(false), []);
+  const wish = useCallback(() => setAllClosed(true), []);
+  // Only on the list itself, and only in fun mode. Not while an issue is open:
+  // the arrows belong to whatever is being read there.
+  useKonamiCode(wish, funMode && opened === null && !allClosed);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const pinnedKeys = new Set(usePinnedIssues().map((p) => p.key));
@@ -65,6 +74,18 @@ export default function Todo({ site, onLogged }: Props) {
         }}
         onLogged={onLogged}
       />
+    );
+  }
+
+  if (allClosed) {
+    return (
+      <div className="panel todo">
+        {/* Click anywhere to come back — an easter egg with no way out of it
+            is a bug wearing a costume. */}
+        <button className="all-closed" onClick={dismiss}>
+          alle Tickets sind geschlossen, so fühlt es sich also an....
+        </button>
+      </div>
     );
   }
 

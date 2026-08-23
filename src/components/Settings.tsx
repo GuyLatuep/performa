@@ -14,6 +14,7 @@ import { getIgnoredStatuses, setIgnoredStatuses } from "../todoStatuses";
 import { getAccent, setAccent } from "../accent";
 import Blockmark from "./Blockmark";
 import SettingsConnection from "./SettingsConnection";
+import SettingsFun from "./SettingsFun";
 import SettingsAppearance from "./SettingsAppearance";
 import SettingsTimesheet from "./SettingsTimesheet";
 import SettingsTodo from "./SettingsTodo";
@@ -32,7 +33,10 @@ type SettingsTab =
   "connection" | "appearance" | "timesheet" | "todo" | "logging";
 
 const TABS: { id: SettingsTab; label: string }[] = [
-  { id: "connection", label: "Connection" },
+  // The tab is more than the connection now — it holds whatever is about the
+  // app itself rather than one of its views. The id stays put: it is a stored
+  // value and renaming it would drop everyone on a tab they did not pick.
+  { id: "connection", label: "General" },
   { id: "appearance", label: "Appearance" },
   { id: "timesheet", label: "Timesheet" },
   { id: "todo", label: "Todo" },
@@ -106,11 +110,14 @@ export default function Settings({
       </div>
 
       {tab === "connection" && (
-        <SettingsConnection
-          existing={existing}
-          onSaved={onSaved}
-          onCancel={onCancel ? cancel : undefined}
-        />
+        <>
+          <SettingsConnection
+            existing={existing}
+            onSaved={onSaved}
+            onCancel={onCancel ? cancel : undefined}
+          />
+          <SettingsFun />
+        </>
       )}
       {tab === "appearance" && <SettingsAppearance />}
       {tab === "timesheet" && <SettingsTimesheet />}

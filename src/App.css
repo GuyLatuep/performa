@@ -952,6 +952,10 @@ header {
 }
 .week-charts {
   display: flex;
+  /* Wraps so a full-width child above the charts takes its own line instead of
+     competing with them for the row — without it the bars are squeezed to
+     nothing. */
+  flex-wrap: wrap;
   align-items: stretch;
   gap: 30px;
   margin: 16px 0 4px;
@@ -2105,5 +2109,107 @@ section.issue-fact .issue-description {
 @media (max-width: 520px) {
   .issue-fact.span-2 {
     grid-column: span 1;
+  }
+}
+
+/* Over everything and ignoring the pointer: the app stays usable while it
+   falls, because the point is to notice, not to wait. */
+.confetti {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Thick, because the moment deserves it. */
+.all-closed {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 64px 12px;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  text-align: center;
+  color: var(--ink);
+  cursor: pointer;
+}
+.all-closed:hover {
+  background: none;
+  color: var(--ink);
+  border: none;
+}
+
+.week-rank {
+  /* Its own line above the charts; the gap is the flex `gap`, so no bottom
+     margin of its own. */
+  width: 100%;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Over the page like the confetti, but slower and readable. */
+.achievement-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--hair);
+  cursor: pointer;
+  animation: achievement-in 0.24s ease-out;
+}
+.achievement-toast:hover {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.achievement-mark {
+  color: var(--accent);
+  font-size: 17px;
+}
+.achievement-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.achievement-more {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+@keyframes achievement-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .achievement-toast {
+    animation: none;
   }
 }

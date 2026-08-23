@@ -1,6 +1,14 @@
 import { WorklogEntry } from "../api";
 import { formatDuration, toDateInput, today } from "../time";
-import { useDailyHours, useShowWeekends, WORKDAYS_PER_WEEK } from "../settings";
+import { useEffect } from "react";
+import {
+  useDailyHours,
+  useFunMode,
+  useShowWeekends,
+  WORKDAYS_PER_WEEK,
+} from "../settings";
+import { rankFor } from "../rank";
+import { recordEvent } from "../achievements";
 
 /** Per-day bars against the daily target, plus a weekly progress ring. */
 export default function WeekChart({
@@ -12,6 +20,7 @@ export default function WeekChart({
 }) {
   const dailyHours = useDailyHours();
   const showWeekends = useShowWeekends();
+  const funMode = useFunMode();
   const dayTarget = dailyHours * 3600;
   const weekTarget = dayTarget * WORKDAYS_PER_WEEK;
 
@@ -40,12 +49,23 @@ export default function WeekChart({
   const total = allDays.reduce((s, d) => s + d.seconds, 0);
   const pct = weekTarget > 0 ? total / weekTarget : 0;
 
+  // A full week is worth an award, awarded once like the rest.
+  const reachedTarget = weekTarget > 0 && total >= weekTarget;
+  useEffect(() => {
+    if (funMode && reachedTarget) recordEvent({ kind: "weekTargetReached" });
+  }, [funMode, reachedTarget]);
+
   const R = 48;
   const CIRC = 2 * Math.PI * R;
   const filled = Math.min(pct, 1) * CIRC;
 
   return (
     <div className="week-charts">
+      {funMode && (
+        <p className="week-rank" title="Diese Woche">
+          {rankFor(total, weekTarget)}
+        </p>
+      )}
       <div className="day-bars">
         <div className="day-bars-plot">
           <div
