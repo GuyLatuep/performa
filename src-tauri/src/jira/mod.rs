@@ -4,8 +4,10 @@
 //!
 //! Submodules: `types` holds the response shapes, `missing` the
 //! missing-worklog reminder heuristic, `mentions` the @-mention inbox,
-//! `issue` the single-issue view behind the todo tab.
+//! `issue` the single-issue view behind the todo tab, and `attachments` the
+//! file transfers that view needs.
 
+mod attachments;
 mod issue;
 mod mentions;
 mod missing;
@@ -139,6 +141,11 @@ type CommentCache = Arc<tokio::sync::Mutex<HashMap<String, CachedComments>>>;
 /// the sharing exists to cover.
 const COMMENT_CACHE_SECS: i64 = 20 * 60;
 
+/// How many comments one page holds. A full page means there are probably
+/// older ones, which the issue timeline has to admit to rather than look
+/// complete — see `IssueActivity::comments_truncated`.
+const COMMENT_PAGE_LIMIT: usize = 30;
+
 impl JiraClient {
     pub fn new(creds: &Credentials) -> Self {
         let raw = format!("{}:{}", creds.email, creds.token);
@@ -185,7 +192,7 @@ impl JiraClient {
                 &format!("/rest/api/3/issue/{issue_key}/comment"),
                 &[
                     ("orderBy", "-created".to_string()),
-                    ("maxResults", "30".to_string()),
+                    ("maxResults", COMMENT_PAGE_LIMIT.to_string()),
                 ],
                 "comment",
             )
@@ -195,14 +202,21 @@ impl JiraClient {
         // Dropping what has expired here keeps the map from holding pages for
         // issues nobody asks about any more.
         cache.retain(|_, e| now - e.fetched_at < COMMENT_CACHE_SECS);
-        cache.insert(
-            issue_key.to_string(),
-            CachedComments {
-                updated: updated.map(str::to_string),
-                fetched_at: now,
-                comments: parsed.comments.clone(),
-            },
-        );
+        // Only store a page that can prove itself current later. Without a
+        // stamp `is_fresh_for` can never serve this entry, so writing it would
+        // do nothing but evict a usable one — and the issue view reads with no
+        // stamp on purpose, so it would evict precisely the issues the user is
+        // looking at, out from under both background scans.
+        if updated.is_some() {
+            cache.insert(
+                issue_key.to_string(),
+                CachedComments {
+                    updated: updated.map(str::to_string),
+                    fetched_at: now,
+                    comments: parsed.comments.clone(),
+                },
+            );
+        }
         Ok(parsed.comments)
     }
 

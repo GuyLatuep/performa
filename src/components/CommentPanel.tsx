@@ -5,11 +5,11 @@ import {
   activeMentionQuery,
   applyMention,
   deleteMentionBefore,
-  highlightSegments,
   PickedMention,
   usedMentions,
-  userSubtitle,
 } from "../mentionInput";
+import CommentMirror from "./CommentMirror";
+import MentionPicker from "./MentionPicker";
 import { logInfo } from "../log";
 
 /** Write one comment, of the kind the row selected. Which kinds exist at all
@@ -38,12 +38,6 @@ export default function CommentPanel({
   const [active, setActive] = useState(0);
   const box = useRef<HTMLTextAreaElement>(null);
   const mirror = useRef<HTMLDivElement>(null);
-  const activeItem = useRef<HTMLLIElement>(null);
-
-  // The list scrolls, so arrowing past its edge has to bring the row along.
-  useEffect(() => {
-    activeItem.current?.scrollIntoView({ block: "nearest" });
-  }, [active]);
 
   // Debounced: the picker follows keystrokes, and one request per character
   // would be a request per character.
@@ -169,24 +163,7 @@ export default function CommentPanel({
   return (
     <div className="action-panel">
       <div className="comment-compose">
-        {/* The marked-up copy sits behind a textarea whose own text is
-            transparent — a textarea cannot style a range of its own value, and
-            this is the least of the ways around that. Both must share every
-            metric that affects where a glyph lands. */}
-        <div className="comment-mirror" aria-hidden="true" ref={mirror}>
-          {highlightSegments(text, picked).map((segment, i) =>
-            segment.accountId ? (
-              <mark key={i} className="mention-mark">
-                {segment.text}
-              </mark>
-            ) : (
-              <span key={i}>{segment.text}</span>
-            ),
-          )}
-          {/* A trailing newline has no height of its own; without this the
-              mirror stops scrolling one line before the textarea does. */}
-          {"\n"}
-        </div>
+        <CommentMirror ref={mirror} text={text} picked={picked} />
         <textarea
           ref={box}
           className="comment-box"
@@ -210,27 +187,12 @@ export default function CommentPanel({
           }}
         />
         {query !== null && matches.length > 0 && (
-          <ul className="mention-picker" role="listbox">
-            {matches.map((user, i) => (
-              <li key={user.accountId} ref={i === active ? activeItem : null}>
-                <button
-                  role="option"
-                  aria-selected={i === active}
-                  className={`mention-option${i === active ? " active" : ""}`}
-                  // onMouseDown, not onClick: the textarea would lose focus on
-                  // blur before a click ever landed.
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    choose(user);
-                  }}
-                  onMouseEnter={() => setActive(i)}
-                >
-                  <span className="mention-name">{user.displayName}</span>
-                  <span className="mention-sub">{userSubtitle(user)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <MentionPicker
+            matches={matches}
+            active={active}
+            onHover={setActive}
+            onChoose={choose}
+          />
         )}
       </div>
 
@@ -240,7 +202,7 @@ export default function CommentPanel({
       </p>
 
       {error && <p className="error">{error}</p>}
-      <div className="comment-actions">
+      <div className="panel-actions">
         <button onClick={post} disabled={busy || text.trim() === ""}>
           {busy ? "Posting…" : action.label}
         </button>

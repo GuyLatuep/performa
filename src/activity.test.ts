@@ -47,7 +47,13 @@ function worklog(
 }
 
 function activity(over: Partial<IssueActivity> = {}): IssueActivity {
-  return { comments: [], statusChanges: [], worklogs: [], ...over };
+  return {
+    comments: [],
+    statusChanges: [],
+    worklogs: [],
+    commentsTruncated: false,
+    ...over,
+  };
 }
 
 describe("timeline", () => {

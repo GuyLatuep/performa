@@ -191,7 +191,7 @@ export default function IssueAttachments({
 
       {error && <p className="error">{error}</p>}
 
-      <div className="comment-actions">
+      <div className="panel-actions">
         <button className="secondary" onClick={pick} disabled={busy}>
           {busy ? "Attaching…" : "Attach files…"}
         </button>

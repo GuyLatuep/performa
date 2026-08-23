@@ -11,29 +11,40 @@ export default function IssueTimeline({
   if (entries.length === 0)
     return <p className="muted empty">Nothing has happened on this issue.</p>;
   return (
-    <ul className="issue-timeline">
-      {entries.map((entry) => (
-        <li key={entry.id} className={`timeline-entry ${entry.kind}`}>
-          <div className="timeline-head">
-            <span className="timeline-author">{entry.author}</span>
-            {entry.kind === "comment" && entry.internal && (
-              <span
-                className="timeline-tag internal"
-                title="Only people working the issue can read this"
-              >
-                internal
+    <>
+      {/* Above the list, for the same reason the mentions tab says so above
+          its own: a timeline that looks complete when it is not is worse than
+          one that admits the gap. */}
+      {activity.commentsTruncated && (
+        <p className="hint">
+          Only the newest comments are shown — this issue has more than fit in
+          one page. Open it in Jira for the full history.
+        </p>
+      )}
+      <ul className="issue-timeline">
+        {entries.map((entry) => (
+          <li key={entry.id} className={`timeline-entry ${entry.kind}`}>
+            <div className="timeline-head">
+              <span className="timeline-author">{entry.author}</span>
+              {entry.kind === "comment" && entry.internal && (
+                <span
+                  className="timeline-tag internal"
+                  title="Only people working the issue can read this"
+                >
+                  internal
+                </span>
+              )}
+              <span className="timeline-when" title={entry.createdAt}>
+                {entry.createdAt
+                  ? timeAgo(entry.createdAt)
+                  : "at an unknown time"}
               </span>
-            )}
-            <span className="timeline-when" title={entry.createdAt}>
-              {entry.createdAt
-                ? timeAgo(entry.createdAt)
-                : "at an unknown time"}
-            </span>
-          </div>
-          <TimelineBody entry={entry} />
-        </li>
-      ))}
-    </ul>
+            </div>
+            <TimelineBody entry={entry} />
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

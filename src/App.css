@@ -1580,13 +1580,15 @@ button.mention-log:hover {
   font-size: 13px;
   line-height: 1.5;
 }
-.comment-actions {
+/* The button row at the foot of a panel — comment, log-work, field editor,
+   attachments. */
+.panel-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 10px;
 }
-.comment-actions + .hint {
+.panel-actions + .hint {
   margin-top: 10px;
 }
 
@@ -1837,7 +1839,7 @@ button.mention-log:hover {
   border-top: none;
   padding: 14px;
 }
-.action-panel .comment-actions {
+.action-panel .panel-actions {
   margin-top: 12px;
   align-items: baseline;
 }

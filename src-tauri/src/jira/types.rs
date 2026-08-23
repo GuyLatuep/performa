@@ -257,6 +257,11 @@ pub struct Attachment {
 #[derive(Serialize)]
 pub struct IssueActivity {
     pub comments: Vec<IssueComment>,
+    /// Whether older comments exist beyond the page that was read. Status
+    /// changes and worklogs are always complete; comments are not, and a
+    /// timeline that looks whole when it is not is worse than one that says so.
+    #[serde(rename = "commentsTruncated")]
+    pub comments_truncated: bool,
     #[serde(rename = "statusChanges")]
     pub status_changes: Vec<StatusChange>,
     pub worklogs: Vec<ActivityWorklog>,

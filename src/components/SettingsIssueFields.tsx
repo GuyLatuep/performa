@@ -14,6 +14,24 @@ import {
  *  The names are picked from the site's field catalog rather than typed: a
  *  name that doesn't exist resolves to nothing and the field would just
  *  silently never appear, which is a hard thing to debug from the outside. */
+/** The facts the issue view always shows above the configured ones. Adding one
+ *  here would render it twice — once as a standard fact and once as a
+ *  configured field — under the same key. */
+const STANDARD_FACTS = [
+  "status",
+  "priority",
+  "issue type",
+  "reporter",
+  "assignee",
+  "due date",
+  "summary",
+  "description",
+];
+
+function isStandardFact(name: string): boolean {
+  return STANDARD_FACTS.includes(name.trim().toLowerCase());
+}
+
 export default function SettingsIssueFields() {
   const config = useIssueFieldConfig();
   const [names, setNames] = useState<string[] | null>(null);
@@ -36,7 +54,9 @@ export default function SettingsIssueFields() {
   }, []);
 
   const shown = new Set(config.detail.map((n) => n.toLowerCase()));
-  const addable = (names ?? []).filter((n) => !shown.has(n.toLowerCase()));
+  const addable = (names ?? []).filter(
+    (n) => !shown.has(n.toLowerCase()) && !isStandardFact(n),
+  );
 
   return (
     <div className="field-block">

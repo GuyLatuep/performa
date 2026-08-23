@@ -128,6 +128,10 @@ function FieldEditor({
 
   async function save() {
     if (!field) return;
+    // Marked required whatever the field itself says: a change nobody typed a
+    // value for is a no-op worth refusing, and this reuses the same check the
+    // transition screens make — including that the value can actually be
+    // shaped for Jira.
     const gaps = missingRequired([{ ...field, required: true }], values);
     if (gaps.length > 0) {
       setError(`${fieldName} needs a value.`);
@@ -166,8 +170,10 @@ function FieldEditor({
         />
       )}
       {error && <p className="error">{error}</p>}
-      <div className="comment-actions">
-        {field && (
+      <div className="panel-actions">
+        {/* Not for a field with no input: Save would answer "needs a value"
+            about a box the user has no way to fill in. */}
+        {field && field.kind !== "unsupported" && (
           <button onClick={save} disabled={busy}>
             {busy ? "Saving…" : "Save"}
           </button>

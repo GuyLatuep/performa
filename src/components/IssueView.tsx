@@ -158,6 +158,11 @@ export default function IssueView({
             <section className="issue-section">
               <h3>{screen.name}</h3>
               <TransitionScreen
+                // Per transition: the screen holds its own draft and its own
+                // "required" errors, and picking a second move without
+                // cancelling the first would otherwise reuse both — including a
+                // value for a field id the two screens happen to share.
+                key={screen.id}
                 entry={screen}
                 busy={moving}
                 failure={moveError}

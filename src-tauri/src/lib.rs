@@ -684,7 +684,17 @@ async fn attach_files(
     for path in paths {
         s.client
             .upload_attachment(&issue_key, std::path::Path::new(&path))
-            .await?;
+            .await
+            // Jira's message names no file, and with several in flight the
+            // banner would otherwise say which error but not which file — nor
+            // which of them did get through.
+            .map_err(|e| {
+                let name = std::path::Path::new(&path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(path.as_str());
+                format!("{name}: {e}")
+            })?;
     }
     Ok(())
 }

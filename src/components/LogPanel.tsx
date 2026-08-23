@@ -46,7 +46,7 @@ export default function LogPanel({
     <div className="action-panel">
       <WorklogFields draft={draft} patch={patch} seconds={seconds} />
       {error && <p className="error">{error}</p>}
-      <div className="comment-actions">
+      <div className="panel-actions">
         <button onClick={submit} disabled={busy}>
           {busy ? "Logging…" : "Log work"}
         </button>

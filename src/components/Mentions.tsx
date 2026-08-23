@@ -60,7 +60,10 @@ export default function Mentions({ site, onLogged }: Props) {
         issue={opened}
         site={site}
         backLabel="Mentions"
-        onBack={() => setOpened(null)}
+        onBack={() => {
+          setOpened(null);
+          void refreshMentions("manual");
+        }}
         onLogged={onLogged}
       />
     );

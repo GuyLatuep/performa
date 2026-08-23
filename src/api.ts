@@ -107,6 +107,9 @@ export interface ActivityWorklog {
  *  see CONTEXT.md. */
 export interface IssueActivity {
   comments: IssueComment[];
+  /** Older comments exist beyond the page that was read. Status changes and
+   *  worklogs are always complete; comments are not. */
+  commentsTruncated: boolean;
   statusChanges: StatusChange[];
   worklogs: ActivityWorklog[];
 }
@@ -484,8 +487,8 @@ export const api = {
       `issue_activity(issueKey=${issueKey})`,
       () => invoke("issue_activity", { issueKey }),
       (a) =>
-        `${a.comments.length} comment(s), ${a.statusChanges.length} status change(s), ` +
-        `${a.worklogs.length} worklog(s)`,
+        `${a.comments.length} comment(s)${a.commentsTruncated ? "+" : ""}, ` +
+        `${a.statusChanges.length} status change(s), ${a.worklogs.length} worklog(s)`,
     );
   },
   /** Post a comment on an issue.

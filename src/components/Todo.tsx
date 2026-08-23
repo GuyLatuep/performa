@@ -56,7 +56,13 @@ export default function Todo({ site, onLogged }: Props) {
         issue={opened}
         site={site}
         backLabel="Todo"
-        onBack={() => setOpened(null)}
+        onBack={() => {
+          setOpened(null);
+          // The issue may have been moved out of this list while it was open;
+          // the list stayed mounted behind the view and would otherwise still
+          // show the status it had on the way in.
+          reload();
+        }}
         onLogged={onLogged}
       />
     );

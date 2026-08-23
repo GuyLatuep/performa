@@ -22,6 +22,7 @@ use serde_json::Value;
 use super::types::*;
 use super::{
     adf_doc, adf_to_text, format_rfc3339_local, parse_jira_ts, split_billable, JiraClient,
+    COMMENT_PAGE_LIMIT,
 };
 
 /// Enough names to choose from without turning the picker into a list to be
@@ -37,7 +38,7 @@ const USER_SEARCH_LIMIT: u32 = 15;
 pub(super) type FieldCache = Arc<tokio::sync::Mutex<Option<HashMap<String, String>>>>;
 
 /// The standard fields the view shows, requested by name on every issue.
-const STANDARD_FIELDS: [&str; 11] = [
+const STANDARD_FIELDS: [&str; 12] = [
     "summary",
     "status",
     "priority",
@@ -49,6 +50,9 @@ const STANDARD_FIELDS: [&str; 11] = [
     "updated",
     "description",
     "attachment",
+    // Only for `projectTypeKey` — what actually says whether a comment here
+    // can be public. See `service_desk` below.
+    "project",
 ];
 
 /// The field that only exists on service-desk requests, under either of the
@@ -87,99 +91,6 @@ impl JiraClient {
         if let Err(e) = self.field_ids().await {
             log::debug!("field catalog warm-up failed: {e}");
         }
-    }
-
-    /// Fetch one attachment's bytes and write them beside the app's other
-    /// scratch files, returning the path.
-    ///
-    /// Downloaded here rather than in the webview because this is where the
-    /// credentials are: Jira's attachment content is behind the same auth as
-    /// everything else, and a URL the webview could fetch would mean handing
-    /// the webview a credential.
-    pub async fn download_attachment(
-        &self,
-        attachment_id: &str,
-        filename: &str,
-        dir: &std::path::Path,
-    ) -> Result<std::path::PathBuf, String> {
-        let resp = self
-            .http
-            .get(self.url(&format!("/rest/api/3/attachment/content/{attachment_id}")))
-            .header("Authorization", &self.auth)
-            .send()
-            .await
-            .map_err(|e| format!("attachment download failed: {e}"))?;
-        let resp = Self::check(resp).await?;
-        let bytes = resp
-            .bytes()
-            .await
-            .map_err(|e| format!("attachment download failed: {e}"))?;
-
-        std::fs::create_dir_all(dir)
-            .map_err(|e| format!("could not create the download folder: {e}"))?;
-        // Namespaced by attachment id: two issues can each hold a "report.pdf",
-        // and the second must not quietly overwrite the first.
-        let path = dir.join(format!("{attachment_id}-{filename}"));
-        std::fs::write(&path, &bytes)
-            .map_err(|e| format!("could not write {}: {e}", path.display()))?;
-        log::info!(
-            "downloaded attachment {attachment_id} ({} bytes) to {}",
-            bytes.len(),
-            path.display()
-        );
-        Ok(path)
-    }
-
-    /// Remove one attachment from an issue.
-    ///
-    /// Jira has no undo for this — the file is gone from the issue for
-    /// everyone, not just this user — so the confirmation belongs in front of
-    /// the call, in the view.
-    pub async fn delete_attachment(&self, attachment_id: &str) -> Result<(), String> {
-        let result = self
-            .send_ok(
-                self.http
-                    .delete(self.url(&format!("/rest/api/3/attachment/{attachment_id}"))),
-            )
-            .await;
-        match &result {
-            Ok(()) => log::info!("deleted attachment {attachment_id}"),
-            Err(e) => log::error!("deleting attachment {attachment_id} failed: {e}"),
-        }
-        result
-    }
-
-    /// Attach one file to an issue.
-    ///
-    /// `X-Atlassian-Token: no-check` is Jira's XSRF opt-out and is required on
-    /// this endpoint; without it the request is rejected outright.
-    pub async fn upload_attachment(
-        &self,
-        issue_key: &str,
-        path: &std::path::Path,
-    ) -> Result<(), String> {
-        let filename = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| format!("{} has no file name", path.display()))?
-            .to_string();
-        let bytes =
-            std::fs::read(path).map_err(|e| format!("could not read {}: {e}", path.display()))?;
-        let part = reqwest::multipart::Part::bytes(bytes).file_name(filename.clone());
-        let form = reqwest::multipart::Form::new().part("file", part);
-        let result = self
-            .send_ok(
-                self.http
-                    .post(self.url(&format!("/rest/api/3/issue/{issue_key}/attachments")))
-                    .header("X-Atlassian-Token", "no-check")
-                    .multipart(form),
-            )
-            .await;
-        match &result {
-            Ok(()) => log::info!("attached {filename} to {issue_key}"),
-            Err(e) => log::error!("attaching {filename} to {issue_key} failed: {e}"),
-        }
-        result
     }
 
     /// People matching `query`, for the comment box's mention picker.
@@ -324,9 +235,22 @@ impl JiraClient {
             })
             .collect();
 
-        let service_desk = request_type_fields
-            .iter()
-            .any(|(_, id)| fields.get(id).is_some_and(|v| !v.is_null()));
+        // Whether a comment can be public is a property of the *project*, not
+        // of one issue's fields. An agent-raised service-desk ticket carries no
+        // request type, and taking that to mean "not a service desk" would have
+        // the view offer a single comment button that posts publicly — telling
+        // the user it is visible to everyone who can see the issue while it in
+        // fact reaches the customer. The request type is kept as a fallback for
+        // the case where `project` is not returned at all.
+        let service_desk = fields
+            .pointer("/project/projectTypeKey")
+            .and_then(Value::as_str)
+            .map(|kind| kind.eq_ignore_ascii_case("service_desk"))
+            .unwrap_or_else(|| {
+                request_type_fields
+                    .iter()
+                    .any(|(_, id)| fields.get(id).is_some_and(|v| !v.is_null()))
+            });
 
         Ok(IssueDetail {
             key: raw
@@ -349,7 +273,7 @@ impl JiraClient {
                 .unwrap_or_default(),
             details,
             service_desk,
-            attachments: attachments(fields.get("attachment")),
+            attachments: super::attachments::attachments(fields.get("attachment")),
         })
     }
 
@@ -373,6 +297,7 @@ impl JiraClient {
             self.issue_worklogs(issue_key, "0"),
         )?;
 
+        let comments_truncated = raw_comments.len() >= COMMENT_PAGE_LIMIT;
         let mut comments: Vec<IssueComment> = Vec::new();
         for c in raw_comments {
             let (created_at, created_ts) = stamp(&c.created);
@@ -440,6 +365,7 @@ impl JiraClient {
 
         Ok(IssueActivity {
             comments,
+            comments_truncated,
             status_changes,
             worklogs,
         })
@@ -579,34 +505,6 @@ pub(super) fn field_metas(fields: HashMap<String, RawTransitionField>) -> Vec<Fi
     metas
 }
 
-/// The issue's attachments, newest first. An absent or malformed field simply
-/// means no attachments — the rest of the issue is still worth showing.
-fn attachments(value: Option<&Value>) -> Vec<Attachment> {
-    let Some(raw) = value else { return Vec::new() };
-    let Ok(parsed) = serde_json::from_value::<Vec<RawAttachment>>(raw.clone()) else {
-        return Vec::new();
-    };
-    let mut items: Vec<(i64, Attachment)> = parsed
-        .into_iter()
-        .map(|a| {
-            let (created_at, created_ts) = stamp(&a.created);
-            (
-                created_ts,
-                Attachment {
-                    id: a.id,
-                    filename: a.filename,
-                    size: a.size,
-                    mime_type: a.mime_type,
-                    author: author_name(a.author.as_ref()),
-                    created_at,
-                },
-            )
-        })
-        .collect();
-    items.sort_by_key(|(ts, _)| std::cmp::Reverse(*ts));
-    items.into_iter().map(|(_, a)| a).collect()
-}
-
 /// Field names are compared without case, spaces or punctuation, so the
 /// configured "Plant-No." still finds a field the site calls "Plant No".
 fn normalize_name(name: &str) -> String {
@@ -655,7 +553,7 @@ fn field_value(v: &Value) -> Option<String> {
 /// colon, which `new Date(…)` does not parse. The seconds are what it sorts
 /// the three activity lists on. An unparseable stamp yields an empty string
 /// and 0 rather than a wrong date.
-fn stamp(jira_ts: &str) -> (String, i64) {
+pub(super) fn stamp(jira_ts: &str) -> (String, i64) {
     match parse_jira_ts(jira_ts) {
         Some(ts) => (format_rfc3339_local(ts), ts),
         None => (String::new(), 0),
@@ -668,7 +566,7 @@ fn local_ts(jira_ts: &str) -> String {
 }
 
 /// Jira omits `displayName` for deleted or anonymised users.
-fn author_name(author: Option<&WorklogAuthor>) -> String {
+pub(super) fn author_name(author: Option<&WorklogAuthor>) -> String {
     author
         .and_then(|a| a.display_name.clone())
         .filter(|n| !n.trim().is_empty())

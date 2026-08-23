@@ -146,7 +146,14 @@ export function missingRequired(
 ): string[] {
   return fields
     .filter(
-      (f) => f.required && (f.kind === "unsupported" || isBlank(values[f.id])),
+      (f) =>
+        f.required &&
+        (f.kind === "unsupported" ||
+          isBlank(values[f.id]) ||
+          // A value that cannot be shaped is dropped by `toJiraFields`, so a
+          // required field holding one would be submitted absent — producing
+          // exactly the raw Jira 400 this check exists to prevent.
+          shapeValue(f, values[f.id]) === undefined),
     )
     .map((f) => f.name);
 }

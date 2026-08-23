@@ -149,6 +149,16 @@ describe("missingRequired", () => {
     expect(missingRequired(fields, { u: "" })).toEqual(["Approver"]);
   });
 
+  it("counts a required number that will not parse as missing", () => {
+    // toJiraFields drops it, so letting it through would submit the transition
+    // without the field and hit the 400 this check exists to avoid.
+    const fields = toFormFields([
+      meta({ id: "n", name: "Effort", required: true, schemaType: "number" }),
+    ]);
+    expect(missingRequired(fields, { n: "1,5" })).toEqual(["Effort"]);
+    expect(missingRequired(fields, { n: "1.5" })).toEqual([]);
+  });
+
   it("ignores an empty optional field", () => {
     const fields = toFormFields([meta({ id: "n", name: "Notes" })]);
     expect(missingRequired(fields, { n: "" })).toEqual([]);
