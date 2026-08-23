@@ -134,27 +134,35 @@ function MentionRow({
   unread: boolean;
   onOpen: (issue: IssueSummary) => void;
 }) {
-  // Jira scrolls to and highlights the comment itself with this parameter,
-  // which is the whole point of clicking a mention.
-  const commentUrl =
-    `${site}/browse/${item.issueKey}` +
-    `?focusedCommentId=${item.commentId}#comment-${item.commentId}`;
+  // A Mention means somebody wants something from you, and the expected
+  // response is to go and look — so the row opens the issue here. The key is
+  // the one exception, kept as the way out to Jira for what this view cannot
+  // do; the same split the todo tab's rows use.
+  const open = () => onOpen({ key: item.issueKey, summary: item.issueSummary });
 
   return (
     <div className={`worklog-row mention-row${unread ? " unread" : ""}`}>
       <div className="worklog-main">
-        <button
-          className="mention-head"
-          title={`Open ${item.issueKey} in browser`}
-          onClick={() => openUrl(`${site}/browse/${item.issueKey}`)}
-        >
-          <span className="key">{item.issueKey}</span>
-          <span className="summary">{item.issueSummary}</span>
-        </button>
+        <div className="mention-head">
+          <button
+            className="issue-open key"
+            title={`Open ${item.issueKey} in browser`}
+            onClick={() => openUrl(`${site}/browse/${item.issueKey}`)}
+          >
+            {item.issueKey}
+          </button>
+          <button
+            className="mention-summary"
+            title={`Open ${item.issueKey}`}
+            onClick={open}
+          >
+            <span className="summary">{item.issueSummary}</span>
+          </button>
+        </div>
         <button
           className="mention-body"
-          title="Open the comment in browser"
-          onClick={() => openUrl(commentUrl)}
+          title={`Open ${item.issueKey}`}
+          onClick={open}
         >
           {item.author}: {item.text ? `“${item.text}”` : "mentioned you"}
         </button>
@@ -164,20 +172,6 @@ function MentionRow({
           {unread && <span className="unread-dot" title="Unread" />}
           {timeAgo(item.createdAt)}
         </span>
-        {/* A deliberate exception to the line between the two inboxes: a
-            Mention is something to go and look at, and logging forgotten time
-            is the missing-worklog tab's job. It is here by user request,
-            because being pinged is often the moment work starts — hence the
-            shortcut, demoted so the row still reads as "go look at this". */}
-        <button
-          className="link mention-log"
-          title={`Open ${item.issueKey}`}
-          onClick={() =>
-            onOpen({ key: item.issueKey, summary: item.issueSummary })
-          }
-        >
-          Open issue
-        </button>
       </div>
     </div>
   );

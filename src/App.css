@@ -1140,10 +1140,15 @@ header {
 /* A mention reads as two stacked lines: the issue it happened on, then the
    comment itself. Both lines are buttons — the head opens the issue, the body
    the focused comment. */
+/* Two targets, not one: the key goes to Jira, the summary opens the issue
+   here — the same split the todo tab's rows use. */
 .mention-head {
   display: flex;
   align-items: baseline;
   gap: 10px;
+  min-width: 0;
+}
+.mention-summary {
   min-width: 0;
   background: none;
   border: none;
@@ -1152,21 +1157,20 @@ header {
   letter-spacing: normal;
   text-transform: none;
 }
-.mention-head:hover {
+.mention-summary:hover {
   background: none;
+  border: none;
   color: var(--ink);
 }
-.mention-head:hover .key {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.mention-head .summary {
+.mention-summary .summary {
   font-size: 13px;
   color: var(--muted);
   min-width: 0;
 }
-.mention-head:hover .summary {
+.mention-summary:hover .summary {
   color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 /* The excerpt wraps; four lines is the ceiling, past which it is clipped with
    an ellipsis by the browser. */
@@ -1233,15 +1237,6 @@ header {
    other tab's subject, and this shortcut is a convenience on top: muted and
    without the usual link underline at rest, picking both up only on hover.
    `button.` on the selector to outweigh `button.link` above. */
-button.mention-log {
-  white-space: nowrap;
-  color: var(--muted);
-  font-weight: 400;
-  text-decoration: none;
-}
-button.mention-log:hover {
-  text-decoration: underline;
-}
 .unread-dot {
   width: 7px;
   height: 7px;
