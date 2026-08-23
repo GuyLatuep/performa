@@ -1513,10 +1513,17 @@ button.mention-log:hover {
   line-height: 1.55;
 }
 
+/* Scrolls past a screenful, like the attachment list above it — a busy
+   service-desk issue can carry dozens of entries, and the whole point of this
+   view is that the parts stay reachable without a long scroll through one of
+   them. Taller than the attachment cap because entries vary from one line to
+   a paragraph, and this is the part people actually read. */
 .issue-timeline {
   list-style: none;
   margin: 0;
   padding: 0;
+  max-height: 32rem;
+  overflow-y: auto;
 }
 .timeline-entry {
   padding: 10px 0 10px 12px;
@@ -1729,10 +1736,16 @@ button.mention-log:hover {
 .attachments.dropping {
   border-color: var(--ink);
 }
+/* Five rows, then scroll. An issue with twenty files would otherwise push
+   everything below it — the comment box included — off the screen.
+   Approximate by design: a long filename wraps to a second line and shows four
+   rows rather than five, which is better than clipping one mid-row. */
 .attachment-list {
   list-style: none;
   margin: 0 0 12px;
   padding: 0;
+  max-height: 10.5rem;
+  overflow-y: auto;
 }
 .attachment-list li {
   display: flex;

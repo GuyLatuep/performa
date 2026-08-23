@@ -1,4 +1,5 @@
 import { IssueActivity } from "../api";
+
 import { statusChangeLabel, timeline, TimelineEntry } from "../activity";
 import { formatDuration, timeAgo } from "../time";
 
@@ -64,4 +65,14 @@ function TimelineBody({ entry }: { entry: TimelineEntry }) {
         </p>
       );
   }
+}
+
+/** How many entries the timeline holds. Shown in the heading because the list
+ *  scrolls, which is precisely what stops the total being countable by eye. */
+export function timelineCount(activity: IssueActivity): number {
+  return (
+    activity.comments.length +
+    activity.statusChanges.length +
+    activity.worklogs.length
+  );
 }

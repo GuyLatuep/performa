@@ -15,7 +15,7 @@ import IssueAttachments from "./IssueAttachments";
 import IssueDescription from "./IssueDescription";
 import IssueFacts from "./IssueFacts";
 import IssueStatusPicker from "./IssueStatusPicker";
-import IssueTimeline from "./IssueTimeline";
+import IssueTimeline, { timelineCount } from "./IssueTimeline";
 import TransitionScreen from "./TransitionScreen";
 
 interface Props {
@@ -185,7 +185,11 @@ export default function IssueView({
           )}
 
           <section className="issue-section">
-            <h3>Attachments</h3>
+            <h3>
+              Attachments
+              {detail.attachments.length > 0 &&
+                ` · ${detail.attachments.length}`}
+            </h3>
             <IssueAttachments
               issueKey={issue.key}
               attachments={detail.attachments}
@@ -208,7 +212,10 @@ export default function IssueView({
       )}
 
       <section className="issue-section">
-        <h3>Timeline</h3>
+        <h3>
+          Timeline
+          {activity && ` · ${timelineCount(activity)}`}
+        </h3>
         {!activity && !error && <p className="muted">Loading…</p>}
         {activity && <IssueTimeline activity={activity} />}
       </section>
