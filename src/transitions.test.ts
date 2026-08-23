@@ -50,12 +50,12 @@ describe("offeredTransitions", () => {
   it("blocks a move whose required field has no input in this app", () => {
     const [offered] = offeredTransitions([
       transition({
-        fields: [meta({ name: "Approver", schemaType: "user" })],
+        fields: [meta({ name: "Linked issues", schemaType: "any" })],
       }),
     ]);
     expect(offered.mode).toBe("blocked");
     expect(offered.title).toBe(
-      "Needs Approver, which this app cannot fill in — finish this move in Jira",
+      "Needs Linked issues, which this app cannot fill in — finish this move in Jira",
     );
   });
 
@@ -93,7 +93,7 @@ describe("offeredTransitions", () => {
     // The order is a sequence somebody designed; re-sorting it would scramble
     // the story the workflow tells.
     const offered = offeredTransitions([
-      transition({ id: "1", fields: [meta({ schemaType: "user" })] }),
+      transition({ id: "1", fields: [meta({ schemaType: "any" })] }),
       transition({ id: "2" }),
     ]);
     expect(offered.map((t) => t.id)).toEqual(["1", "2"]);
@@ -146,7 +146,7 @@ describe("statusOptions", () => {
         transition({
           id: "1",
           to: "Done",
-          fields: [meta({ schemaType: "user" })],
+          fields: [meta({ schemaType: "any" })],
         }),
       ]),
     );

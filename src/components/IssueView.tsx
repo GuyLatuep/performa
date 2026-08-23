@@ -8,7 +8,7 @@ import {
   Transition,
 } from "../api";
 import { OfferedTransition } from "../transitions";
-import { requestedFieldNames, useIssueFieldConfig } from "../issueFieldNames";
+import { useIssueFieldConfig } from "../issueFieldNames";
 import { logInfo } from "../log";
 import IssueActions from "./IssueActions";
 import IssueAttachments from "./IssueAttachments";
@@ -50,7 +50,7 @@ export default function IssueView({
   const fieldConfig = useIssueFieldConfig();
   // A stable key: the request depends on the configured names, so changing
   // them in settings has to re-run the effect.
-  const fieldNames = requestedFieldNames(fieldConfig).join("|");
+  const fieldNames = fieldConfig.detail.join("|");
 
   useEffect(() => {
     let cancelled = false;
@@ -149,8 +149,8 @@ export default function IssueView({
         <>
           <IssueFacts
             detail={detail}
-            teamField={fieldConfig.team}
             issueKey={issue.key}
+            site={site}
             onChanged={reload}
           />
 

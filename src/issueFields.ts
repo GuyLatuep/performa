@@ -20,6 +20,7 @@ export type FieldKind =
   | "multiselect"
   | "checkboxes"
   | "labels"
+  | "user"
   | "unsupported";
 
 /** A field ready to render. */
@@ -53,6 +54,7 @@ const CUSTOM_KINDS: Record<string, FieldKind> = {
   multiselect: "multiselect",
   multicheckboxes: "checkboxes",
   labels: "labels",
+  userpicker: "user",
 };
 
 /** Built-in fields that hold rich text. Their schema type is plain "string"
@@ -92,6 +94,9 @@ export function fieldKind(meta: FieldMeta): FieldKind {
   if (meta.schemaType === "number") return "number";
   if (meta.schemaType === "date") return "date";
   if (meta.schemaType === "datetime") return "datetime";
+  // Searched rather than listed: Jira sends no allowedValues for a user field,
+  // so the input queries the site instead of rendering a fixed list.
+  if (meta.schemaType === "user") return "user";
   if (CHOICE_TYPES.includes(meta.schemaType)) return "select";
   if (meta.schemaType === "array") {
     if (meta.schemaItems && CHOICE_TYPES.includes(meta.schemaItems))
@@ -203,6 +208,10 @@ function shapeValue(field: FormField, value: FieldValue): unknown {
     case "select":
     case "radio":
       return optionRef(field, value as string);
+    case "user":
+      // A user is identified by account id and nothing else — display names
+      // are neither unique nor stable.
+      return { accountId: value as string };
     case "multiselect":
     case "checkboxes":
       return (value as string[]).map((id) => optionRef(field, id));

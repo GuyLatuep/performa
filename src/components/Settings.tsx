@@ -84,7 +84,7 @@ export default function Settings({
   }, []);
 
   return (
-    <div className="setup">
+    <div className={`setup${onCancel ? " settings-page" : ""}`}>
       <div className="setup-mark">
         <Blockmark />
       </div>

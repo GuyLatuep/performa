@@ -113,90 +113,92 @@ export default function SettingsTodo() {
         </div>
       </div>
 
-      <div className="field-block">
-        <span className="field-label">Hide from the todo tab</span>
-        {statuses === null && project && <p className="muted">Loading…</p>}
-        {statuses?.length === 0 && !error && (
-          <p className="muted">This project has no open statuses.</p>
-        )}
-        <div className="status-picker">
-          {[...offered, ...retired].map((name) => (
-            <label className="checkbox" key={name}>
-              <input
-                type="checkbox"
-                checked={hidden.includes(name)}
-                onChange={() => toggleIgnoredStatus(project, name)}
-              />
-              <span>{name}</span>
-            </label>
-          ))}
-        </div>
-        {error && <p className="error">{error}</p>}
-      </div>
-
-      {others.length > 0 && (
+      <div className="settings-columns">
         <div className="field-block">
-          <span className="field-label">Copy to</span>
-          {!copying && (
-            <div className="hours-field">
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => {
-                  setCopied(0);
-                  setCopying(true);
-                }}
-              >
-                Copy to other projects…
-              </button>
-              <span className="hint">
-                {copied > 0
-                  ? `copied to ${copied} project${copied === 1 ? "" : "s"}`
-                  : `gives them the same ${hidden.length} status${
-                      hidden.length === 1 ? "" : "es"
-                    } as ${project}`}
-              </span>
-            </div>
+          <span className="field-label">Hide from the todo tab</span>
+          {statuses === null && project && <p className="muted">Loading…</p>}
+          {statuses?.length === 0 && !error && (
+            <p className="muted">This project has no open statuses.</p>
           )}
-          {copying && (
-            <>
-              <div className="status-picker">
-                {others.map((p) => (
-                  <label className="checkbox" key={p.key}>
-                    <input
-                      type="checkbox"
-                      checked={copyTargets.includes(p.key)}
-                      onChange={() => toggleTarget(p.key)}
-                    />
-                    <span>
-                      {p.key} · {p.name}
-                    </span>
-                  </label>
-                ))}
-              </div>
-              <div className="row">
+          <div className="status-picker">
+            {[...offered, ...retired].map((name) => (
+              <label className="checkbox" key={name}>
+                <input
+                  type="checkbox"
+                  checked={hidden.includes(name)}
+                  onChange={() => toggleIgnoredStatus(project, name)}
+                />
+                <span>{name}</span>
+              </label>
+            ))}
+          </div>
+          {error && <p className="error">{error}</p>}
+        </div>
+
+        {others.length > 0 && (
+          <div className="field-block">
+            <span className="field-label">Copy to</span>
+            {!copying && (
+              <div className="hours-field">
                 <button
                   type="button"
                   className="secondary"
-                  onClick={() => setCopying(false)}
+                  onClick={() => {
+                    setCopied(0);
+                    setCopying(true);
+                  }}
                 >
-                  Cancel
+                  Copy to other projects…
                 </button>
-                <button
-                  type="button"
-                  onClick={copy}
-                  disabled={copyTargets.length === 0}
-                >
-                  Copy
-                </button>
+                <span className="hint">
+                  {copied > 0
+                    ? `copied to ${copied} project${copied === 1 ? "" : "s"}`
+                    : `gives them the same ${hidden.length} status${
+                        hidden.length === 1 ? "" : "es"
+                      } as ${project}`}
+                </span>
               </div>
-              <span className="hint">
-                replaces whatever those projects hide today
-              </span>
-            </>
-          )}
-        </div>
-      )}
+            )}
+            {copying && (
+              <>
+                <div className="status-picker">
+                  {others.map((p) => (
+                    <label className="checkbox" key={p.key}>
+                      <input
+                        type="checkbox"
+                        checked={copyTargets.includes(p.key)}
+                        onChange={() => toggleTarget(p.key)}
+                      />
+                      <span>
+                        {p.key} · {p.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="row">
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => setCopying(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={copy}
+                    disabled={copyTargets.length === 0}
+                  >
+                    Copy
+                  </button>
+                </div>
+                <span className="hint">
+                  replaces whatever those projects hide today
+                </span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </>
   );
 }

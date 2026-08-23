@@ -11,6 +11,7 @@ import {
 import CommentMirror from "./CommentMirror";
 import MentionPicker from "./MentionPicker";
 import { logInfo } from "../log";
+import { useDismissOnOutside } from "../dismiss";
 
 /** Write one comment, of the kind the row selected. Which kinds exist at all
  *  is a property of the issue — see `commentActions`. */
@@ -38,6 +39,9 @@ export default function CommentPanel({
   const [active, setActive] = useState(0);
   const box = useRef<HTMLTextAreaElement>(null);
   const mirror = useRef<HTMLDivElement>(null);
+  const compose = useRef<HTMLDivElement>(null);
+
+  useDismissOnOutside(compose, () => setQuery(null), query !== null);
 
   // Debounced: the picker follows keystrokes, and one request per character
   // would be a request per character.
@@ -162,7 +166,7 @@ export default function CommentPanel({
 
   return (
     <div className="action-panel">
-      <div className="comment-compose">
+      <div className="comment-compose" ref={compose}>
         <CommentMirror ref={mirror} text={text} picked={picked} />
         <textarea
           ref={box}

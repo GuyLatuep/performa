@@ -80,8 +80,14 @@ describe("fieldKind", () => {
     ).toBe("checkboxes");
   });
 
+  it("gives a user field its own searching input", () => {
+    // Jira sends no allowedValues for these, so they cannot be a select.
+    expect(fieldKind(meta({ schemaType: "user" }))).toBe("user");
+    expect(fieldKind(meta({ schemaCustom: "…:userpicker" }))).toBe("user");
+  });
+
   it("calls the types it has no input for unsupported", () => {
-    expect(fieldKind(meta({ schemaType: "user" }))).toBe("unsupported");
+    // Several users at once, and cascading selects, are still out of scope.
     expect(fieldKind(meta({ schemaType: "array", schemaItems: "user" }))).toBe(
       "unsupported",
     );
@@ -144,7 +150,7 @@ describe("missingRequired", () => {
   it("reports a required field this app cannot render", () => {
     // Submitting would fail at Jira; saying so first is the point of checking.
     const fields = toFormFields([
-      meta({ id: "u", name: "Approver", required: true, schemaType: "user" }),
+      meta({ id: "u", name: "Approver", required: true, schemaType: "any" }),
     ]);
     expect(missingRequired(fields, { u: "" })).toEqual(["Approver"]);
   });
@@ -167,10 +173,8 @@ describe("missingRequired", () => {
 
 describe("screenIsFillable", () => {
   it("is false only when a *required* field is unrenderable", () => {
-    const blocked = toFormFields([
-      meta({ required: true, schemaType: "user" }),
-    ]);
-    const optional = toFormFields([meta({ schemaType: "user" })]);
+    const blocked = toFormFields([meta({ required: true, schemaType: "any" })]);
+    const optional = toFormFields([meta({ schemaType: "any" })]);
     expect(screenIsFillable(blocked)).toBe(false);
     expect(screenIsFillable(optional)).toBe(true);
     expect(screenIsFillable([])).toBe(true);
@@ -256,6 +260,14 @@ describe("toJiraFields", () => {
     expect(toJiraFields(fields, { s: " short " })).toEqual({ s: "short" });
   });
 
+  it("sends a user as an account id", () => {
+    // Display names are neither unique nor stable; the account id is.
+    const fields = toFormFields([meta({ id: "assignee", schemaType: "user" })]);
+    expect(toJiraFields(fields, { assignee: "acc-1" })).toEqual({
+      assignee: { accountId: "acc-1" },
+    });
+  });
+
   it("sends a number as a number", () => {
     const fields = toFormFields([meta({ id: "n", schemaType: "number" })]);
     expect(toJiraFields(fields, { n: " 42 " })).toEqual({ n: 42 });
@@ -275,7 +287,7 @@ describe("toJiraFields", () => {
   });
 
   it("never sends a field it cannot render", () => {
-    const fields = toFormFields([meta({ id: "u", schemaType: "user" })]);
+    const fields = toFormFields([meta({ id: "u", schemaType: "any" })]);
     expect(toJiraFields(fields, { u: "someone" })).toEqual({});
   });
 

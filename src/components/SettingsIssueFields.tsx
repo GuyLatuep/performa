@@ -2,36 +2,22 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import {
   addDetailField,
+  isWideField,
   moveDetailField,
   removeDetailField,
-  setTeamField,
+  toggleWideField,
   useIssueFieldConfig,
 } from "../issueFieldNames";
 
-/** Which of the site's own fields the issue view shows, in which order, and
- *  which one it can change.
+/** Which of the site's own fields the issue view shows, and in which order.
  *
- *  The names are picked from the site's field catalog rather than typed: a
- *  name that doesn't exist resolves to nothing and the field would just
- *  silently never appear, which is a hard thing to debug from the outside. */
-/** The facts the issue view always shows above the configured ones. Adding one
- *  here would render it twice — once as a standard fact and once as a
- *  configured field — under the same key. */
-const STANDARD_FACTS = [
-  "status",
-  "priority",
-  "issue type",
-  "reporter",
-  "assignee",
-  "due date",
-  "summary",
-  "description",
-];
-
-function isStandardFact(name: string): boolean {
-  return STANDARD_FACTS.includes(name.trim().toLowerCase());
-}
-
+ *  Only what is *shown* is configured. Whether a field can be changed is asked
+ *  of the issue's own edit form instead — it depends on issue type and
+ *  permission, so it is not something a setting could get right.
+ *
+ *  The names are picked from the site's field catalog rather than typed: a name
+ *  that doesn't exist resolves to nothing and the field would just silently
+ *  never appear, which is a hard thing to debug from the outside. */
 export default function SettingsIssueFields() {
   const config = useIssueFieldConfig();
   const [names, setNames] = useState<string[] | null>(null);
@@ -54,9 +40,7 @@ export default function SettingsIssueFields() {
   }, []);
 
   const shown = new Set(config.detail.map((n) => n.toLowerCase()));
-  const addable = (names ?? []).filter(
-    (n) => !shown.has(n.toLowerCase()) && !isStandardFact(n),
-  );
+  const addable = (names ?? []).filter((n) => !shown.has(n.toLowerCase()));
 
   return (
     <div className="field-block">
@@ -64,7 +48,8 @@ export default function SettingsIssueFields() {
       <p className="hint">
         Shown on an issue below its standard fields, in this order. Summary,
         status, priority, reporter and description are always shown and are not
-        listed here.
+        listed here. ⇔ gives a field the full width, under the description — for
+        the ones holding prose rather than a word or two.
       </p>
 
       {error && <p className="error">{error}</p>}
@@ -74,6 +59,17 @@ export default function SettingsIssueFields() {
         {config.detail.map((name, i) => (
           <li key={name}>
             <span className="field-name">{name}</span>
+            <button
+              className={`icon${isWideField(config, name) ? " on" : ""}`}
+              title={
+                isWideField(config, name)
+                  ? `${name} is shown full width — put it back in the grid`
+                  : `Show ${name} full width, under the description`
+              }
+              onClick={() => toggleWideField(name)}
+            >
+              ⇔
+            </button>
             <button
               className="icon"
               title="Move up"
@@ -126,25 +122,6 @@ export default function SettingsIssueFields() {
           Add
         </button>
       </div>
-
-      <h3>Editable field</h3>
-      <p className="hint">
-        The one field the issue view offers to change — the team an issue
-        belongs to, on most sites. Everything else is read-only there. What it
-        accepts comes from Jira, so only values the field actually allows are
-        offered.
-      </p>
-      <select
-        value={config.team}
-        onChange={(e) => setTeamField(e.target.value)}
-      >
-        <option value="">None — nothing is editable</option>
-        {(names ?? []).map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

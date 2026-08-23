@@ -37,6 +37,9 @@ const USER_SEARCH_LIMIT: u32 = 15;
 /// caches, hence the `Arc`. `None` = not fetched yet.
 pub(super) type FieldCache = Arc<tokio::sync::Mutex<Option<HashMap<String, String>>>>;
 
+/// Assets object id → its display name. See [`JiraClient::asset_label`].
+pub(super) type AssetCache = Arc<tokio::sync::Mutex<HashMap<String, String>>>;
+
 /// The standard fields the view shows, requested by name on every issue.
 const STANDARD_FIELDS: [&str; 12] = [
     "summary",
@@ -82,6 +85,41 @@ impl JiraClient {
         }
         log::info!("field catalog: {} field(s) in {elapsed}ms", map.len());
         Ok(guard.insert(map).clone())
+    }
+
+    /// What an Assets object is called, fetched once per object per app run.
+    ///
+    /// Assets is a separate service on `api.atlassian.com` — the issue API
+    /// hands out references into it and nothing more — so this is one extra
+    /// request per distinct object. Cached because objects are reference data:
+    /// several issues point at the same machine, and its name does not change
+    /// while the app is open.
+    async fn asset_label(&self, workspace_id: &str, object_id: &str) -> Option<String> {
+        if let Some(hit) = self.asset_cache.lock().await.get(object_id) {
+            return Some(hit.clone());
+        }
+        let url = format!(
+            "https://api.atlassian.com/jsm/assets/workspace/{workspace_id}/v1/object/{object_id}"
+        );
+        let object: RawAssetObject = match self.get_json_absolute(&url, "asset").await {
+            Ok(o) => o,
+            Err(e) => {
+                // Not fatal: the rest of the issue is still worth showing, and
+                // the field simply stays absent as it did before.
+                log::info!("asset {object_id} could not be read: {e}");
+                return None;
+            }
+        };
+        let label = object
+            .label
+            .or(object.object_key)
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())?;
+        self.asset_cache
+            .lock()
+            .await
+            .insert(object_id.to_string(), label.clone());
+        Some(label)
     }
 
     /// Fetch the catalog ahead of the first issue view, so its cost is not
@@ -168,6 +206,25 @@ impl JiraClient {
         .await
     }
 
+    /// Whatever Assets objects a field value points at, named and addressable.
+    /// `None` when it points at none.
+    async fn asset_names(&self, raw: Option<&Value>) -> Option<Vec<AssetLink>> {
+        let refs = asset_refs(raw?);
+        if refs.is_empty() {
+            return None;
+        }
+        let mut links = Vec::new();
+        for r in refs {
+            if let Some(name) = self.asset_label(&r.workspace_id, &r.object_id).await {
+                links.push(AssetLink {
+                    name,
+                    object_id: r.object_id,
+                });
+            }
+        }
+        (!links.is_empty()).then_some(links)
+    }
+
     /// One issue with everything the detail view shows. `wanted` names the
     /// site-specific fields to include, in display order.
     pub async fn issue_detail(
@@ -194,7 +251,7 @@ impl JiraClient {
         if wanted_fields.len() != wanted.len() {
             let known: Vec<&str> = wanted_fields.iter().map(|(l, _)| l.as_str()).collect();
             let unknown: Vec<&&str> = wanted.iter().filter(|l| !known.contains(&(**l))).collect();
-            log::debug!("issue_detail: no field named {unknown:?} on this site");
+            log::info!("issue_detail: no field named {unknown:?} on this site");
         }
 
         // Naming every field keeps the response small — see the module docs.
@@ -223,17 +280,49 @@ impl JiraClient {
                 .map(str::to_string)
         };
 
-        let details: Vec<IssueField> = wanted_fields
-            .iter()
-            .filter_map(|(label, id)| {
-                let value = field_value(fields.get(id)?)?;
-                Some(IssueField {
+        // A field that resolves but renders as nothing disappears from the
+        // view exactly as an unconfigured one would. The two have completely
+        // different fixes, so they are logged apart — with the raw shape, since
+        // "empty" usually means a value type `field_value` has not met.
+        let mut unrendered: Vec<String> = Vec::new();
+        let mut details: Vec<IssueField> = Vec::new();
+        for (label, id) in &wanted_fields {
+            let raw = fields.get(id);
+            // Nothing to show directly — but an Assets field only ever holds
+            // references, so this is where its objects get named.
+            let assets = match raw.and_then(field_value) {
+                Some(_) => Vec::new(),
+                None => self.asset_names(raw).await.unwrap_or_default(),
+            };
+            let value = raw.and_then(field_value).or_else(|| {
+                (!assets.is_empty()).then(|| {
+                    assets
+                        .iter()
+                        .map(|a| a.name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+            });
+            match value {
+                Some(value) => details.push(IssueField {
                     id: id.clone(),
                     label: label.clone(),
                     value,
-                })
-            })
-            .collect();
+                    assets,
+                }),
+                None => unrendered.push(format!(
+                    "{label} ({id}) = {}",
+                    crate::logging::one_line(
+                        &raw.map(|v| v.to_string())
+                            .unwrap_or_else(|| "absent".into()),
+                        200
+                    )
+                )),
+            }
+        }
+        if !unrendered.is_empty() {
+            log::info!("issue_detail: nothing to show for {unrendered:?}");
+        }
 
         // Whether a comment can be public is a property of the *project*, not
         // of one issue's fields. An agent-raised service-desk ticket carries no
@@ -514,12 +603,38 @@ fn normalize_name(name: &str) -> String {
         .collect()
 }
 
+/// Where an object keeps the text worth showing, most specific first.
+///
+/// Jira has no convention here. A select option says `value`, a user
+/// `displayName`, a version or component `name` — and an Assets (Insight)
+/// object says `label`, with `objectKey` as its identifier. A shape none of
+/// these fit renders as nothing, which is why a field can silently go missing
+/// when a site uses a type this list has not met.
+const DISPLAY_KEYS: [&str; 5] = ["value", "displayName", "name", "label", "objectKey"];
+
+/// The Assets objects one field value points at, in order.
+///
+/// An Assets field arrives as bare references — `{workspaceId, objectId}` and
+/// nothing else — so a field holding one renders as empty until the objects
+/// themselves are fetched.
+fn asset_refs(v: &Value) -> Vec<RawAssetRef> {
+    let one = |v: &Value| -> Option<RawAssetRef> {
+        let r: RawAssetRef = serde_json::from_value(v.clone()).ok()?;
+        (!r.workspace_id.is_empty() && !r.object_id.is_empty()).then_some(r)
+    };
+    match v {
+        Value::Array(items) => items.iter().filter_map(one).collect(),
+        _ => one(v).into_iter().collect(),
+    }
+}
+
 /// Render one raw field value as display text, or `None` when it is empty.
 ///
 /// Jira has no single shape for a custom field: a text field is a string, a
 /// select is `{ value }`, a user picker `{ displayName }`, a version or
-/// component `{ name }`, a multi-select an array of any of those, and a
-/// rich-text field a whole ADF document.
+/// component `{ name }`, an Assets object `{ label, objectKey }`, a
+/// multi-select an array of any of those, and a rich-text field a whole ADF
+/// document.
 fn field_value(v: &Value) -> Option<String> {
     let text = match v {
         Value::Null => return None,
@@ -535,7 +650,10 @@ fn field_value(v: &Value) -> Option<String> {
             if map.get("type").and_then(Value::as_str) == Some("doc") {
                 adf_to_text(v).trim().to_string()
             } else {
-                ["value", "displayName", "name"]
+                // In priority order, because an object can carry several: an
+                // Assets (Insight) object has both `label` and `objectKey`, and
+                // the label is the one a person recognises.
+                DISPLAY_KEYS
                     .iter()
                     .find_map(|k| map.get(*k).and_then(Value::as_str))
                     .unwrap_or_default()
@@ -700,6 +818,33 @@ mod tests {
             "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Pump stalled" }] }]
         });
         assert_eq!(field_value(&doc), Some("Pump stalled".to_string()));
+    }
+
+    #[test]
+    fn renders_an_assets_object_by_its_label() {
+        // Jira Assets (Insight) objects carry neither `value` nor `name`, so a
+        // field holding one used to render as empty and disappear entirely.
+        let asset = json!({
+            "id": "1",
+            "workspaceId": "abc",
+            "objectId": "42",
+            "label": "SRV-PUMP-01",
+            "objectKey": "ITSM-142"
+        });
+        assert_eq!(field_value(&asset), Some("SRV-PUMP-01".to_string()));
+        // Several of them, as the field actually arrives.
+        assert_eq!(
+            field_value(&json!([asset.clone(), asset])),
+            Some("SRV-PUMP-01, SRV-PUMP-01".to_string())
+        );
+    }
+
+    #[test]
+    fn falls_back_to_the_object_key_when_there_is_no_label() {
+        assert_eq!(
+            field_value(&json!({ "objectKey": "ITSM-142" })),
+            Some("ITSM-142".to_string())
+        );
     }
 
     #[test]

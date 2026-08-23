@@ -1,4 +1,5 @@
 import { FieldValue, FormField, FormValues } from "../issueFields";
+import UserSelect from "./UserSelect";
 
 /**
  * Renders a screen of Jira fields.
@@ -105,6 +106,11 @@ function FieldInput({
           />
           <span className="hint">Separated by spaces or commas.</span>
         </>
+      );
+
+    case "user":
+      return (
+        <UserSelect id={id} value={single} disabled={disabled} onChange={set} />
       );
 
     case "select":

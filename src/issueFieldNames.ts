@@ -1,7 +1,6 @@
 import { createStore } from "./store";
 
-// Which site-specific fields the issue view shows, and which one it can
-// change.
+// Which site-specific fields the issue view shows.
 //
 // These are field *names* as the site spells them ("Plant-No.", "Remote
 // Access"), not the opaque `customfield_NNNNN` ids — names are what a person
@@ -14,17 +13,41 @@ import { createStore } from "./store";
 
 const KEY = "performa-issue-fields";
 
-/** The fields the issue view shows, in display order, and the one it edits. */
+/** Bumped when the shape changes in a way a stored value has to be brought
+ *  forward from. Absent means the first version, which held only the
+ *  site-specific fields because the standard ones were hardcoded in the view. */
+const VERSION = 2;
+
+/** The fields every Jira has, under the names Jira gives them. Shipped as the
+ *  head of the default order — the layout the app has always had — but no
+ *  longer fixed there: they reorder and hide like any other. */
+export const STANDARD_FIELD_NAMES = [
+  "Issue Type",
+  "Priority",
+  "Reporter",
+  "Assignee",
+  "Due date",
+];
+
+/** The site's own fields the issue view shows, in display order.
+ *
+ *  Only which fields are *shown* is configured. Which can be *changed* is not:
+ *  that is a property of the issue's own edit form, which varies by issue type
+ *  and permission, so the view asks Jira instead. */
 export interface IssueFieldConfig {
-  /** Read-only facts shown under the issue's standard fields. */
+  /** Every field the issue view shows, in display order — the standard ones
+   *  and the site's own alike. */
   detail: string[];
-  /** The field the view offers to change. Empty means none is offered — the
-   *  edit affordance disappears rather than pointing at nothing. */
-  team: string;
+  /** Of those, the ones shown full width below the grid rather than in a cell.
+   *  Long prose — an analysis, a bug summary — is unreadable in a 190px column,
+   *  and which fields hold prose is a property of the site, not of one issue's
+   *  value. */
+  wide: string[];
 }
 
 export const DEFAULT_FIELD_CONFIG: IssueFieldConfig = {
   detail: [
+    ...STANDARD_FIELD_NAMES,
     "Plant-No.",
     "Plant name",
     "Plant location",
@@ -33,7 +56,7 @@ export const DEFAULT_FIELD_CONFIG: IssueFieldConfig = {
     "Remote Access",
     "System type",
   ],
-  team: "",
+  wide: [],
 };
 
 /** Trimmed and deduped case-insensitively, order preserved — the order is the
@@ -47,7 +70,13 @@ function normalize(config: IssueFieldConfig): IssueFieldConfig {
     seen.add(name.toLowerCase());
     detail.push(name);
   }
-  return { detail, team: config.team.trim() };
+  // Only a shown field can be wide; a stale entry would otherwise linger
+  // invisibly and reappear if the field were added back.
+  const shown = new Set(detail.map((n) => n.toLowerCase()));
+  const wide = [...new Set(config.wide.map((n) => n.trim().toLowerCase()))]
+    .filter((n) => shown.has(n))
+    .map((n) => detail.find((d) => d.toLowerCase() === n)!);
+  return { detail, wide };
 }
 
 function read(): IssueFieldConfig {
@@ -55,12 +84,22 @@ function read(): IssueFieldConfig {
     const raw: unknown = JSON.parse(localStorage.getItem(KEY) ?? "null");
     if (!raw || typeof raw !== "object" || Array.isArray(raw))
       return normalize(DEFAULT_FIELD_CONFIG);
-    const candidate = raw as Partial<IssueFieldConfig>;
+    const candidate = raw as Partial<IssueFieldConfig> & { version?: number };
+    // A config written before the standard fields were configurable lists only
+    // the site's own. Left alone it would now hide Type, Priority and the rest
+    // entirely — so they go back at the front, where they were.
+    const stored = Array.isArray(candidate.detail)
+      ? candidate.detail.filter((n): n is string => typeof n === "string")
+      : DEFAULT_FIELD_CONFIG.detail;
+    const detail =
+      candidate.version === VERSION
+        ? stored
+        : [...STANDARD_FIELD_NAMES, ...stored];
     return normalize({
-      detail: Array.isArray(candidate.detail)
-        ? candidate.detail.filter((n): n is string => typeof n === "string")
-        : DEFAULT_FIELD_CONFIG.detail,
-      team: typeof candidate.team === "string" ? candidate.team : "",
+      detail,
+      wide: Array.isArray(candidate.wide)
+        ? candidate.wide.filter((n): n is string => typeof n === "string")
+        : [],
     });
   } catch {
     return normalize(DEFAULT_FIELD_CONFIG);
@@ -71,7 +110,7 @@ const store = createStore<IssueFieldConfig>(read());
 
 function save(config: IssueFieldConfig): void {
   const next = normalize(config);
-  localStorage.setItem(KEY, JSON.stringify(next));
+  localStorage.setItem(KEY, JSON.stringify({ ...next, version: VERSION }));
   // Always a fresh object — the store compares with Object.is.
   store.set(next);
 }
@@ -114,17 +153,19 @@ export function moveDetailField(name: string, by: -1 | 1): void {
   save({ ...current, detail });
 }
 
-export function setTeamField(name: string): void {
-  save({ ...store.get(), team: name });
+/** Show one field full width, or put it back in the grid. */
+export function toggleWideField(name: string): void {
+  const current = store.get();
+  const key = name.trim().toLowerCase();
+  save({
+    ...current,
+    wide: current.wide.some((n) => n.toLowerCase() === key)
+      ? current.wide.filter((n) => n.toLowerCase() !== key)
+      : [...current.wide, name],
+  });
 }
 
-/** Everything the issue request should ask for: the shown fields plus the
- *  editable one, which the view needs the current value of even though it is
- *  not in the display list. */
-export function requestedFieldNames(config: IssueFieldConfig): string[] {
-  if (!config.team) return config.detail;
-  const has = config.detail.some(
-    (n) => n.toLowerCase() === config.team.toLowerCase(),
-  );
-  return has ? config.detail : [...config.detail, config.team];
+export function isWideField(config: IssueFieldConfig, name: string): boolean {
+  const key = name.trim().toLowerCase();
+  return config.wide.some((n) => n.toLowerCase() === key);
 }

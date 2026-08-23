@@ -11,7 +11,9 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "rebuild": "scripts/rebuild.sh",
+    "rebuild:only": "scripts/rebuild.sh --no-launch"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

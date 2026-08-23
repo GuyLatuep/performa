@@ -33,6 +33,15 @@ export interface IssueField {
   /** The field's name as configured on the site ("Plant-No."). */
   label: string;
   value: string;
+  /** When the field holds Assets objects: each one named and addressable, so
+   *  the view can link to it. Absent for every other kind of field. */
+  assets?: AssetLink[];
+}
+
+/** One Jira Assets object. */
+export interface AssetLink {
+  name: string;
+  objectId: string;
 }
 
 /** Everything the issue view shows above the timeline. */

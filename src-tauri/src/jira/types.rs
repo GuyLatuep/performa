@@ -192,6 +192,19 @@ pub struct IssueField {
     /// The field's name as configured on the site ("Plant-No.").
     pub label: String,
     pub value: String,
+    /// When the field holds Assets objects: each one's name with the id it
+    /// lives under, so the view can link to it. Empty for every other kind of
+    /// field, which has nowhere to link to.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub assets: Vec<AssetLink>,
+}
+
+/// One Assets object, named and addressable.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetLink {
+    pub name: String,
+    pub object_id: String,
 }
 
 /// Everything the in-app issue view shows above the activity feed.
@@ -654,6 +667,26 @@ pub struct RawAttachment {
     pub author: Option<WorklogAuthor>,
     #[serde(default)]
     pub created: String,
+}
+
+/// A reference to a Jira Assets (Insight) object, as an issue's fields carry
+/// it. Deliberately nothing but pointers: the issue API does not include the
+/// object's name, so it has to be fetched — see `JiraClient::asset_label`.
+#[derive(Deserialize)]
+pub struct RawAssetRef {
+    #[serde(rename = "workspaceId", default)]
+    pub workspace_id: String,
+    #[serde(rename = "objectId", default)]
+    pub object_id: String,
+}
+
+/// One object from the Assets API, which is where its name lives.
+#[derive(Deserialize)]
+pub struct RawAssetObject {
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(rename = "objectKey", default)]
+    pub object_key: Option<String>,
 }
 
 /// One entry of `/rest/api/3/field` — the site's field catalog, which is what

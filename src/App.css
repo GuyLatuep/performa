@@ -160,6 +160,11 @@ button.danger:hover {
   color: var(--danger);
   border-color: var(--danger);
 }
+button.icon.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
 button.icon.danger-icon:hover {
   background: var(--danger);
   color: #fff;
@@ -202,9 +207,21 @@ select {
   border-radius: 0;
   background: var(--surface);
   color: var(--ink);
+  /* An explicit caret: the accent focus ring reads as "selected", and without
+     a blinking cursor a focused box still looks like something to look at
+     rather than something to type in. */
+  caret-color: var(--ink);
+}
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="datetime-local"],
+textarea {
+  cursor: text;
 }
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   outline: none;
   border-color: var(--ink);
   box-shadow: inset 0 0 0 2px var(--accent);
@@ -335,6 +352,26 @@ label.checkbox input:checked {
   margin: 0 auto;
   padding: 52px 24px 40px;
 }
+/* The same screen serves first-run sign-in and the settings page. Sign-in is a
+   short form and wants a narrow column; settings holds lists of statuses and
+   fields that turn into a very long page at that width. */
+.setup.settings-page {
+  max-width: 980px;
+}
+
+/* Side-by-side settings blocks, collapsing to one column when there is not
+   room for two. */
+.settings-columns {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 8px 32px;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .settings-columns {
+    grid-template-columns: 1fr;
+  }
+}
 .setup-mark {
   margin-bottom: 22px;
 }
@@ -439,6 +476,7 @@ label.checkbox input:checked {
 /* ---------- Settings tabs ---------- */
 .settings-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0;
   border-bottom: 2px solid var(--ink);
   margin-bottom: 24px;
@@ -452,6 +490,11 @@ label.checkbox input:checked {
   padding: 9px 4px;
   margin-right: 20px;
   font-size: 12px;
+  /* Never narrower than the label. Flex items shrink by default, and once a
+     button is squeezed below its text the label overflows the box while the
+     underline — which tracks the box — stops short of it. */
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .settings-tabs button:hover {
   background: none;
@@ -1498,10 +1541,40 @@ button.mention-log:hover {
   color: var(--muted);
   margin-bottom: 2px;
 }
+.issue-fact {
+  /* The editor is anchored to its own fact, so each cell is its own frame. */
+  position: relative;
+}
+/* A full-width field is prose under a heading, like the description — the
+   grid's narrow column is what makes it unreadable. */
+section.issue-fact .issue-description {
+  margin: 0;
+}
+/* The first one sits directly under the title, where a section's usual top
+   margin would open a gap the header already provides. */
+.issue-view > section.issue-fact:first-of-type {
+  margin-top: 0;
+}
+.issue-view > section.issue-fact + .issue-facts {
+  margin-top: 22px;
+}
+section.issue-fact .field-editor {
+  min-width: min(100%, 420px);
+}
 .issue-fact dd {
   margin: 0;
   font-size: 13px;
   overflow-wrap: anywhere;
+}
+/* A value that can be changed says so quietly. Double-click is invisible
+   otherwise, and a link on every row was the clutter this replaced. */
+.issue-fact dd.editable {
+  cursor: pointer;
+  text-decoration: underline dotted var(--hair);
+  text-underline-offset: 3px;
+}
+.issue-fact dd.editable:hover {
+  text-decoration-color: var(--ink);
 }
 
 /* The backend flattens ADF to text and keeps the line breaks; honour them. */
@@ -1718,10 +1791,25 @@ button.mention-log:hover {
   text-transform: lowercase;
   letter-spacing: normal;
 }
+/* Over the page, not below it: the editor opens where the value is, so the
+   eye does not have to travel to a panel that appeared somewhere else — and
+   the facts below it stay where they were. */
 .field-editor {
+  position: absolute;
+  z-index: 30;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: max(100%, 260px);
   border: 2px solid var(--ink);
+  background: var(--surface);
   padding: 12px 14px;
-  margin-bottom: 18px;
+  box-shadow: 4px 4px 0 var(--hair);
+}
+/* Near the right edge the popover would otherwise run off the panel. */
+.issue-facts > .issue-fact:nth-child(3n) .field-editor {
+  left: auto;
+  right: 0;
 }
 
 /* ---------- Attachments ---------- */
@@ -1772,7 +1860,10 @@ button.mention-log:hover {
 .issue-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  /* Bottom edges, not tops: the picker carries a label above it and the chip
+     does not, so aligning the tops leaves the two boxes ending at different
+     heights — which is the part the eye actually reads as crooked. */
+  align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
   margin: 6px 0 22px;
@@ -1831,7 +1922,8 @@ button.mention-log:hover {
   line-clamp: 6;
   overflow: hidden;
 }
-.issue-description.expanded {
+.issue-description.expanded,
+section.issue-fact .issue-description {
   display: block;
   overflow: visible;
 }
@@ -1876,6 +1968,9 @@ button.mention-log:hover {
   padding: 0;
   background: var(--surface);
   border: 2px solid var(--ink);
+  /* Same treatment as the field editor's popover — both float over the page,
+     and the shadow is what says so. */
+  box-shadow: 4px 4px 0 var(--hair);
 }
 .mention-option {
   color: var(--ink);
@@ -1971,4 +2066,29 @@ button.mention-log:hover {
 }
 .mention-option.active .mention-sub {
   color: var(--accent-ink);
+}
+
+/* ---------- User field (assignee, reporter, approver) ---------- */
+.user-select {
+  position: relative;
+  z-index: 1;
+}
+.user-select input {
+  width: 100%;
+}
+.user-chosen {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+/* An asset name is an address — it reads as part of the value, not as a
+   control, so it keeps the value's size rather than the link furniture. */
+.asset-link {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: 0;
 }

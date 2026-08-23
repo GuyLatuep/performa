@@ -106,6 +106,11 @@ pub struct JiraClient {
     /// The site's field catalog, fetched once and kept for the app run — what
     /// lets the issue view ask for its fields by name. See [`issue`].
     field_cache: issue::FieldCache,
+    /// Names of Assets objects already looked up — see
+    /// [`JiraClient::asset_label`]. Objects are reference data: an issue's
+    /// field points at one, and what it is called does not change while the
+    /// app is open.
+    asset_cache: issue::AssetCache,
     /// Comment pages both scans read — see [`JiraClient::recent_comments`].
     comment_cache: CommentCache,
 }
@@ -157,6 +162,7 @@ impl JiraClient {
             activity_cache: missing::ActivityCache::default(),
             mention_cache: mentions::MentionCache::default(),
             field_cache: issue::FieldCache::default(),
+            asset_cache: issue::AssetCache::default(),
             comment_cache: CommentCache::default(),
         }
     }
@@ -250,6 +256,30 @@ impl JiraClient {
             .header("Authorization", &self.auth)
             .header("Accept", "application/json")
             .query(query)
+            .send()
+            .await
+            .map_err(net_err)?;
+        Self::check(resp)
+            .await?
+            .json::<T>()
+            .await
+            .map_err(|e| format!("unexpected {what} response: {e}"))
+    }
+
+    /// The same GET against a full URL rather than a path on the site.
+    ///
+    /// Assets lives on `api.atlassian.com`, not the customer's Jira host, and
+    /// takes the same credentials.
+    pub(super) async fn get_json_absolute<T: DeserializeOwned>(
+        &self,
+        url: &str,
+        what: &str,
+    ) -> Result<T, String> {
+        let resp = self
+            .http
+            .get(url)
+            .header("Authorization", &self.auth)
+            .header("Accept", "application/json")
             .send()
             .await
             .map_err(net_err)?;
