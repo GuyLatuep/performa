@@ -1756,62 +1756,6 @@ section.issue-fact .field-editor {
   color: var(--muted);
 }
 
-/* ---------- Issue field settings ---------- */
-.field-name-list {
-  list-style: none;
-  margin: 10px 0;
-  padding: 0;
-}
-.field-name-list li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--hair);
-}
-.field-name-list .field-name {
-  flex: 1;
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-.field-add {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-.field-add select {
-  flex: 1;
-}
-
-/* The change affordance sits in the label, not next to the value: it acts on
-   the field, and the value may be missing entirely. */
-.fact-edit {
-  margin-left: 8px;
-  font-size: 9.5px;
-  text-transform: lowercase;
-  letter-spacing: normal;
-}
-/* Over the page, not below it: the editor opens where the value is, so the
-   eye does not have to travel to a panel that appeared somewhere else — and
-   the facts below it stay where they were. */
-.field-editor {
-  position: absolute;
-  z-index: 30;
-  top: 100%;
-  left: 0;
-  margin-top: 4px;
-  min-width: max(100%, 260px);
-  border: 2px solid var(--ink);
-  background: var(--surface);
-  padding: 12px 14px;
-  box-shadow: 4px 4px 0 var(--hair);
-}
-/* Near the right edge the popover would otherwise run off the panel. */
-.issue-facts > .issue-fact:nth-child(3n) .field-editor {
-  left: auto;
-  right: 0;
-}
-
 /* ---------- Attachments ---------- */
 .attachments {
   border: 2px dashed transparent;
@@ -2091,4 +2035,80 @@ section.issue-fact .issue-description {
   text-transform: none;
   letter-spacing: normal;
   padding: 0;
+}
+
+/* ---------- Arranging the issue layout ---------- */
+.arrange-entry {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+.arrange-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border: 2px dashed var(--ink);
+}
+.arrange-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.arrange-add select {
+  min-width: 190px;
+}
+
+/* A field being arranged is a thing to be moved, not read. */
+.issue-fact.arranging {
+  outline: 1px dashed var(--hair);
+  outline-offset: 4px;
+}
+/* The one in hand. Kept visible rather than hidden: it is the thing being
+   moved, and losing sight of it is disorienting. */
+.issue-fact.dragging {
+  opacity: 0.45;
+  outline-style: solid;
+}
+/* Where the drop would land. */
+.issue-fact.drop-target {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.arrange-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.arrange-grip {
+  color: var(--muted);
+  cursor: grab;
+  font-size: 12px;
+  /* The gesture is a drag; letting it select the glyph instead fights it. */
+  user-select: none;
+  touch-action: none;
+}
+.arrange-grip:active {
+  cursor: grabbing;
+  color: var(--ink);
+}
+.arrange-controls .icon {
+  padding: 0 3px;
+  font-size: 11px;
+}
+
+/* Two cells instead of one, for a value that keeps wrapping in a single
+   column. Falls back to one where the grid itself only has one. */
+.issue-fact.span-2 {
+  grid-column: span 2;
+}
+@media (max-width: 520px) {
+  .issue-fact.span-2 {
+    grid-column: span 1;
+  }
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AssetLink, api, IssueDetail } from "../api";
 import {
@@ -10,7 +10,19 @@ import {
   toJiraFields,
 } from "../issueFields";
 import { logInfo } from "../log";
-import { isWideField, useIssueFieldConfig } from "../issueFieldNames";
+import {
+  FieldSize,
+  fieldSize,
+  getIssueFieldConfig,
+  moveDetailField,
+  nextFieldSize,
+  removeDetailField,
+  reorderDetailField,
+  setFieldSize,
+  useIssueFieldConfig,
+} from "../issueFieldNames";
+import FieldArrangeBar from "./FieldArrangeBar";
+import { useFieldDrag } from "../fieldDrag";
 import FieldForm from "./FieldForm";
 import { useDismissOnOutside } from "../dismiss";
 
@@ -61,7 +73,18 @@ export default function IssueFacts({
 }) {
   /** The label of the fact being edited, if any. */
   const [editing, setEditing] = useState<string | null>(null);
+  /** Arranging the layout rather than reading it. */
+  const [arranging, setArranging] = useState(false);
   const fieldConfig = useIssueFieldConfig();
+
+  const onDrop = useCallback((dragged: string, onto: string) => {
+    // The index is read against the order without the dragged field — "put it
+    // where this one is" — which is what `reorderDetailField` expects.
+    const order = getIssueFieldConfig().detail.filter((n) => n !== dragged);
+    const at = order.indexOf(onto);
+    reorderDetailField(dragged, at < 0 ? order.length : at);
+  }, []);
+  const { dragging, dropTarget, startDrag } = useFieldDrag(onDrop);
   const [editable, setEditable] = useState<Map<string, FormField>>(new Map());
 
   // Which fields accept a value, keyed by name. Failing is not worth surfacing:
@@ -122,15 +145,22 @@ export default function IssueFacts({
   });
 
   const fieldFor = (fact: Fact) => editable.get(normalize(fact.jiraName));
-  const isWide = (fact: Fact) => isWideField(fieldConfig, fact.jiraName);
+  const sizeOf = (fact: Fact): FieldSize =>
+    fieldSize(fieldConfig, fact.jiraName);
 
-  // A narrow field is worth a row when it can be filled in — that is exactly
-  // when somebody wants it. A full-width one holds prose, and an empty block of
-  // prose is only a heading with nothing under it, so it waits until it has
-  // something to say.
-  const visible = facts.filter((f) =>
-    isWide(f) ? f.value : f.value || fieldFor(f),
-  );
+  // Arranging shows everything: a field this issue happens to have no value for
+  // still has a place in the layout, and hiding it would make that place
+  // impossible to move or resize.
+  //
+  // Reading hides what has nothing to say. A grid field is worth a row when it
+  // can be filled in — that is exactly when somebody wants it — while a
+  // full-width one is prose, and an empty block of prose is only a heading with
+  // nothing under it.
+  const visible = arranging
+    ? facts
+    : facts.filter((f) =>
+        sizeOf(f) === "full" ? f.value : f.value || fieldFor(f),
+      );
 
   const editor = (fact: Fact, field: FormField) => (
     <FieldEditor
@@ -148,16 +178,97 @@ export default function IssueFacts({
     />
   );
 
+  /** What a field carries while the layout is being arranged: a grip to drag
+   *  it by, a size control, and a way off the layout. */
+  const arrangeControls = (fact: Fact) => {
+    const size = sizeOf(fact);
+    const at = visible.findIndex((f) => f.jiraName === fact.jiraName);
+    return (
+      <span className="arrange-controls">
+        {/* The grip alone starts a drag, not the whole field: a field is also
+            text to select and a value to double-click. */}
+        <span
+          className="arrange-grip"
+          title={`Drag to move ${fact.label}`}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            startDrag(fact.jiraName);
+          }}
+        >
+          ⠿
+        </span>
+        <button
+          className="icon"
+          title={`Size: ${size} — click for ${nextFieldSize(size)}`}
+          onClick={() => setFieldSize(fact.jiraName, nextFieldSize(size))}
+        >
+          {SIZE_MARKS[size]}
+        </button>
+        {/* Dragging is unusable without a mouse, and the controls are on
+            screen anyway. */}
+        <button
+          className="icon"
+          title="Move earlier"
+          disabled={at <= 0}
+          onClick={() => moveDetailField(fact.jiraName, -1)}
+        >
+          ↑
+        </button>
+        <button
+          className="icon"
+          title="Move later"
+          disabled={at < 0 || at >= visible.length - 1}
+          onClick={() => moveDetailField(fact.jiraName, 1)}
+        >
+          ↓
+        </button>
+        <button
+          className="icon"
+          title={`Remove ${fact.label} from the layout`}
+          onClick={() => removeDetailField(fact.jiraName)}
+        >
+          ✕
+        </button>
+      </span>
+    );
+  };
+
+  /** What every field taking part in a drag needs: a name the drag can read
+   *  off the document, and the states that show it moving. */
+  const dragProps = (fact: Fact) =>
+    arranging ? { "data-field": fact.jiraName } : {};
+
+  const blockClass = (fact: Fact, base: string) =>
+    [
+      base,
+      arranging ? "arranging" : "",
+      dragging === fact.jiraName ? "dragging" : "",
+      dropTarget === fact.jiraName ? "drop-target" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
   /** One full-width field: prose under its own heading, like the description. */
   const wideBlock = (fact: Fact) => {
     const field = fieldFor(fact);
     return (
-      <section key={fact.label} className="issue-section issue-fact">
-        <h3>{fact.label}</h3>
+      <section
+        key={fact.label}
+        className={blockClass(fact, "issue-section issue-fact")}
+        {...dragProps(fact)}
+      >
+        <h3>
+          {fact.label}
+          {arranging && arrangeControls(fact)}
+        </h3>
         <p
-          className={`issue-description${field ? " editable" : ""}`}
-          title={field ? `Double-click to change ${fact.label}` : undefined}
-          onDoubleClick={() => field && setEditing(fact.label)}
+          className={`issue-description${field && !arranging ? " editable" : ""}`}
+          title={
+            field && !arranging
+              ? `Double-click to change ${fact.label}`
+              : undefined
+          }
+          onDoubleClick={() => !arranging && field && setEditing(fact.label)}
         >
           <FactValue fact={fact} site={site} />
         </p>
@@ -166,21 +277,37 @@ export default function IssueFacts({
     );
   };
 
-  /** A run of narrow fields, as one grid. */
+  /** A run of grid fields, as one grid. */
   const gridBlock = (run: Fact[], key: number) => (
     <dl className="issue-facts" key={`grid-${key}`}>
       {run.map((fact) => {
         const field = fieldFor(fact);
         return (
-          <div key={fact.label} className="issue-fact">
-            <dt>{fact.label}</dt>
+          <div
+            key={fact.label}
+            className={blockClass(
+              fact,
+              `issue-fact${sizeOf(fact) === "wide" ? " span-2" : ""}`,
+            )}
+            {...dragProps(fact)}
+          >
+            <dt>
+              {fact.label}
+              {arranging && arrangeControls(fact)}
+            </dt>
             <dd
-              className={field ? "editable" : undefined}
-              title={field ? `Double-click to change ${fact.label}` : undefined}
+              className={field && !arranging ? "editable" : undefined}
+              title={
+                field && !arranging
+                  ? `Double-click to change ${fact.label}`
+                  : undefined
+              }
               // Double-click rather than a link beside every value: the link
               // repeated down the grid was most of what the eye had to wade
               // through, and reading an issue is the common case.
-              onDoubleClick={() => field && setEditing(fact.label)}
+              onDoubleClick={() =>
+                !arranging && field && setEditing(fact.label)
+              }
             >
               <FactValue fact={fact} site={site} />
             </dd>
@@ -192,9 +319,8 @@ export default function IssueFacts({
   );
 
   // Walked in configured order so a full-width field lands where it was put:
-  // first, last, or between two runs of narrow ones. Grouping the narrow fields
-  // into runs is what lets them share a grid without the wide ones jumping to
-  // one end.
+  // first, last, or between two runs of grid ones. Grouping the rest into runs
+  // is what lets them share a grid without the full ones jumping to one end.
   const blocks: React.ReactNode[] = [];
   let run: Fact[] = [];
   const flush = () => {
@@ -202,7 +328,7 @@ export default function IssueFacts({
     run = [];
   };
   for (const fact of visible) {
-    if (isWide(fact)) {
+    if (sizeOf(fact) === "full") {
       flush();
       blocks.push(wideBlock(fact));
     } else {
@@ -211,8 +337,31 @@ export default function IssueFacts({
   }
   flush();
 
-  return <>{blocks}</>;
+  return (
+    <>
+      {arranging ? (
+        <FieldArrangeBar
+          shown={fieldConfig.detail}
+          onDone={() => setArranging(false)}
+        />
+      ) : (
+        <div className="arrange-entry">
+          <button className="link" onClick={() => setArranging(true)}>
+            Arrange fields
+          </button>
+        </div>
+      )}
+      {blocks}
+    </>
+  );
 }
+
+/** What each size shows on its control. */
+const SIZE_MARKS: Record<FieldSize, string> = {
+  normal: "▫",
+  wide: "▬",
+  full: "▭",
+};
 
 /** A fact's value: plain text, or links when it names Assets objects.
  *
