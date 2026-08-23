@@ -11,6 +11,7 @@ performa ist eine kleine Desktop-App (macOS + Windows) zum Erfassen deiner Arbei
 - [Die Oberfläche im Überblick](#die-oberfläche-im-überblick)
 - [Start-Tab (Dashboard)](#start-tab-dashboard)
 - [Todo-Tab](#todo-tab)
+- [Die Vorgangsansicht](#die-vorgangsansicht)
 - [Arbeit erfassen](#arbeit-erfassen)
 - [Der Timer](#der-timer)
 - [System-Tray / Menüleiste](#system-tray--menüleiste)
@@ -108,11 +109,29 @@ Alles, was gerade **bei dir liegt** — nach Priorität sortiert, bei gleicher P
 - **DEV-Vorgänge, die du selbst erstellt hast** und die wieder bei dir liegen — also jeder Status außer *Fertig*, *Backlog*, *Rückfrage beantwortet*, *In Arbeit* und *Nicht umgesetzt*.
 - **Vorgänge, die dir zugewiesen sind** (in jedem Projekt) und noch keinen Status erreicht haben, in dem jemand anderes am Zug ist — geschlossen, abgebrochen, gelöst, eskaliert, in der kaufmännischen Prüfung oder wartend auf Kunde bzw. DESIGNA Development.
 
-Die Zeilen funktionieren wie im Start-Tab (Anpinnen, im Browser öffnen, Klick auf die Zusammenfassung erfasst Zeit, **▶ start** startet einen Timer), sind hier aber tabellarisch angeordnet — Vorgangsschlüssel, Zusammenfassung, **Priorität** und **Status** jeweils in einer eigenen Spalte, sodass man die Liste von oben nach unten überfliegen kann. Fälligkeiten zeigt dieser Tab bewusst nicht; die sind Thema des Start-Tabs.
+Die Zeilen funktionieren wie im Start-Tab (Anpinnen, im Browser öffnen, **▶ start** startet einen Timer), sind hier aber tabellarisch angeordnet — Vorgangsschlüssel, Zusammenfassung, **Priorität** und **Status** jeweils in einer eigenen Spalte, sodass man die Liste von oben nach unten überfliegen kann. Fälligkeiten zeigt dieser Tab bewusst nicht; die sind Thema des Start-Tabs.
+
+**Ein Klick auf die Zusammenfassung öffnet den Vorgang in der App** — siehe [Die Vorgangsansicht](#die-vorgangsansicht). Ein Klick auf den **Vorgangsschlüssel** öffnet ihn stattdessen im Browser.
 
 Das Ergebnis wird eine Minute lang zwischengespeichert; **Refresh** holt es erneut aus Jira — praktisch direkt nachdem du einen Status im Browser geändert hast.
 
-> Die Statusnamen entsprechen dem DESIGNA-Jira und sind derzeit fest in der App hinterlegt; sie lassen sich noch nicht in den Einstellungen ändern.
+Welche Status nie auf deiner Liste auftauchen sollen — eine Review-Warteschlange, „wartet auf Kunde" — legst du pro Projekt unter **Settings → Todo** fest. Was Jira selbst als erledigt zählt, fällt ohnehin aus der Abfrage, egal wie dein Workflow es nennt.
+
+## Die Vorgangsansicht
+
+Wird ein Vorgang aus dem **Todo**- oder **Mentions**-Tab geöffnet, zeigt performa ihn in der App statt im Browser.
+
+**Lesen.** Vorgangsschlüssel und Zusammenfassung stehen oben, die **Statusauswahl** in der Ecke. Darunter ein Raster mit Feldern, die Beschreibung (gekürzt, mit **Show more**, wenn es mehr gibt), die Anhänge und eine **Chronik** von allem, was passiert ist — Kommentare, Statuswechsel und Worklogs ineinander, neueste zuerst. Bei langen Verläufen werden nur die neuesten Kommentare gezeigt; die Ansicht sagt das dazu.
+
+**Einen Wert ändern.** Ein **Doppelklick** auf einen Wert mit gepunkteter Unterstreichung öffnet einen kleinen Editor darüber. Was änderbar ist, entscheidet Jira pro Vorgang — ein Feld, das deine Rechte oder der Vorgangstyp nicht zulassen, wird gar nicht erst angeboten.
+
+**Durch den Workflow bewegen.** Die **Statusauswahl** listet die Status, die vom aktuellen aus erreichbar sind. Manche Übergänge fragen vorher etwas ab (eine Lösung, einen Bearbeiter); dafür öffnet sich ein Formular. Ein Übergang, für den performa kein Eingabefeld hat, wird angezeigt, aber deaktiviert — mit einem Link nach Jira.
+
+**Kommentare.** Eine Reihe Schaltflächen: **Internal note** und **Reply to customer** bei einem Service-Desk-Vorgang, sonst ein einzelnes **Comment**, dazu **Log work**. Ein Klick öffnet die zugehörigen Felder darunter, ein zweiter schließt sie wieder. Mit **@** im Kommentar erwähnst du jemanden — nimm den Namen aus der Liste, denn nur ein ausgewählter Name benachrichtigt auch jemanden.
+
+**Anhänge.** Ein Klick lädt eine Datei herunter und öffnet sie, Dateien auf das Fenster ziehen oder **Attach files…** fügt welche hinzu, **✕** entfernt eine (mit Rückfrage — sie ist danach für alle weg).
+
+**Felder anordnen.** **Arrange fields** über dem Raster übergibt dir das Layout: ein Feld am **⠿**-Griff ziehen, mit der Größen-Schaltfläche umstellen (eine Zelle, zwei Zellen oder eine ganze Zeile für Fließtext), mit **✕** entfernen und jedes andere Feld deines Jira hinzufügen. **Done** kehrt zum Lesen zurück. Das Layout gilt für alle Vorgänge.
 
 ## Arbeit erfassen
 
@@ -234,7 +253,7 @@ Der Tab **Mentions** ist dein Jira-Posteingang für Erwähnungen: alle Kommentar
 
 **Was ihr entgehen kann:** Jira bietet keine Suche nach „meinen Erwähnungen“, deshalb wählt performa zuerst eine begrenzte Menge kürzlich geänderter Vorgänge aus und liest dann deren Kommentare. Daraus folgt zweierlei: Pro Durchlauf wird nur eine begrenzte Zahl von Vorgängen geöffnet, und einer der beiden Auswahlwege sucht im Kommentartext nach deinem **Anzeigenamen** — ändert sich dieser, oder ist die Liste der zuletzt geänderten Vorgänge länger als der Durchlauf öffnen kann, kann eine Erwähnung unbemerkt bleiben. Wird ein Durchlauf auf diese Weise abgeschnitten, weist der Tab oberhalb der Liste darauf hin. Eine leere Liste bedeutet also „dort, wo gesucht wurde, war nichts“ und nicht „es gibt nichts“.
 
-Jede Zeile zeigt den Vorgang, wer kommentiert hat, einen Auszug und wie lange es her ist. Ein Klick auf die Zeile öffnet **den Kommentar** im Browser, ein Klick auf den Vorgangsschlüssel den Vorgang.
+Jede Zeile zeigt den Vorgang, wer kommentiert hat, einen Auszug und wie lange es her ist. **Ein Klick auf die Zeile öffnet den Vorgang in der App** — siehe [Die Vorgangsansicht](#die-vorgangsansicht). Ein Klick auf den **Vorgangsschlüssel** öffnet ihn stattdessen im Browser.
 
 **Gelesen / ungelesen:** Neue Erwähnungen erzeugen eine Zähler-Markierung und lassen den Tab blinken. **Beim Öffnen des Tabs gilt alles aktuell Gelistete als gelesen** — für diesen einen Besuch bleiben die Zeilen markiert (Akzentbalken und Punkt), damit du noch siehst, was neu war. Eigene Kommentare tauchen nie auf, und eine gelesene Erwähnung bleibt auch nach einem Neustart gelesen.
 
@@ -254,13 +273,19 @@ Vorlagen werden lokal auf deinem Rechner gespeichert, nicht in Jira.
 
 Der **Settings**-Link in der Kopfzeile öffnet denselben Bildschirm wie bei der ersten Verbindung:
 
+- **General** — die Verbindung zu Jira (siehe unten) sowie app-weite Schalter.
 - **Appearance** — heller / dunkler Modus.
 - **Daily work hours** — 0,5–24 h; daraus ergeben sich die Tagesziel-Linie und, × 5, der Wochenziel-Ring in den Diagrammen.
 - **Timesheet days** — **Mon–Fri** (Wochenenden ausgeblendet, außer sie enthalten erfasste Zeit) oder **Full week**.
+- **Todo** — welche Status der Todo-Tab ausblendet, pro Projekt. Die meisten Sites verwenden überall dieselben Status, deshalb gibt es ein **Copy to**, um die übrigen Projekte in einem Rutsch zu füllen.
 - **Logging** — die Ausführlichkeit des Debug-Logs (**Error**, **Warn**, **Info** oder **Debug**; siehe [Debug-Log](#debug-log)) sowie ein **Open log folder**-Button.
 - **Zugangsdaten** — Site, E-Mail oder Token ändern. Bleibt das Token-Feld leer, wird das gespeicherte Token beibehalten — du musst es also nicht neu eingeben, um z. B. einen Tippfehler in der E-Mail zu korrigieren. Beim Speichern wird erneut gegen Jira geprüft.
 
 Appearance, Stunden, die Wochenend-Einstellung und der Log-Level wirken **sofort** als Live-Vorschau — **Cancel** stellt die Werte vom Öffnen des Bildschirms wieder her.
+
+Welche Felder ein **Vorgang** zeigt, steht nicht hier — das liegt am Vorgang selbst, unter **Arrange fields**.
+
+**About** (in der Kopfzeile) zeigt die Version und wie du mich erreichst.
 
 **Sign out** (in der Kopfzeile, mit Bestätigung) löscht das Token aus dem Schlüsselbund des Betriebssystems und kehrt zum Verbindungsbildschirm zurück.
 

@@ -2213,3 +2213,45 @@ section.issue-fact .issue-description {
     animation: none;
   }
 }
+
+/* ---------- About ---------- */
+.about {
+  max-width: 640px;
+}
+.about-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px 24px;
+  margin: 26px 0 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--hair);
+}
+.about-facts dt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.about-facts dd {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+/* The address reads as part of the answer, not as a control. */
+.about-mail {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: 0;
+}
+.about-text p {
+  font-size: 13.5px;
+  line-height: 1.6;
+  max-width: 62ch;
+  margin: 0 0 16px;
+}

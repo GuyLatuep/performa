@@ -13,6 +13,7 @@ const SEEN_KEY = "performa-notices-seen";
 /** Ids of the notices there are. One per announcement, never reused: changing
  *  an id re-shows the notice to everyone. */
 export const TODO_FILTER_NOTICE = "todo-filter-2026-08";
+export const ISSUE_VIEW_NOTICE = "issue-view-2026-08";
 
 function readSeen(): string[] {
   try {

@@ -18,6 +18,7 @@ import {
 import { onWorklogFiled } from "./worklogEvents";
 import AchievementToast from "./components/AchievementToast";
 import { useFunMode } from "./settings";
+import About from "./components/About";
 import Confetti from "./components/Confetti";
 import Mentions from "./components/Mentions";
 import UpdateNotice from "./components/UpdateNotice";
@@ -78,6 +79,7 @@ export default function App() {
   // there. Null for a manual visit to the log tab — there is nowhere to return.
   const [logOrigin, setLogOrigin] = useState<Tab | null>(null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
 
   const missingItems = useMissing();
   const missingUnseen = useMissingUnseenCount();
@@ -168,6 +170,10 @@ export default function App() {
     );
   }
 
+  if (showAbout) {
+    return <About onClose={() => setShowAbout(false)} />;
+  }
+
   if (!creds || editingCreds) {
     return (
       <Settings
@@ -229,6 +235,9 @@ export default function App() {
             onClick={() => openUrl(HANDBOOK_URL)}
           >
             Handbook
+          </button>
+          <button className="link" onClick={() => setShowAbout(true)}>
+            About
           </button>
           {confirmSignOut ? (
             <>

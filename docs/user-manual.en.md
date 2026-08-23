@@ -11,6 +11,7 @@ performa is a small desktop app (macOS + Windows) for logging your work hours on
 - [The interface at a glance](#the-interface-at-a-glance)
 - [Start tab (dashboard)](#start-tab-dashboard)
 - [Todo tab](#todo-tab)
+- [The issue view](#the-issue-view)
 - [Logging work](#logging-work)
 - [The timer](#the-timer)
 - [System tray / menu bar](#system-tray--menu-bar)
@@ -108,11 +109,29 @@ Everything that is currently **waiting on you**, most urgent first (then most re
 - **DEV issues you raised yourself** that are back in your court — i.e. every status except *Fertig*, *Backlog*, *Rückfrage beantwortet*, *In Arbeit* and *Nicht umgesetzt*.
 - **Issues assigned to you** in any project that have not reached a status where the ball is somewhere else — closed, cancelled, resolved, escalated, in commercial review, or waiting for the customer or DESIGNA Development.
 
-The rows work like those on the Start tab (pin, open in browser, click the summary to log work, **▶ start** for a timer), but are laid out as a table — issue key, summary, **priority** and **status** each in a column of their own, so you can scan down them. There are no due badges here; due dates are the Start tab's subject.
+The rows work like those on the Start tab (pin, open in browser, **▶ start** for a timer), but are laid out as a table — issue key, summary, **priority** and **status** each in a column of their own, so you can scan down them. There are no due badges here; due dates are the Start tab's subject.
+
+**Clicking the summary opens the issue in the app** — see [The issue view](#the-issue-view). Clicking the **issue key** opens it in the browser instead.
 
 The result is cached for a minute; **Refresh** fetches it from Jira again — useful right after you changed a status in the browser.
 
-> The status names are the ones used on the DESIGNA Jira site and are currently built into the app; they are not yet configurable in Settings.
+Statuses that should never appear on your list — a review queue, "waiting for customer" — are yours to choose per project under **Settings → Todo**. Issues Jira itself counts as done are dropped by the query regardless of what your workflow calls them.
+
+## The issue view
+
+Opening an issue from the **Todo** or **Mentions** tab shows it inside performa rather than in the browser.
+
+**Reading.** The issue key and summary sit at the top with the **status picker** in the corner. Below them a grid of fields, the description (clamped, with **Show more** when there is more), the attachments, and a **timeline** of everything that has happened — comments, status changes and worklogs interleaved, newest first. Long threads show only the newest comments and say so.
+
+**Changing a value.** **Double-click** any value with a dotted underline to change it; a small editor opens over it. What is editable is decided by Jira, per issue — a field your permissions or the issue type do not allow is simply not offered.
+
+**Moving it through the workflow.** The **status picker** lists the statuses you can reach from where the issue is now. Some moves ask for more first (a resolution, an assignee); those open a form. A move needing something performa cannot fill in is shown but disabled, with a link out to Jira.
+
+**Comments.** One row of buttons: **Internal note** and **Reply to customer** on a service-desk issue, or a single **Comment** everywhere else, and **Log work**. Picking one opens its fields below; picking it again closes them. Type **@** in a comment to mention somebody — pick the name from the list, because only a picked name notifies anyone.
+
+**Attachments.** Open one to download and view it, drop files on the window or use **Attach files…** to add them, and **✕** to remove one (with a confirmation — it is removed for everyone).
+
+**Arranging the fields.** **Arrange fields** above the grid turns the layout over to you: drag a field by its **⠿** grip, resize it with the size button (one cell, two cells, or a full row for prose), remove it with **✕**, and add any other field your Jira site has. **Done** returns to reading. The layout is yours and applies to every issue.
 
 ## Logging work
 
@@ -234,7 +253,7 @@ The **Mentions** tab is your Jira inbox for being tagged: every comment from the
 
 **What it can miss:** Jira has no "my mentions" search, so performa first picks a bounded set of recently updated issues and then reads their comments. Two consequences: only a limited number of issues is opened per scan, and one of the two ways of picking them looks for your **display name** in the comment text — if that name changes, or the list of recent issues is longer than the scan can open, a mention can go unseen. When a scan is cut short this way the tab says so above the list. An empty list therefore means "nothing found where it looked", not "nothing exists".
 
-Each row shows the issue, who wrote the comment, an excerpt, and how long ago it was. Clicking the row opens the **comment itself** in the browser; clicking the issue key opens the issue.
+Each row shows the issue, who wrote the comment, an excerpt, and how long ago it was. **Clicking the row opens the issue in the app** — see [The issue view](#the-issue-view). Clicking the **issue key** opens it in the browser instead.
 
 **Read / unread:** new mentions raise a count badge and make the tab blink. **Opening the tab marks everything currently listed as read** — for that one visit the rows stay marked (accent bar and dot) so you can still see what was new. Your own comments never appear, and a mention already read stays read across restarts.
 
@@ -254,13 +273,19 @@ Templates are stored locally on your machine, not in Jira.
 
 The **Settings** link in the header opens the same screen used for the first-run connection:
 
+- **General** — the connection to Jira (below), plus app-wide switches.
 - **Appearance** — light / dark theme toggle.
 - **Daily work hours** — 0.5–24 h; this drives the daily target line and, × 5, the weekly target ring in the charts.
 - **Timesheet days** — **Mon–Fri** (weekends hidden unless they contain logged time) or **Full week**.
+- **Todo** — which statuses the Todo tab hides, per project. Most sites use the same statuses everywhere, so the list carries a **Copy to** for filling the rest in at once.
 - **Logging** — the debug-log verbosity (**Error**, **Warn**, **Info**, or **Debug**; see [Debug log](#debug-log)) and an **Open log folder** button.
 - **Credentials** — change site, email, or token. Leaving the token field blank keeps the stored token, so you don't need to re-enter it to fix a typo in the email. Saving re-verifies against Jira.
 
 Appearance, hours, the weekend toggle, and the log level apply **instantly** as a live preview — pressing **Cancel** restores the values from when you opened the screen.
+
+Which fields an **issue** shows is not here — that lives on the issue itself, under **Arrange fields**.
+
+**About** (in the header) shows the version and how to get in touch.
 
 **Sign out** (in the header, with confirmation) deletes the token from the OS keychain and returns to the connect screen.
 
