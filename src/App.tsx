@@ -279,9 +279,7 @@ export default function App() {
             onLogged={onLogged}
           />
         )}
-        {tab === "todo" && (
-          <Todo site={creds.site} onSelectIssue={openLogTab} />
-        )}
+        {tab === "todo" && <Todo site={creds.site} onLogged={onLogged} />}
         {tab === "log" && (
           <LogWork
             key={logVisit}
@@ -299,7 +297,7 @@ export default function App() {
           <MissingWorklogs site={creds.site} onLogged={onLogged} />
         )}
         {tab === "mentions" && (
-          <Mentions site={creds.site} onLogWork={openLogTab} />
+          <Mentions site={creds.site} onLogged={onLogged} />
         )}
       </main>
     </div>

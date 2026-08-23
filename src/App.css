@@ -1459,3 +1459,501 @@ button.mention-log:hover {
     transition: none !important;
   }
 }
+
+/* ---------- Issue view (todo tab) ---------- */
+.issue-view .back-row {
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.issue-section {
+  margin-top: 28px;
+}
+.issue-section h3 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  padding-bottom: 8px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid var(--hair);
+}
+
+/* Wraps to as many columns as fit; a long value (a remote-access note, say)
+   keeps its own line rather than stretching the whole grid. */
+.issue-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px 20px;
+  margin: 0 0 4px;
+}
+.issue-fact dt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.issue-fact dd {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* The backend flattens ADF to text and keeps the line breaks; honour them. */
+.issue-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.issue-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.timeline-entry {
+  padding: 10px 0 10px 12px;
+  border-left: 2px solid var(--hair);
+  margin-bottom: 4px;
+}
+/* Only comments carry what somebody actually wrote; the other two are the
+   record of something happening, and read as secondary. */
+.timeline-entry.comment {
+  border-left-color: var(--ink);
+}
+.timeline-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.timeline-author {
+  font-size: 12px;
+  font-weight: 600;
+}
+.timeline-when {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-left: auto;
+}
+.timeline-tag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 1px 5px;
+  border: 1px solid var(--hair);
+  color: var(--muted);
+}
+.timeline-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.timeline-status,
+.timeline-worklog {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+.timeline-duration {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.comment-box {
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.comment-actions + .hint {
+  margin-top: 10px;
+}
+
+.transition-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+/* A blocked move stays visible and stays legible: it is information, not a
+   greyed-out dead end the eye should skip. */
+.transition-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.transition-blocked {
+  color: var(--muted);
+}
+.transition-actions + .hint,
+.transition-actions + .error {
+  margin-top: 10px;
+}
+
+/* ---------- Field form (transition screens, field edits) ---------- */
+.field-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 16px 0;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.form-field > label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.form-field input[type="text"],
+.form-field input[type="number"],
+.form-field input[type="date"],
+.form-field input[type="datetime-local"],
+.form-field select,
+.form-field textarea {
+  width: 100%;
+}
+.form-field textarea {
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13px;
+}
+.field-required {
+  color: var(--ink);
+}
+.field-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.field-choice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.field-unsupported {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  padding: 6px 8px;
+  border: 1px dashed var(--hair);
+}
+.transition-screen {
+  border: 2px solid var(--ink);
+  padding: 14px;
+}
+.transition-more {
+  color: var(--muted);
+}
+
+/* ---------- Issue field settings ---------- */
+.field-name-list {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+}
+.field-name-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--hair);
+}
+.field-name-list .field-name {
+  flex: 1;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.field-add {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.field-add select {
+  flex: 1;
+}
+
+/* The change affordance sits in the label, not next to the value: it acts on
+   the field, and the value may be missing entirely. */
+.fact-edit {
+  margin-left: 8px;
+  font-size: 9.5px;
+  text-transform: lowercase;
+  letter-spacing: normal;
+}
+.field-editor {
+  border: 2px solid var(--ink);
+  padding: 12px 14px;
+  margin-bottom: 18px;
+}
+
+/* ---------- Attachments ---------- */
+.attachments {
+  border: 2px dashed transparent;
+  margin: -6px;
+  padding: 6px;
+  transition: border-color 0.12s ease;
+}
+/* Only while something is actually over the window — a permanent drop target
+   would be noise on every issue. */
+.attachments.dropping {
+  border-color: var(--ink);
+}
+.attachment-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.attachment-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--hair);
+}
+.attachment-name {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.attachment-meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+/* ---------- Issue header: chip left, status picker right ---------- */
+.issue-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 6px 0 22px;
+}
+.issue-head .issue-chip {
+  flex: 1 1 260px;
+  margin: 0;
+}
+.status-picker-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  flex: 0 0 auto;
+}
+.status-picker-box > label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.status-picker-box select {
+  min-width: 190px;
+}
+.status-current {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------- Attachment removal ---------- */
+.attachment-remove {
+  color: var(--muted);
+}
+.attachment-remove:hover:not(:disabled) {
+  color: var(--danger);
+}
+.attachment-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.attachment-actions .confirm-text {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--danger);
+  margin-right: 4px;
+}
+
+/* ---------- Issue description (clamped until opened) ---------- */
+.issue-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+}
+.issue-description.expanded {
+  display: block;
+  overflow: visible;
+}
+
+/* ---------- Issue action row ---------- */
+.issue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.issue-actions button {
+  flex: 1 1 auto;
+}
+/* The chosen action's fields hang off the row, so they read as belonging to
+   it rather than as another section of the page. */
+.action-panel {
+  border: 2px solid var(--ink);
+  border-top: none;
+  padding: 14px;
+}
+.action-panel .comment-actions {
+  margin-top: 12px;
+  align-items: baseline;
+}
+
+/* ---------- Mention picker ---------- */
+.comment-compose {
+  position: relative;
+}
+/* Over the text rather than pushing it down: the writer is mid-sentence, and
+   reflowing the box under the caret loses their place. */
+.mention-picker {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+}
+.mention-option {
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 0;
+  text-align: left;
+  padding: 7px 10px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.mention-option:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+}
+.mention-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.mention-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+.mention-option:hover .mention-sub {
+  color: var(--accent-ink);
+}
+
+/* ---------- Mention highlighting inside the comment box ----------
+   A textarea cannot style part of its own value, so a marked-up copy is
+   painted behind one whose text is transparent. Every metric that decides
+   where a glyph lands has to match on both, or the highlight drifts off the
+   words it belongs to. */
+.comment-compose .comment-box,
+.comment-mirror {
+  font: inherit;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border: 2px solid transparent;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  width: 100%;
+}
+.comment-compose .comment-box {
+  position: relative;
+  z-index: 1;
+  border-color: var(--ink);
+  background: transparent;
+  /* The mirror behind supplies every visible glyph; only the caret and any
+     selection come from the textarea itself. */
+  color: transparent;
+  caret-color: var(--ink);
+}
+.comment-compose .comment-box::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.comment-mirror {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--ink);
+  pointer-events: none;
+}
+.mention-mark {
+  background: none;
+  color: var(--ink);
+  font-weight: 700;
+  /* Underlined as well as bold: weight alone is easy to miss in a wall of
+     text, and colour alone would not survive a colour-blind reader. */
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The keyboard's position in the picker, styled like hover so arrowing and
+   pointing look the same — they select the same thing. */
+.mention-option.active,
+.mention-option.active:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.mention-option.active .mention-sub {
+  color: var(--accent-ink);
+}

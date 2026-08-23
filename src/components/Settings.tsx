@@ -16,6 +16,7 @@ import Blockmark from "./Blockmark";
 import SettingsConnection from "./SettingsConnection";
 import SettingsAppearance from "./SettingsAppearance";
 import SettingsTimesheet from "./SettingsTimesheet";
+import SettingsIssueFields from "./SettingsIssueFields";
 import SettingsTodo from "./SettingsTodo";
 import SettingsLogging from "./SettingsLogging";
 
@@ -114,7 +115,14 @@ export default function Settings({
       )}
       {tab === "appearance" && <SettingsAppearance />}
       {tab === "timesheet" && <SettingsTimesheet />}
-      {tab === "todo" && <SettingsTodo />}
+      {tab === "todo" && (
+        <>
+          <SettingsTodo />
+          {/* The issue view is opened from the todo tab, so its field
+              configuration belongs with it. */}
+          <SettingsIssueFields />
+        </>
+      )}
       {tab === "logging" && <SettingsLogging />}
 
       {/* The connection tab brings its own buttons — its Save has to submit

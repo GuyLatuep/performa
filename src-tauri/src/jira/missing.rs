@@ -339,8 +339,12 @@ impl JiraClient {
     }
 
     /// Most recent changelog entries. The API pages oldest-first, so when the
-    /// history doesn't fit in one page, re-fetch the last page.
-    async fn recent_changelog(&self, issue_key: &str) -> Result<Vec<ChangelogEntry>, String> {
+    /// history doesn't fit in one page, re-fetch the last page. Shared with
+    /// the issue view's activity feed.
+    pub(super) async fn recent_changelog(
+        &self,
+        issue_key: &str,
+    ) -> Result<Vec<ChangelogEntry>, String> {
         let first = self.changelog_page(issue_key, 0).await?;
         let fetched = first.values.len() as i64;
         if first.total > fetched && fetched > 0 {

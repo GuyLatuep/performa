@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { logError, logInfo } from "./log";
+import type { PickedMention } from "./mentionInput";
 
 export interface Myself {
   accountId: string;
@@ -22,6 +23,141 @@ export interface IssueSummary {
   status?: string;
   /** Priority name; only present on searches that request it (todo_issues). */
   priority?: string;
+}
+
+/** One named field of an issue, already rendered to display text by the
+ *  backend — Jira's custom fields arrive in half a dozen shapes and the
+ *  webview should not have to know any of them. */
+export interface IssueField {
+  id: string;
+  /** The field's name as configured on the site ("Plant-No."). */
+  label: string;
+  value: string;
+}
+
+/** Everything the issue view shows above the timeline. */
+export interface IssueDetail {
+  key: string;
+  summary: string;
+  status?: string;
+  priority?: string;
+  issueType?: string;
+  reporter?: string;
+  assignee?: string;
+  dueDate?: string; // yyyy-MM-dd
+  createdAt: string; // RFC3339, local
+  updatedAt: string;
+  /** Flattened to plain text, line breaks preserved. */
+  description: string;
+  /** The site's configured fields, in display order. Fields this site doesn't
+   *  have — or that are empty on this issue — are simply absent. */
+  details: IssueField[];
+  /** Whether a comment here can be public, i.e. whether this is a service-desk
+   *  request. Drives whether a customer reply is offered at all. */
+  serviceDesk: boolean;
+  /** Files on the issue, newest first. */
+  attachments: Attachment[];
+}
+
+/** One file attached to an issue. Carries no URL: the content is fetched by id
+ *  through the Rust side, which is where the credentials are. */
+export interface Attachment {
+  id: string;
+  filename: string;
+  size: number;
+  mimeType?: string;
+  author: string;
+  createdAt: string;
+}
+
+/** A comment somebody wrote on the issue. */
+export interface IssueComment {
+  id: string;
+  author: string;
+  createdAt: string;
+  createdTs: number;
+  text: string;
+  /** Agent-only service-desk comment. Always false elsewhere. */
+  internal: boolean;
+}
+
+/** The workflow moving the issue between statuses. */
+export interface StatusChange {
+  id: string;
+  author: string;
+  createdAt: string;
+  createdTs: number;
+  from?: string;
+  to?: string;
+}
+
+/** Time somebody recorded against the issue. Distinct from `WorklogEntry`,
+ *  which is the current user's own time as the timesheet needs it. */
+export interface ActivityWorklog {
+  id: string;
+  author: string;
+  createdAt: string;
+  createdTs: number;
+  timeSpentSeconds: number;
+  comment: string;
+}
+
+/** An issue's history, one list per kind. They are shown on a single timeline
+ *  (see `timeline` in ./activity) but they are not three kinds of one thing —
+ *  see CONTEXT.md. */
+export interface IssueActivity {
+  comments: IssueComment[];
+  statusChanges: StatusChange[];
+  worklogs: ActivityWorklog[];
+}
+
+/** Somebody who can be @-mentioned. */
+export interface JiraUser {
+  /** Jira's opaque account id — what a mention points at. Display names are
+   *  neither unique nor stable; this is. */
+  accountId: string;
+  displayName: string;
+  /** Absent when the site hides email addresses, which is the Cloud default. */
+  email?: string;
+}
+
+/** One permitted value of a constrained field. */
+export interface AllowedValue {
+  id: string;
+  label: string;
+}
+
+/** One field of a transition screen or an issue's edit form, close to the
+ *  shape Jira describes it in. Turning this into something renderable is
+ *  `toFormFields` in ./issueFields — Jira spreads the answer across the base
+ *  type, the array item type and the custom-field URI. */
+export interface FieldMeta {
+  id: string;
+  name: string;
+  required: boolean;
+  schemaType: string;
+  schemaItems?: string;
+  schemaCustom?: string;
+  /** The built-in field this is ("description", "environment", …). Some are
+   *  rich text even though their base type is only "string". */
+  schemaSystem?: string;
+  /** What Jira says can be done to the field. Without "set", this app cannot
+   *  fill it in. */
+  operations: string[];
+  allowedValues: AllowedValue[];
+}
+
+/** A move the workflow currently permits from the issue's status. Not the same
+ *  as setting a status field: which ones exist depends on where the issue is
+ *  right now. See CONTEXT.md. */
+export interface Transition {
+  id: string;
+  /** The transition's own name ("Start Progress"), which is not always the
+   *  name of the status it leads to. */
+  name: string;
+  to?: string;
+  /** The move's screen. Empty means it runs bare. */
+  fields: FieldMeta[];
 }
 
 /** A project the user can see. Only the settings screen asks for these — the
@@ -326,6 +462,155 @@ export const api = {
       () => invoke("issue_worklogs", { issueKey }),
       entries,
     );
+  },
+  /** One issue as the issue view shows it. A pure function of the key, so it
+   *  is cached like the other reads and dropped on any write. */
+  issueDetail(issueKey: string, fieldNames: string[]): Promise<IssueDetail> {
+    // The configured names are part of the request, so they have to be part of
+    // the cache key too — same reasoning as `todoIssues`.
+    return cached(`issue_detail:${issueKey}:${fieldNames.join("|")}`, () =>
+      logged(
+        `issue_detail(issueKey=${issueKey}, fields=${fieldNames.length})`,
+        () => invoke("issue_detail", { issueKey, fieldNames }),
+        (d) => `${d.details.length} configured field(s)`,
+      ),
+    );
+  },
+  /** That issue's history. Deliberately uncached: it is read straight after
+   *  the user comments or logs time, and a stale timeline there would look
+   *  like the write was lost. */
+  issueActivity(issueKey: string): Promise<IssueActivity> {
+    return logged(
+      `issue_activity(issueKey=${issueKey})`,
+      () => invoke("issue_activity", { issueKey }),
+      (a) =>
+        `${a.comments.length} comment(s), ${a.statusChanges.length} status change(s), ` +
+        `${a.worklogs.length} worklog(s)`,
+    );
+  },
+  /** Post a comment on an issue.
+   *
+   *  `publicReply` decides who can read it on a service-desk issue and is
+   *  ignored by Jira elsewhere — see `commentActions` in ./comments. The text
+   *  is not logged: it can carry whatever the customer wrote in.
+   *
+   *  Drops the read cache like the worklog writes: a comment moves the issue's
+   *  `updated` stamp, which is what the todo list and both background scans
+   *  read. */
+  addComment(
+    issueKey: string,
+    text: string,
+    publicReply: boolean,
+    mentions: PickedMention[] = [],
+  ): Promise<void> {
+    return logged(
+      `add_issue_comment(issueKey=${issueKey}, public=${publicReply}, ` +
+        `chars=${text.length}, mentions=${mentions.length})`,
+      () =>
+        invoke("add_issue_comment", {
+          issueKey,
+          text,
+          public: publicReply,
+          mentions,
+        }),
+    ).then(invalidateCachedReads);
+  },
+  /** People matching `query`, for the comment box's mention picker.
+   *
+   *  Not cached: it is keystroke-driven and the answers are cheap. An empty
+   *  result may mean the account lacks Jira's "Browse users" permission rather
+   *  than that nobody matched. */
+  searchUsers(query: string): Promise<JiraUser[]> {
+    return logged(
+      `search_users(query=${JSON.stringify(query)})`,
+      () => invoke("search_users", { query }),
+      (r) => `${r.length} user(s)`,
+    );
+  },
+  /** The workflow moves available from this issue's current status. Cached
+   *  like the detail — a transition, or anything else the app writes, drops
+   *  it. */
+  issueTransitions(issueKey: string): Promise<Transition[]> {
+    return cached(`issue_transitions:${issueKey}`, () =>
+      logged(
+        `issue_transitions(issueKey=${issueKey})`,
+        () => invoke("issue_transitions", { issueKey }),
+        (t) => `${t.length} transition(s)`,
+      ),
+    );
+  },
+  /** Run one of them, with the transition screen's answers when it has one
+   *  (already in Jira's shape — see `toJiraFields`). The issue's status is what
+   *  the todo list filters on, so this drops the read cache like every other
+   *  write. */
+  transitionIssue(
+    issueKey: string,
+    transitionId: string,
+    fields?: Record<string, unknown>,
+  ): Promise<void> {
+    return logged(
+      `transition_issue(issueKey=${issueKey}, transitionId=${transitionId}, ` +
+        `fields=${fields ? Object.keys(fields).length : 0})`,
+      () => invoke("transition_issue", { issueKey, transitionId, fields }),
+    ).then(invalidateCachedReads);
+  },
+  /** Every field name this site defines — the settings screen picks from
+   *  these rather than having names typed. Reference data, so it is held for
+   *  the life of the process like the project list. */
+  jiraFieldNames(): Promise<string[]> {
+    return memo("jira_field_names", () =>
+      logged(
+        "jira_field_names",
+        () => invoke("jira_field_names"),
+        (r) => `${r.length} field(s)`,
+      ),
+    );
+  },
+  /** The fields this issue's edit form offers, in the same shape a transition
+   *  screen uses. */
+  issueEditFields(issueKey: string): Promise<FieldMeta[]> {
+    return cached(`issue_edit_fields:${issueKey}`, () =>
+      logged(
+        `issue_edit_fields(issueKey=${issueKey})`,
+        () => invoke("issue_edit_fields", { issueKey }),
+        (f) => `${f.length} editable field(s)`,
+      ),
+    );
+  },
+  /** Write field values back to the issue (shaped by `toJiraFields`). */
+  updateIssueFields(
+    issueKey: string,
+    fields: Record<string, unknown>,
+  ): Promise<void> {
+    return logged(
+      `update_issue_fields(issueKey=${issueKey}, fields=${Object.keys(fields).length})`,
+      () => invoke("update_issue_fields", { issueKey, fields }),
+    ).then(invalidateCachedReads);
+  },
+  /** Download an attachment and hand it to whatever the OS opens it with. */
+  openAttachment(attachmentId: string, filename: string): Promise<void> {
+    return logged(
+      `open_attachment(attachmentId=${attachmentId}, filename=${filename})`,
+      () => invoke("open_attachment", { attachmentId, filename }),
+    );
+  },
+  /** Remove an attachment from its issue. Irreversible in Jira and visible to
+   *  everyone on the issue, so the view asks before calling this. */
+  deleteAttachment(attachmentId: string): Promise<void> {
+    return logged(`delete_attachment(attachmentId=${attachmentId})`, () =>
+      invoke("delete_attachment", { attachmentId }),
+    ).then(invalidateCachedReads);
+  },
+  /** Reveal the folder downloads land in. */
+  openAttachmentFolder(): Promise<void> {
+    return invoke("open_attachment_folder");
+  },
+  /** Attach files to an issue. Adds to the issue, so the read cache goes. */
+  attachFiles(issueKey: string, paths: string[]): Promise<void> {
+    return logged(
+      `attach_files(issueKey=${issueKey}, files=${paths.length})`,
+      () => invoke("attach_files", { issueKey, paths }),
+    ).then(invalidateCachedReads);
   },
   missingWorklogs(): Promise<MissingWorklog[]> {
     return logged(

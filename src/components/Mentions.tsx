@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { IssueSummary, Mention } from "../api";
+import IssueView from "./IssueView";
 import { timeAgo } from "../time";
 import {
   markMentionsRead,
@@ -16,14 +17,17 @@ import {
 
 interface Props {
   site: string;
-  /** Open the log-work form for the mentioned issue. */
-  onLogWork: (issue: IssueSummary) => void;
+  /** A worklog was filed from an opened issue — refresh what depends on it. */
+  onLogged: () => void;
 }
 
 // Inbox of comments that tag the user. Opening the tab marks everything listed
 // as read; the rows stay highlighted for this visit so it is still visible
 // what was new when the tab was opened.
-export default function Mentions({ site, onLogWork }: Props) {
+export default function Mentions({ site, onLogged }: Props) {
+  // A Mention means somebody wants something from you, and the expected
+  // response is to go and look at the issue — so a row opens it.
+  const [opened, setOpened] = useState<IssueSummary | null>(null);
   const items = useMentions();
   const error = useMentionsError();
   const lastChecked = useMentionsLastChecked();
@@ -48,6 +52,18 @@ export default function Mentions({ site, onLogWork }: Props) {
     setBusy(true);
     await refreshMentions("manual");
     setBusy(false);
+  }
+
+  if (opened) {
+    return (
+      <IssueView
+        issue={opened}
+        site={site}
+        backLabel="Mentions"
+        onBack={() => setOpened(null)}
+        onLogged={onLogged}
+      />
+    );
   }
 
   return (
@@ -97,7 +113,7 @@ export default function Mentions({ site, onLogWork }: Props) {
           item={item}
           site={site}
           unread={unread.has(mentionId(item))}
-          onLogWork={onLogWork}
+          onOpen={setOpened}
         />
       ))}
     </div>
@@ -108,12 +124,12 @@ function MentionRow({
   item,
   site,
   unread,
-  onLogWork,
+  onOpen,
 }: {
   item: Mention;
   site: string;
   unread: boolean;
-  onLogWork: (issue: IssueSummary) => void;
+  onOpen: (issue: IssueSummary) => void;
 }) {
   // Jira scrolls to and highlights the comment itself with this parameter,
   // which is the whole point of clicking a mention.
@@ -152,12 +168,12 @@ function MentionRow({
             shortcut, demoted so the row still reads as "go look at this". */}
         <button
           className="link mention-log"
-          title={`Log work on ${item.issueKey}`}
+          title={`Open ${item.issueKey}`}
           onClick={() =>
-            onLogWork({ key: item.issueKey, summary: item.issueSummary })
+            onOpen({ key: item.issueKey, summary: item.issueSummary })
           }
         >
-          Log work
+          Open issue
         </button>
       </div>
     </div>

@@ -3,18 +3,20 @@ import { api, invalidateCachedReads, IssueSummary } from "../api";
 import { usePinnedIssues } from "../pins";
 import { useIgnoredStatuses } from "../todoStatuses";
 import IssueRow from "./IssueRow";
+import IssueView from "./IssueView";
 
 interface Props {
   site: string;
-  /** Jump to the log-work tab with this issue preselected. */
-  onSelectIssue: (issue: IssueSummary) => void;
+  /** A worklog was filed from the opened issue — refresh what depends on it. */
+  onLogged: () => void;
 }
 
 // Todo tab: everything waiting on the user — escalations they raised that are
 // back in their court, plus every open issue assigned to them. Most urgent
 // first; the query itself lives in the backend (`build_todo_jql`).
-export default function Todo({ site, onSelectIssue }: Props) {
+export default function Todo({ site, onLogged }: Props) {
   const [issues, setIssues] = useState<IssueSummary[] | null>(null);
+  const [opened, setOpened] = useState<IssueSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const pinnedKeys = new Set(usePinnedIssues().map((p) => p.key));
@@ -47,6 +49,18 @@ export default function Todo({ site, onSelectIssue }: Props) {
     invalidateCachedReads();
     setReloadKey((k) => k + 1);
   }, []);
+
+  if (opened) {
+    return (
+      <IssueView
+        issue={opened}
+        site={site}
+        backLabel="Todo"
+        onBack={() => setOpened(null)}
+        onLogged={onLogged}
+      />
+    );
+  }
 
   return (
     <div className="panel todo">
@@ -85,7 +99,7 @@ export default function Todo({ site, onSelectIssue }: Props) {
               issue={issue}
               site={site}
               pinned={pinnedKeys.has(issue.key)}
-              onSelect={onSelectIssue}
+              onSelect={setOpened}
             />
           ))}
         </ul>

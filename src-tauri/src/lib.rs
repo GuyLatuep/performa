@@ -6,8 +6,9 @@ mod tray;
 
 use creds::{Credentials, CredentialsMeta};
 use jira::{
-    IssueSummary, JiraClient, MentionScan, MissingConfig, MissingWorklog, Myself, ProjectSummary,
-    TodoConfig, WorklogEntry, WorklogInput,
+    FieldMeta, IssueActivity, IssueDetail, IssueSummary, JiraClient, JiraUser, MentionRef,
+    MentionScan, MissingConfig, MissingWorklog, Myself, ProjectSummary, TodoConfig, Transition,
+    WorklogEntry, WorklogInput,
 };
 use std::collections::BTreeMap;
 
@@ -54,9 +55,58 @@ const MAX_STATUS_NAME_CHARS: usize = 255;
 // `start_issue_work`).
 const TIMER_START_STATUS: &str = "In Arbeit";
 
+// How many site-specific fields the issue view will ask for, and how long a
+// field name may be. The names come from the webview now (they are a setting),
+// and every one of them widens the issue request — so the bound is here rather
+// than in the settings screen, which is only one of the ways they could
+// arrive.
+const MAX_DETAIL_FIELDS: usize = 30;
+const MAX_FIELD_NAME_CHARS: usize = 100;
+
 // Generous enough for any genuine frontend log line (the longest are search
 // labels carrying the user's query), short enough to bound the file.
 const MAX_FRONTEND_LOG_CHARS: usize = 1000;
+
+// Jira rejects a comment body over 32767 characters with an unhelpful error.
+// Refusing it here means the user is told what is wrong while their text is
+// still in the box.
+const MAX_COMMENT_CHARS: usize = 32_767;
+
+// Where downloaded attachments land. Beside the debug logs rather than in the
+// user's Downloads folder: these are opened once and forgotten, and the app
+// sweeps them at launch (see `cleanup`). A file the user wants to keep is
+// theirs to save from whatever opened it.
+fn attachment_dir() -> std::path::PathBuf {
+    std::env::temp_dir().join("performa-attachments")
+}
+
+/// Jira's attachment ids are its own numeric strings, and this one reaches a
+/// URL path.
+fn checked_attachment_id(id: &str) -> Result<&str, String> {
+    if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
+        Ok(id)
+    } else {
+        Err(format!("invalid attachment id '{id}'"))
+    }
+}
+
+/// An attachment's name reaches the filesystem, so it must stay a *name*: no
+/// separators, no parent-directory hops, nothing empty. Jira's own value is
+/// normally fine; this is about what the webview could send instead.
+fn checked_filename(name: &str) -> Result<String, String> {
+    let trimmed = name.trim();
+    let safe = !trimmed.is_empty()
+        && trimmed.len() <= 200
+        && !trimmed.contains(['/', '\\', '\0'])
+        && trimmed != "."
+        && trimmed != ".."
+        && !trimmed.contains("..");
+    if safe {
+        Ok(trimmed.to_string())
+    } else {
+        Err(format!("unsafe attachment name '{name}'"))
+    }
+}
 
 /// Client + account id, built once from the stored credentials and cached so
 /// commands neither re-read the keychain nor re-fetch `myself` on every call.
@@ -162,6 +212,59 @@ fn checked_status_names(names: Vec<String>) -> Vec<String> {
         }
     }
     out
+}
+
+/// A comment body Jira will accept. Empty is a mis-click rather than a
+/// request, and an over-long one is rejected by Jira after the round trip.
+fn checked_comment_text(text: &str) -> Result<&str, String> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Err("a comment needs some text".to_string());
+    }
+    if trimmed.chars().count() > MAX_COMMENT_CHARS {
+        return Err(format!(
+            "comment is too long ({} characters; Jira allows {MAX_COMMENT_CHARS})",
+            trimmed.chars().count()
+        ));
+    }
+    Ok(trimmed)
+}
+
+/// The site-specific field names the issue view asks for. These are matched
+/// against the site's own field catalog rather than interpolated anywhere, so
+/// the check is about size, not shape: a very long list makes for a very wide
+/// issue request.
+fn checked_field_names(names: Vec<String>) -> Result<Vec<String>, String> {
+    if names.len() > MAX_DETAIL_FIELDS {
+        return Err(format!(
+            "too many fields configured ({}; at most {MAX_DETAIL_FIELDS})",
+            names.len()
+        ));
+    }
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for name in names {
+        let name = name.trim().to_string();
+        // Blank entries and repeats are settings-screen debris, not an error
+        // worth refusing the whole view over.
+        if name.is_empty() || name.chars().count() > MAX_FIELD_NAME_CHARS {
+            continue;
+        }
+        if seen.insert(name.to_lowercase()) {
+            out.push(name);
+        }
+    }
+    Ok(out)
+}
+
+/// Transition ids are Jira's own numeric strings and reach a request body, so
+/// hold them to that shape rather than passing the webview's word along.
+fn checked_transition_id(id: &str) -> Result<&str, String> {
+    if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
+        Ok(id)
+    } else {
+        Err(format!("invalid transition id '{id}'"))
+    }
 }
 
 fn checked_worklog_id(id: &str) -> Result<&str, String> {
@@ -276,6 +379,13 @@ async fn todo_issues(
     ignored_statuses: BTreeMap<String, Vec<String>>,
 ) -> Result<Vec<IssueSummary>, String> {
     let s = session(&state).await?;
+    // Opening the todo tab is the step before opening an issue from it, so
+    // this is where the field catalog gets fetched — off to the side, while
+    // the user is still reading the list, rather than in front of the first
+    // issue view. Detached and best-effort: the list must not wait on it, and
+    // `issue_detail` fetches it itself if this hasn't landed yet.
+    let client = s.client.clone();
+    tauri::async_runtime::spawn(async move { client.warm_field_catalog().await });
     s.client.todo_issues(&todo_config(ignored_statuses)).await
 }
 
@@ -380,6 +490,203 @@ async fn issue_worklogs(
     checked_issue_key(&issue_key)?;
     let s = session(&state).await?;
     s.client.my_issue_worklogs(&s.account_id, &issue_key).await
+}
+
+/// One issue as the in-app issue view shows it: the standard fields plus
+/// whichever of `DETAIL_FIELD_NAMES` this site actually has.
+#[tauri::command]
+async fn issue_detail(
+    state: State<'_, AppState>,
+    issue_key: String,
+    field_names: Vec<String>,
+) -> Result<IssueDetail, String> {
+    checked_issue_key(&issue_key)?;
+    let names = checked_field_names(field_names)?;
+    let wanted: Vec<&str> = names.iter().map(String::as_str).collect();
+    let s = session(&state).await?;
+    s.client.issue_detail(&issue_key, &wanted).await
+}
+
+/// Every field name this Jira site defines — what the settings screen offers
+/// so the configured names are picked rather than typed.
+#[tauri::command]
+async fn jira_field_names(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    let s = session(&state).await?;
+    s.client.field_names().await
+}
+
+/// The fields this issue's edit form offers, in the same shape a transition
+/// screen uses.
+#[tauri::command]
+async fn issue_edit_fields(
+    state: State<'_, AppState>,
+    issue_key: String,
+) -> Result<Vec<FieldMeta>, String> {
+    checked_issue_key(&issue_key)?;
+    let s = session(&state).await?;
+    s.client.issue_edit_fields(&issue_key).await
+}
+
+/// Write field values back to the issue. Shaped by the webview, like a
+/// transition screen's answers, and passed through for the same reason.
+#[tauri::command]
+async fn update_issue_fields(
+    state: State<'_, AppState>,
+    issue_key: String,
+    fields: serde_json::Value,
+) -> Result<(), String> {
+    checked_issue_key(&issue_key)?;
+    let s = session(&state).await?;
+    s.client.update_issue_fields(&issue_key, fields).await
+}
+
+/// That issue's history: comments, status changes and worklogs, each in its
+/// own list for the webview to interleave.
+#[tauri::command]
+async fn issue_activity(
+    state: State<'_, AppState>,
+    issue_key: String,
+) -> Result<IssueActivity, String> {
+    checked_issue_key(&issue_key)?;
+    let s = session(&state).await?;
+    s.client.issue_activity(&issue_key).await
+}
+
+/// Post a comment on an issue.
+///
+/// `public` is only meaningful on a service-desk request, where it decides
+/// whether the customer sees the comment (a customer reply) or only the people
+/// working the issue do (an internal note). Elsewhere Jira ignores it and the
+/// comment is as visible as the issue itself — which is why the webview offers
+/// no choice there rather than offering one that does nothing.
+#[tauri::command]
+async fn add_issue_comment(
+    state: State<'_, AppState>,
+    issue_key: String,
+    text: String,
+    public: bool,
+    mentions: Vec<MentionRef>,
+) -> Result<(), String> {
+    checked_issue_key(&issue_key)?;
+    let text = checked_comment_text(&text)?;
+    let s = session(&state).await?;
+    s.client
+        .add_comment(&issue_key, text, public, &mentions)
+        .await
+}
+
+/// People matching `query`, for the comment box's mention picker.
+#[tauri::command]
+async fn search_users(state: State<'_, AppState>, query: String) -> Result<Vec<JiraUser>, String> {
+    let query = query.trim();
+    // One character is enough for Jira and keeps the picker responsive from the
+    // first keystroke; an empty query would ask it for everybody.
+    if query.is_empty() || query.chars().count() > MAX_FIELD_NAME_CHARS {
+        return Ok(Vec::new());
+    }
+    let s = session(&state).await?;
+    s.client.search_users(query).await
+}
+
+/// The workflow moves available from this issue's current status, each with
+/// the fields it insists on. A transition that names any is not runnable from
+/// here yet — the view says so rather than offering a button that 400s.
+#[tauri::command]
+async fn issue_transitions(
+    state: State<'_, AppState>,
+    issue_key: String,
+) -> Result<Vec<Transition>, String> {
+    checked_issue_key(&issue_key)?;
+    let s = session(&state).await?;
+    s.client.issue_transitions(&issue_key).await
+}
+
+/// Run one of them. Unlike the timer's status nudge, a failure here is the
+/// user's to see: they pressed the button.
+///
+/// `fields` carries a transition screen's answers when the move has one. It
+/// arrives already shaped for Jira — the webview knows the field types, this
+/// layer does not — and is passed through rather than re-validated here: Jira
+/// is the authority on what its own screen accepts, and its rejection carries
+/// a better message than a guess made here would.
+#[tauri::command]
+async fn transition_issue(
+    state: State<'_, AppState>,
+    issue_key: String,
+    transition_id: String,
+    fields: Option<serde_json::Value>,
+) -> Result<(), String> {
+    checked_issue_key(&issue_key)?;
+    checked_transition_id(&transition_id)?;
+    let s = session(&state).await?;
+    s.client
+        .transition_issue(&issue_key, &transition_id, fields)
+        .await
+}
+
+/// Download one attachment and hand it to whatever the OS opens it with.
+///
+/// The bytes travel through this process because that is where the credentials
+/// live — the webview never sees a Jira URL it could fetch itself.
+#[tauri::command]
+async fn open_attachment(
+    state: State<'_, AppState>,
+    attachment_id: String,
+    filename: String,
+) -> Result<(), String> {
+    checked_attachment_id(&attachment_id)?;
+    let filename = checked_filename(&filename)?;
+    let s = session(&state).await?;
+    let path = s
+        .client
+        .download_attachment(&attachment_id, &filename, &attachment_dir())
+        .await?;
+    open::that(&path).map_err(|e| format!("could not open {}: {e}", path.display()))
+}
+
+/// Remove an attachment from its issue. Irreversible in Jira, and visible to
+/// everyone on the issue — the view asks before calling this.
+#[tauri::command]
+async fn delete_attachment(
+    state: State<'_, AppState>,
+    attachment_id: String,
+) -> Result<(), String> {
+    checked_attachment_id(&attachment_id)?;
+    let s = session(&state).await?;
+    s.client.delete_attachment(&attachment_id).await
+}
+
+/// Reveal the folder the downloads land in, for the file the user wants to
+/// keep rather than glance at.
+#[tauri::command]
+fn open_attachment_folder() -> Result<(), String> {
+    let dir = attachment_dir();
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("could not create the download folder: {e}"))?;
+    open::that(&dir).map_err(|e| format!("could not open the download folder: {e}"))
+}
+
+/// Attach files to an issue. The paths come from a file picker or a drop onto
+/// the window, both of which are the user naming a file themselves.
+#[tauri::command]
+async fn attach_files(
+    state: State<'_, AppState>,
+    issue_key: String,
+    paths: Vec<String>,
+) -> Result<(), String> {
+    checked_issue_key(&issue_key)?;
+    if paths.is_empty() {
+        return Err("no files to attach".to_string());
+    }
+    let s = session(&state).await?;
+    // One at a time, and stop at the first failure: a half-finished batch is
+    // easier to reason about when the user can see which file it stopped on.
+    for path in paths {
+        s.client
+            .upload_attachment(&issue_key, std::path::Path::new(&path))
+            .await?;
+    }
+    Ok(())
 }
 
 /// Issues with recent own activity (comment / status change) that have no
@@ -498,6 +805,7 @@ pub fn run() {
                 eprintln!("logging::init failed: {e}");
             }
             cleanup::sweep_update_leftovers(app);
+            cleanup::sweep_downloaded_attachments(&attachment_dir());
             tray::setup(app)?;
             // The window is created hidden (`"visible": false` in
             // tauri.conf.json) and only shown once it sits where the user left
@@ -527,6 +835,7 @@ pub fn run() {
                 .skip_initial_state("main")
                 .build(),
         )
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -547,6 +856,19 @@ pub fn run() {
             delete_worklog,
             list_worklogs,
             issue_worklogs,
+            issue_detail,
+            issue_activity,
+            add_issue_comment,
+            search_users,
+            issue_transitions,
+            transition_issue,
+            jira_field_names,
+            issue_edit_fields,
+            update_issue_fields,
+            open_attachment,
+            open_attachment_folder,
+            delete_attachment,
+            attach_files,
             missing_worklogs,
             mentions,
             tray::timer_started,
@@ -562,6 +884,49 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn comment_text_is_validated() {
+        assert_eq!(checked_comment_text("  Pump stalled  "), Ok("Pump stalled"));
+        // A mis-click, not a request.
+        assert!(checked_comment_text("").is_err());
+        assert!(checked_comment_text("   \n  ").is_err());
+        // Counted in characters, not bytes: an umlaut is not two thirds of one.
+        let umlauts = "ä".repeat(MAX_COMMENT_CHARS);
+        assert!(checked_comment_text(&umlauts).is_ok());
+        assert!(checked_comment_text(&"a".repeat(MAX_COMMENT_CHARS + 1)).is_err());
+    }
+
+    #[test]
+    fn attachment_names_stay_file_names() {
+        assert_eq!(checked_filename("  report.pdf "), Ok("report.pdf".into()));
+        // The name reaches the filesystem, so a path must not survive in it.
+        assert!(checked_filename("../../etc/passwd").is_err());
+        assert!(checked_filename("a/b.txt").is_err());
+        assert!(checked_filename("a\\b.txt").is_err());
+        assert!(checked_filename("..").is_err());
+        assert!(checked_filename("").is_err());
+        assert!(checked_filename("   ").is_err());
+        assert!(checked_filename(&"x".repeat(201)).is_err());
+    }
+
+    #[test]
+    fn attachment_ids_are_validated() {
+        assert!(checked_attachment_id("10042").is_ok());
+        assert!(checked_attachment_id("").is_err());
+        assert!(checked_attachment_id("../10042").is_err());
+        assert!(checked_attachment_id("abc").is_err());
+    }
+
+    #[test]
+    fn transition_ids_are_validated() {
+        assert!(checked_transition_id("31").is_ok());
+        assert!(checked_transition_id("").is_err());
+        // The id reaches a request body; anything but Jira's own digits is a
+        // webview that has been tampered with.
+        assert!(checked_transition_id("31; drop").is_err());
+        assert!(checked_transition_id("abc").is_err());
+    }
 
     #[test]
     fn project_keys_are_validated() {

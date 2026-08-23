@@ -26,6 +26,15 @@ pub fn sweep_update_leftovers(app: &App) {
     sweep_dir(&std::env::temp_dir(), is_updater_scratch);
 }
 
+/// Empty the folder attachments are downloaded into.
+///
+/// They exist to be opened once — the app writes them, hands them to the OS,
+/// and has no further use for them. Swept at launch rather than after opening,
+/// because the program that opened one may still be reading it.
+pub fn sweep_downloaded_attachments(dir: &Path) {
+    sweep_dir(dir, |_| true);
+}
+
 /// Remove every direct child of `dir` whose file name `matches`.
 fn sweep_dir(dir: &Path, matches: fn(&str) -> bool) {
     let Ok(entries) = fs::read_dir(dir) else {
