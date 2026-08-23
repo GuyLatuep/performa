@@ -64,18 +64,37 @@ function key(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+/**
+ * The layout a fresh install starts with.
+ *
+ * Not an arbitrary list: it is the one this app's author arrived at after
+ * using it, which is a better starting point than alphabetical order or the
+ * order Jira happens to return. Two long-text fields open full width above the
+ * grid; the rest read as a row of facts.
+ *
+ * Names that a given Jira site does not have simply never appear, so shipping
+ * site-specific ones costs nothing to anybody else.
+ */
 export const DEFAULT_FIELD_CONFIG: IssueFieldConfig = {
   detail: [
-    ...STANDARD_FIELD_NAMES,
-    "Plant-No.",
+    "Summary BUG",
+    "Issue Type",
+    "Priority",
+    "Assignee",
+    "Reporter",
+    "Due date",
     "Plant name",
-    "Plant location",
-    "Analyseergebnis 1st Level",
-    "Responsible 1st Level",
     "Remote Access",
+    "Responsible 1st Level",
+    "Plant-No.",
     "System type",
+    "System",
+    "Analyseergebnis 1st Level",
   ],
-  sizes: {},
+  sizes: {
+    summarybug: "full",
+    analyseergebnis1stlevel: "full",
+  },
 };
 
 /** Trimmed and deduped case-insensitively, order preserved — the order is the
@@ -220,4 +239,10 @@ export function reorderDetailField(name: string, toIndex: number): void {
   const at = Math.max(0, Math.min(toIndex, rest.length));
   rest.splice(at, 0, current.detail[from]);
   save({ ...current, detail: rest });
+}
+
+/** Put the layout back to what the app ships with — the way out of an arrange
+ *  session that went badly. */
+export function restoreDefaultFields(): void {
+  save(DEFAULT_FIELD_CONFIG);
 }

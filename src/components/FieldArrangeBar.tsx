@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { addDetailField } from "../issueFieldNames";
+import { addDetailField, restoreDefaultFields } from "../issueFieldNames";
 
 /**
  * The arrange mode's toolbar: leave the mode, or add a field to the layout.
@@ -17,6 +17,8 @@ export default function FieldArrangeBar({
   shown: string[];
   onDone: () => void;
 }) {
+  /** Restoring throws away an arrangement, so it takes a second click. */
+  const [confirmReset, setConfirmReset] = useState(false);
   const [names, setNames] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState("");
@@ -46,6 +48,36 @@ export default function FieldArrangeBar({
       <span className="hint">
         Drag a field to move it · ⇔ resizes · ✕ removes it
       </span>
+      {confirmReset ? (
+        <span className="arrange-reset">
+          <span className="confirm-text">Layout zurücksetzen?</span>
+          <button
+            className="icon"
+            title="Doch nicht"
+            onClick={() => setConfirmReset(false)}
+          >
+            ✕
+          </button>
+          <button
+            className="icon danger-icon"
+            title="Auf die Standardanordnung zurücksetzen"
+            onClick={() => {
+              restoreDefaultFields();
+              setConfirmReset(false);
+            }}
+          >
+            ✓
+          </button>
+        </span>
+      ) : (
+        <button
+          className="link"
+          title="Auf die Standardanordnung zurücksetzen"
+          onClick={() => setConfirmReset(true)}
+        >
+          Zurücksetzen
+        </button>
+      )}
       <div className="arrange-add">
         <select
           value={picked}

@@ -84,7 +84,7 @@ export default function IssueFacts({
     const at = order.indexOf(onto);
     reorderDetailField(dragged, at < 0 ? order.length : at);
   }, []);
-  const { dragging, dropTarget, startDrag } = useFieldDrag(onDrop);
+  const { dragging, dropTarget, at, startDrag } = useFieldDrag(onDrop);
   const [editable, setEditable] = useState<Map<string, FormField>>(new Map());
 
   // Which fields accept a value, keyed by name. Failing is not worth surfacing:
@@ -190,10 +190,7 @@ export default function IssueFacts({
         <span
           className="arrange-grip"
           title={`Drag to move ${fact.label}`}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            startDrag(fact.jiraName);
-          }}
+          onPointerDown={(e) => startDrag(fact.jiraName, e)}
         >
           ⠿
         </span>
@@ -352,6 +349,15 @@ export default function IssueFacts({
         </div>
       )}
       {blocks}
+      {dragging && at && (
+        <div
+          className="drag-ghost"
+          style={{ left: at.x, top: at.y }}
+          aria-hidden="true"
+        >
+          {facts.find((f) => f.jiraName === dragging)?.label ?? dragging}
+        </div>
+      )}
     </>
   );
 }

@@ -16,11 +16,15 @@ async function fresh(seed?: unknown) {
 }
 
 describe("reading the stored config", () => {
-  it("ships the standard layout, standard fields first", async () => {
+  it("ships a considered layout, not an arbitrary one", async () => {
     const m = await fresh();
-    const { detail } = m.getIssueFieldConfig();
-    expect(detail.slice(0, 5)).toEqual(m.STANDARD_FIELD_NAMES);
-    expect(detail).toContain("Plant-No.");
+    const { detail, sizes } = m.getIssueFieldConfig();
+    // The long-text fields lead, full width; the rest read as a row of facts.
+    expect(detail[0]).toBe("Summary BUG");
+    expect(sizes.summarybug).toBe("full");
+    expect(sizes.analyseergebnis1stlevel).toBe("full");
+    // Every standard field is present, wherever it was put.
+    for (const name of m.STANDARD_FIELD_NAMES) expect(detail).toContain(name);
   });
 
   it("brings a config written before the standard fields were listed forward", async () => {
@@ -192,5 +196,31 @@ describe("reorderDetailField", () => {
     const m = await order();
     m.reorderDetailField("Ghost", 0);
     expect(m.getIssueFieldConfig().detail).toEqual(["A", "B", "C", "D"]);
+  });
+});
+
+describe("restoreDefaultFields", () => {
+  it("puts back what the app ships with", async () => {
+    const m = await fresh({ detail: ["Wrecked"], sizes: {}, version: 3 });
+    m.restoreDefaultFields();
+    expect(m.getIssueFieldConfig().detail).toEqual(
+      m.DEFAULT_FIELD_CONFIG.detail,
+    );
+    expect(m.getIssueFieldConfig().sizes).toEqual(m.DEFAULT_FIELD_CONFIG.sizes);
+  });
+
+  it("recovers from an empty layout", async () => {
+    // Removing every field is the state with no way back through the picker.
+    const m = await fresh({ detail: [], sizes: {}, version: 3 });
+    m.restoreDefaultFields();
+    expect(m.getIssueFieldConfig().detail.length).toBeGreaterThan(0);
+  });
+
+  it("survives a reload", async () => {
+    const m = await fresh({ detail: ["Wrecked"], sizes: {}, version: 3 });
+    m.restoreDefaultFields();
+    vi.resetModules();
+    const again = await import("./issueFieldNames");
+    expect(again.getIssueFieldConfig().detail[0]).toBe("Summary BUG");
   });
 });
