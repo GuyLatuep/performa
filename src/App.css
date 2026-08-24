@@ -2292,6 +2292,10 @@ section.issue-fact .issue-description {
   gap: 10px;
   padding: 12px 18px;
   background: var(--surface);
+  /* Its own, because the base button rule's is the colour for text sitting on
+     the accent — which is dark in both themes, so on this surface the toast
+     read as black on black in dark mode. */
+  color: var(--ink);
   border: 2px solid var(--ink);
   box-shadow: 4px 4px 0 var(--hair);
   cursor: pointer;
