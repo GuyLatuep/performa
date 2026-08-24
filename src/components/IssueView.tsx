@@ -5,6 +5,7 @@ import {
   IssueActivity,
   IssueDetail,
   IssueSummary,
+  LinkedItem,
   Transition,
 } from "../api";
 import { OfferedTransition } from "../transitions";
@@ -15,6 +16,7 @@ import IssueActions from "./IssueActions";
 import IssueAttachments from "./IssueAttachments";
 import IssueDescription from "./IssueDescription";
 import IssueFacts from "./IssueFacts";
+import IssueLinks from "./IssueLinks";
 import IssueStatusPicker from "./IssueStatusPicker";
 import IssueTimeline, { timelineCount } from "./IssueTimeline";
 import TransitionScreen from "./TransitionScreen";
@@ -38,6 +40,21 @@ export default function IssueView({
   backLabel,
   onLogged,
 }: Props) {
+  /** Issues opened from a link, deepest last — `issue` is the one the list
+   *  opened and stays at the bottom of it.
+   *
+   *  A trail rather than a swap, because following a link is a detour: you go
+   *  and look at what blocks this issue and then you come back to it. Replacing
+   *  the open issue would leave "Back to Todo" as the only way out, and taking
+   *  it would lose the issue that was actually being worked on. */
+  const [trail, setTrail] = useState<IssueSummary[]>([]);
+  const open = trail[trail.length - 1] ?? issue;
+  /** Where Back goes: the issue this one was opened from, or the list. */
+  const cameFrom = trail.length > 0 ? (trail[trail.length - 2] ?? issue) : null;
+
+  // A different issue opened from the list is a fresh start, not a step deeper.
+  useEffect(() => setTrail([]), [issue.key]);
+
   const [detail, setDetail] = useState<IssueDetail | null>(null);
   const [activity, setActivity] = useState<IssueActivity | null>(null);
   const [transitions, setTransitions] = useState<Transition[] | null>(null);
@@ -56,29 +73,29 @@ export default function IssueView({
   useEffect(() => {
     let cancelled = false;
     setError(null);
-    logInfo(`opened issue view for ${issue.key}`);
+    logInfo(`opened issue view for ${open.key}`);
     // Two requests rather than one: the detail is cached and the timeline
     // deliberately is not, so joining them would drag the whole view back to
     // Jira on every reload.
     api
-      .issueDetail(issue.key, fieldNames === "" ? [] : fieldNames.split("|"))
+      .issueDetail(open.key, fieldNames === "" ? [] : fieldNames.split("|"))
       .then(
         (d) => !cancelled && setDetail(d),
         (err) => !cancelled && setError(String(err)),
       );
-    api.issueActivity(issue.key).then(
+    api.issueActivity(open.key).then(
       (a) => !cancelled && setActivity(a),
       (err) => !cancelled && setError(String(err)),
     );
     setWorkflowError(null);
-    api.issueTransitions(issue.key).then(
+    api.issueTransitions(open.key).then(
       (t) => !cancelled && setTransitions(t),
       (err) => !cancelled && setWorkflowError(String(err)),
     );
     return () => {
       cancelled = true;
     };
-  }, [issue.key, reloadKey, fieldNames]);
+  }, [open.key, reloadKey, fieldNames]);
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
@@ -93,8 +110,8 @@ export default function IssueView({
       setMoving(true);
       setMoveError(null);
       try {
-        await api.transitionIssue(issue.key, entry.id, fields);
-        logInfo(`moved ${issue.key} via ${entry.name}`);
+        await api.transitionIssue(open.key, entry.id, fields);
+        logInfo(`moved ${open.key} via ${entry.name}`);
         recordEvent({ kind: "transitioned" });
         setScreen(null);
         reload();
@@ -105,23 +122,41 @@ export default function IssueView({
         setMoving(false);
       }
     },
-    [issue.key, reload],
+    [open.key, reload],
+  );
+
+  /** Follow a link: the other issue is read in this same view, one step
+   *  deeper. Ignored when it is already the open one — a link cannot point at
+   *  its own issue, but a stale detail could still be showing one. */
+  const openLinked = useCallback(
+    (item: LinkedItem) =>
+      setTrail((t) =>
+        (t[t.length - 1] ?? issue).key === item.key
+          ? t
+          : [...t, { key: item.key, summary: item.summary }],
+      ),
+    [issue],
   );
 
   // A move changes the status, so the picker must not keep showing a screen
   // opened from the status the issue has just left.
-  useEffect(() => setScreen(null), [issue.key]);
+  useEffect(() => setScreen(null), [open.key]);
 
   return (
     <div className="panel issue-view">
       <div className="back-row">
-        <button className="link" onClick={onBack}>
-          ← Back to {backLabel}
+        <button
+          className="link"
+          onClick={() =>
+            cameFrom ? setTrail((t) => t.slice(0, -1)) : onBack()
+          }
+        >
+          ← Back to {cameFrom ? cameFrom.key : backLabel}
         </button>
         <button
           className="link"
-          title={`Open ${issue.key} in browser`}
-          onClick={() => openUrl(`${site}/browse/${issue.key}`)}
+          title={`Open ${open.key} in browser`}
+          onClick={() => openUrl(`${site}/browse/${open.key}`)}
         >
           Open in Jira ↗
         </button>
@@ -129,8 +164,8 @@ export default function IssueView({
 
       <div className="issue-head">
         <div className="issue-chip">
-          <span className="key">{issue.key}</span>
-          <span className="summary">{detail?.summary ?? issue.summary}</span>
+          <span className="key">{open.key}</span>
+          <span className="summary">{detail?.summary ?? open.summary}</span>
         </div>
         <IssueStatusPicker
           current={detail?.status}
@@ -151,7 +186,7 @@ export default function IssueView({
         <>
           <IssueFacts
             detail={detail}
-            issueKey={issue.key}
+            issueKey={open.key}
             site={site}
             onChanged={reload}
           />
@@ -193,15 +228,29 @@ export default function IssueView({
                 ` · ${detail.attachments.length}`}
             </h3>
             <IssueAttachments
-              issueKey={issue.key}
+              issueKey={open.key}
               attachments={detail.attachments}
               onAttached={reload}
             />
           </section>
 
           <section className="issue-section">
+            <h3>
+              Linked work items
+              {detail.links.length > 0 && ` · ${detail.links.length}`}
+            </h3>
+            <IssueLinks
+              issueKey={open.key}
+              site={site}
+              links={detail.links}
+              onChanged={reload}
+              onOpen={openLinked}
+            />
+          </section>
+
+          <section className="issue-section">
             <IssueActions
-              issueKey={issue.key}
+              issueKey={open.key}
               serviceDesk={detail.serviceDesk}
               onPosted={reload}
               onLogged={() => {

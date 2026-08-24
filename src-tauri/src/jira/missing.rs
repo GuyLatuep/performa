@@ -377,6 +377,7 @@ impl JiraClient {
                 link_type,
                 inward_issue,
                 outward_issue,
+                ..
             } = link;
             let target = if link_type.outward.eq_ignore_ascii_case(link_description) {
                 outward_issue

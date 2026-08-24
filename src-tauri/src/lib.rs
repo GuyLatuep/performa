@@ -6,9 +6,9 @@ mod tray;
 
 use creds::{Credentials, CredentialsMeta};
 use jira::{
-    FieldMeta, IssueActivity, IssueDetail, IssueSummary, JiraClient, JiraUser, MentionRef,
-    MentionScan, MissingConfig, MissingWorklog, Myself, ProjectSummary, TodoConfig, Transition,
-    WorklogEntry, WorklogInput,
+    FieldMeta, IssueActivity, IssueDetail, IssueSummary, JiraClient, JiraUser, LinkRelation,
+    MentionRef, MentionScan, MissingConfig, MissingWorklog, Myself, ProjectSummary, TodoConfig,
+    Transition, WorklogEntry, WorklogInput,
 };
 use std::collections::BTreeMap;
 
@@ -87,6 +87,16 @@ fn checked_attachment_id(id: &str) -> Result<&str, String> {
         Ok(id)
     } else {
         Err(format!("invalid attachment id '{id}'"))
+    }
+}
+
+/// Link ids are Jira's own numeric strings and reach a URL path, like the
+/// attachment ids above.
+fn checked_link_id(id: &str) -> Result<&str, String> {
+    if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
+        Ok(id)
+    } else {
+        Err(format!("invalid link id '{id}'"))
     }
 }
 
@@ -699,6 +709,52 @@ async fn attach_files(
     Ok(())
 }
 
+/// Every relationship a link can be created with on this site, both halves of
+/// each link type. Reference data, read once per app run by the webview.
+#[tauri::command]
+async fn link_relations(state: State<'_, AppState>) -> Result<Vec<LinkRelation>, String> {
+    let s = session(&state).await?;
+    s.client.link_relations().await
+}
+
+/// Link two issues. `direction` names which half of `type_name` the user
+/// picked, read from `issue_key`'s side — see `jira::links`.
+#[tauri::command]
+async fn link_issues(
+    state: State<'_, AppState>,
+    issue_key: String,
+    other_key: String,
+    type_name: String,
+    direction: String,
+) -> Result<(), String> {
+    checked_issue_key(&issue_key)?;
+    checked_issue_key(&other_key)?;
+    // Linking an issue to itself is a mis-click Jira answers with a 400; say
+    // what happened instead of passing its wording on.
+    if issue_key.eq_ignore_ascii_case(&other_key) {
+        return Err("an issue cannot be linked to itself".to_string());
+    }
+    if direction != "inward" && direction != "outward" {
+        return Err(format!("invalid link direction '{direction}'"));
+    }
+    let type_name = type_name.trim();
+    if type_name.is_empty() {
+        return Err("pick a relationship first".to_string());
+    }
+    let s = session(&state).await?;
+    s.client
+        .link_issues(&issue_key, &other_key, type_name, &direction)
+        .await
+}
+
+/// Remove one link. Only the link goes — both issues stay as they are.
+#[tauri::command]
+async fn delete_issue_link(state: State<'_, AppState>, link_id: String) -> Result<(), String> {
+    checked_link_id(&link_id)?;
+    let s = session(&state).await?;
+    s.client.delete_issue_link(&link_id).await
+}
+
 /// Issues with recent own activity (comment / status change) that have no
 /// nearby worklog — the data behind the "Missing worklog" tab.
 #[tauri::command]
@@ -879,6 +935,9 @@ pub fn run() {
             open_attachment_folder,
             delete_attachment,
             attach_files,
+            link_relations,
+            link_issues,
+            delete_issue_link,
             missing_worklogs,
             mentions,
             tray::timer_started,

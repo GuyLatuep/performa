@@ -84,3 +84,16 @@ recorded. Each answers a different question and each carries different
 information. As with Mentions and Missing worklogs, keeping them apart is
 intentional — the Timeline is a way of displaying the three, not a concept
 that replaces them.
+
+## Linked work item
+
+Another issue this one stands in a named relationship to, seen from *this*
+issue: "blocks TASK-4", "is caused by BUG-9".
+
+The relationship is the term's substance, not the other issue. Jira keeps one
+record and it reads two ways round — "A blocks B" and "B is blocked by A" are
+the same link — so a Linked work item is only ever meaningful together with
+the issue it is being read from. Dropping the direction and calling the pair
+"related issues" loses the only thing the link says.
+
+Which relationships exist is a property of the Jira site, like field names.

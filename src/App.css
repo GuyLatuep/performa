@@ -1799,6 +1799,126 @@ section.issue-fact .field-editor {
   margin-left: auto;
 }
 
+/* ---------- Linked work items ----------
+   Two levels: the relationship names a group, its issues sit under it. The
+   nesting is the point — a row's meaning is the heading above it, and
+   flattening the two would leave every row having to repeat "is blocked by".
+   Capped like the attachment list, and for the same reason: an issue with
+   thirty links must not push the comment box off the screen. */
+.link-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+.link-group + .link-group {
+  margin-top: 12px;
+}
+.link-relation {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.link-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.link-group li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--hair);
+}
+.linked-key {
+  text-transform: none;
+  letter-spacing: normal;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+}
+/* Takes the free space so the status and the cross stay on the right edge,
+   whatever the summary's length. A button, because reading the linked issue is
+   the ordinary thing to want from a row — but one that looks like the text it
+   is until the pointer is on it. */
+.linked-summary {
+  flex: 1 1 12rem;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+}
+.linked-summary:hover {
+  background: none;
+  border: none;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.linked-status {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.link-remove {
+  color: var(--muted);
+}
+.link-remove:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+/* The relationship and the issue read as one sentence about this issue, so
+   they sit on one line where there is room for it. */
+.link-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  border: 2px solid var(--ink);
+  padding: 12px;
+}
+.link-form > label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.link-form .panel-actions {
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+/* The search box grows into whatever the row has left; the dropdown under it
+   is positioned against this box, like the user field's. */
+.issue-select {
+  position: relative;
+  flex: 1 1 16rem;
+}
+.issue-select input {
+  width: 100%;
+}
+.issue-chosen {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex: 1 1 16rem;
+}
+
 /* ---------- Issue header: chip left, status picker right ---------- */
 .issue-head {
   display: flex;

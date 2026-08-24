@@ -4,11 +4,12 @@
 //!
 //! Submodules: `types` holds the response shapes, `missing` the
 //! missing-worklog reminder heuristic, `mentions` the @-mention inbox,
-//! `issue` the single-issue view behind the todo tab, and `attachments` the
-//! file transfers that view needs.
+//! `issue` the single-issue view behind the todo tab, `attachments` the file
+//! transfers that view needs, and `links` the work items it is linked to.
 
 mod attachments;
 mod issue;
+mod links;
 mod mentions;
 mod missing;
 mod types;
@@ -25,9 +26,9 @@ use serde::de::DeserializeOwned;
 
 use types::*;
 pub use types::{
-    FieldMeta, IssueActivity, IssueDetail, IssueSummary, JiraUser, MentionRef, MentionScan,
-    MissingConfig, MissingWorklog, Myself, ProjectSummary, TodoConfig, Transition, WorklogEntry,
-    WorklogInput,
+    FieldMeta, IssueActivity, IssueDetail, IssueSummary, JiraUser, LinkRelation, MentionRef,
+    MentionScan, MissingConfig, MissingWorklog, Myself, ProjectSummary, TodoConfig, Transition,
+    WorklogEntry, WorklogInput,
 };
 
 use crate::creds::Credentials;

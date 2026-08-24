@@ -241,6 +241,9 @@ pub struct IssueDetail {
     pub service_desk: bool,
     /// Files on the issue, newest first.
     pub attachments: Vec<Attachment>,
+    /// Work items linked to this issue, grouped by relationship in the order
+    /// Jira returns them.
+    pub links: Vec<LinkedItem>,
 }
 
 /// One file attached to an issue.
@@ -260,6 +263,41 @@ pub struct Attachment {
     pub author: String,
     /// RFC3339, local timezone.
     pub created_at: String,
+}
+
+/// One work item linked to this issue, as the view shows it: the relationship
+/// read from *this* issue's side ("blocks", "is caused by"), and enough of the
+/// other issue to be worth a row.
+///
+/// The relationship is a sentence about a direction, not a label on the pair —
+/// "A blocks B" is the same link as "B is blocked by A" — so `relation` is
+/// resolved here, where the issue it is read from is known.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkedItem {
+    /// Jira's link id — what removing the link addresses.
+    pub id: String,
+    /// How the relationship reads from this issue.
+    pub relation: String,
+    pub key: String,
+    pub summary: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+}
+
+/// One relationship a new link can be created with, already flattened to the
+/// one thing the picker needs: a sentence. Jira's link *types* are pairs
+/// ("Blocks" is both "blocks" and "is blocked by"), and which half is meant is
+/// exactly what the user is choosing, so each type contributes two of these.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkRelation {
+    /// The Jira link type's name ("Blocks"), which is how a link is created.
+    pub type_name: String,
+    /// "inward" or "outward": which half of the type `label` is.
+    pub direction: String,
+    /// The half itself ("is blocked by"), as the picker lists it.
+    pub label: String,
 }
 
 /// An issue's history. Three separate kinds of event, deliberately *not*
@@ -741,6 +779,11 @@ pub struct IssueLinksFields {
 
 #[derive(Deserialize)]
 pub struct IssueLink {
+    /// Jira's own link id. Absent from nothing it returns, but defaulted
+    /// rather than required: a link with no id is still worth *showing*, it
+    /// just cannot be removed.
+    #[serde(default)]
+    pub id: String,
     #[serde(rename = "type")]
     pub link_type: LinkType,
     #[serde(rename = "inwardIssue", default)]
@@ -751,10 +794,21 @@ pub struct IssueLink {
 
 #[derive(Deserialize)]
 pub struct LinkType {
+    /// The type's own name ("Blocks"), which is how a *new* link names the
+    /// relationship — the two descriptions below are only how it reads.
+    #[serde(default)]
+    pub name: String,
     #[serde(default)]
     pub inward: String,
     #[serde(default)]
     pub outward: String,
+}
+
+/// Every relationship this site defines, as `/issueLinkType` returns them.
+#[derive(Deserialize)]
+pub struct LinkTypesResp {
+    #[serde(rename = "issueLinkTypes", default)]
+    pub issue_link_types: Vec<LinkType>,
 }
 
 #[derive(Deserialize)]

@@ -41,7 +41,7 @@ pub(super) type FieldCache = Arc<tokio::sync::Mutex<Option<HashMap<String, Strin
 pub(super) type AssetCache = Arc<tokio::sync::Mutex<HashMap<String, String>>>;
 
 /// The standard fields the view shows, requested by name on every issue.
-const STANDARD_FIELDS: [&str; 12] = [
+const STANDARD_FIELDS: [&str; 13] = [
     "summary",
     "status",
     "priority",
@@ -53,6 +53,7 @@ const STANDARD_FIELDS: [&str; 12] = [
     "updated",
     "description",
     "attachment",
+    "issuelinks",
     // Only for `projectTypeKey` — what actually says whether a comment here
     // can be public. See `service_desk` below.
     "project",
@@ -363,6 +364,7 @@ impl JiraClient {
             details,
             service_desk,
             attachments: super::attachments::attachments(fields.get("attachment")),
+            links: super::links::links(fields.get("issuelinks")),
         })
     }
 

@@ -121,7 +121,7 @@ Welche Status nie auf deiner Liste auftauchen sollen — eine Review-Warteschlan
 
 Wird ein Vorgang aus dem **Todo**- oder **Mentions**-Tab geöffnet, zeigt performa ihn in der App statt im Browser.
 
-**Lesen.** Vorgangsschlüssel und Zusammenfassung stehen oben, die **Statusauswahl** in der Ecke. Darunter ein Raster mit Feldern, die Beschreibung (gekürzt, mit **Show more**, wenn es mehr gibt), die Anhänge und eine **Chronik** von allem, was passiert ist — Kommentare, Statuswechsel und Worklogs ineinander, neueste zuerst. Bei langen Verläufen werden nur die neuesten Kommentare gezeigt; die Ansicht sagt das dazu.
+**Lesen.** Vorgangsschlüssel und Zusammenfassung stehen oben, die **Statusauswahl** in der Ecke. Darunter ein Raster mit Feldern, die Beschreibung (gekürzt, mit **Show more**, wenn es mehr gibt), die Anhänge, die verknüpften Vorgänge und eine **Chronik** von allem, was passiert ist — Kommentare, Statuswechsel und Worklogs ineinander, neueste zuerst. Bei langen Verläufen werden nur die neuesten Kommentare gezeigt; die Ansicht sagt das dazu.
 
 **Einen Wert ändern.** Ein **Doppelklick** auf einen Wert mit gepunkteter Unterstreichung öffnet einen kleinen Editor darüber. Was änderbar ist, entscheidet Jira pro Vorgang — ein Feld, das deine Rechte oder der Vorgangstyp nicht zulassen, wird gar nicht erst angeboten.
 
@@ -130,6 +130,8 @@ Wird ein Vorgang aus dem **Todo**- oder **Mentions**-Tab geöffnet, zeigt perfor
 **Kommentare.** Eine Reihe Schaltflächen: **Internal note** und **Reply to customer** bei einem Service-Desk-Vorgang, sonst ein einzelnes **Comment**, dazu **Log work**. Ein Klick öffnet die zugehörigen Felder darunter, ein zweiter schließt sie wieder. Mit **@** im Kommentar erwähnst du jemanden — nimm den Namen aus der Liste, denn nur ein ausgewählter Name benachrichtigt auch jemanden.
 
 **Anhänge.** Ein Klick lädt eine Datei herunter und öffnet sie, Dateien auf das Fenster ziehen oder **Attach files…** fügt welche hinzu, **✕** entfernt eine (mit Rückfrage — sie ist danach für alle weg).
+
+**Verknüpfte Vorgänge.** Unter den Anhängen stehen die Vorgänge, mit denen dieser verknüpft ist, nach Beziehung gruppiert — *blocks*, *is blocked by*, *relates to*, je nachdem, was die Jira-Site kennt. Jede Zeile zeigt Schlüssel, Zusammenfassung und aktuellen Status; der Schlüssel öffnet den Vorgang im Browser. **Link work item…** legt eine Verknüpfung an: erst die Beziehung wählen, dann den anderen Vorgang über seinen Schlüssel oder Wörter aus der Zusammenfassung suchen. **✕** entfernt eine Verknüpfung — nur die Verknüpfung, beide Vorgänge bleiben.
 
 **Felder anordnen.** **Arrange fields** über dem Raster übergibt dir das Layout: ein Feld am **⠿**-Griff ziehen, mit der Größen-Schaltfläche umstellen (eine Zelle, zwei Zellen oder eine ganze Zeile für Fließtext), mit **✕** entfernen und jedes andere Feld deines Jira hinzufügen. **Done** kehrt zum Lesen zurück. Das Layout gilt für alle Vorgänge.
 

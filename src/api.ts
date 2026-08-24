@@ -67,6 +67,8 @@ export interface IssueDetail {
   serviceDesk: boolean;
   /** Files on the issue, newest first. */
   attachments: Attachment[];
+  /** Work items linked to this issue, grouped by relationship. */
+  links: LinkedItem[];
 }
 
 /** One file attached to an issue. Carries no URL: the content is fetched by id
@@ -78,6 +80,29 @@ export interface Attachment {
   mimeType?: string;
   author: string;
   createdAt: string;
+}
+
+/** One work item linked to this issue. `relation` reads from *this* issue's
+ *  side ("blocks", "is caused by"): the same link is a different sentence on
+ *  the other issue, so the wording is resolved on the Rust side, where the
+ *  issue it was read from is known. */
+export interface LinkedItem {
+  /** Jira's link id — what unlinking addresses. */
+  id: string;
+  relation: string;
+  key: string;
+  summary: string;
+  status?: string;
+}
+
+/** One relationship a new link can use: half of a Jira link type, already
+ *  flattened to the sentence the picker offers. */
+export interface LinkRelation {
+  /** The link type's name ("Blocks") — how a link names the relationship. */
+  typeName: string;
+  /** Which half of that type `label` is: "inward" or "outward". */
+  direction: "inward" | "outward";
+  label: string;
 }
 
 /** A comment somebody wrote on the issue. */
@@ -628,6 +653,37 @@ export const api = {
     return logged(
       `attach_files(issueKey=${issueKey}, files=${paths.length})`,
       () => invoke("attach_files", { issueKey, paths }),
+    ).then(invalidateCachedReads);
+  },
+  /** Every relationship a link can use on this site. Reference data, held for
+   *  the life of the process like the field and project lists. */
+  linkRelations(): Promise<LinkRelation[]> {
+    return memo("link_relations", () =>
+      logged(
+        "link_relations",
+        () => invoke("link_relations"),
+        (r) => `${r.length} relation(s)`,
+      ),
+    );
+  },
+  /** Link this issue to another one. `direction` says which half of the link
+   *  type the relationship is, read from `issueKey`'s side. */
+  linkIssues(
+    issueKey: string,
+    otherKey: string,
+    typeName: string,
+    direction: "inward" | "outward",
+  ): Promise<void> {
+    return logged(
+      `link_issues(issueKey=${issueKey}, otherKey=${otherKey}, ` +
+        `type=${typeName}, direction=${direction})`,
+      () => invoke("link_issues", { issueKey, otherKey, typeName, direction }),
+    ).then(invalidateCachedReads);
+  },
+  /** Remove one link. Only the link goes; both issues stay. */
+  deleteIssueLink(linkId: string): Promise<void> {
+    return logged(`delete_issue_link(linkId=${linkId})`, () =>
+      invoke("delete_issue_link", { linkId }),
     ).then(invalidateCachedReads);
   },
   missingWorklogs(): Promise<MissingWorklog[]> {

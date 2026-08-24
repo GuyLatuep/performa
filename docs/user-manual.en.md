@@ -121,7 +121,7 @@ Statuses that should never appear on your list — a review queue, "waiting for 
 
 Opening an issue from the **Todo** or **Mentions** tab shows it inside performa rather than in the browser.
 
-**Reading.** The issue key and summary sit at the top with the **status picker** in the corner. Below them a grid of fields, the description (clamped, with **Show more** when there is more), the attachments, and a **timeline** of everything that has happened — comments, status changes and worklogs interleaved, newest first. Long threads show only the newest comments and say so.
+**Reading.** The issue key and summary sit at the top with the **status picker** in the corner. Below them a grid of fields, the description (clamped, with **Show more** when there is more), the attachments, the linked work items, and a **timeline** of everything that has happened — comments, status changes and worklogs interleaved, newest first. Long threads show only the newest comments and say so.
 
 **Changing a value.** **Double-click** any value with a dotted underline to change it; a small editor opens over it. What is editable is decided by Jira, per issue — a field your permissions or the issue type do not allow is simply not offered.
 
@@ -130,6 +130,8 @@ Opening an issue from the **Todo** or **Mentions** tab shows it inside performa 
 **Comments.** One row of buttons: **Internal note** and **Reply to customer** on a service-desk issue, or a single **Comment** everywhere else, and **Log work**. Picking one opens its fields below; picking it again closes them. Type **@** in a comment to mention somebody — pick the name from the list, because only a picked name notifies anyone.
 
 **Attachments.** Open one to download and view it, drop files on the window or use **Attach files…** to add them, and **✕** to remove one (with a confirmation — it is removed for everyone).
+
+**Linked work items.** Under the attachments, the issues this one is linked to, grouped by relationship — *blocks*, *is blocked by*, *relates to*, whatever your site defines. Each row shows the key, the summary and the current status; the key opens that issue in the browser. **Link work item…** adds one: pick how it relates to this issue, then find the other issue by key or by words from its summary. **✕** removes a link — only the link goes, both issues stay.
 
 **Arranging the fields.** **Arrange fields** above the grid turns the layout over to you: drag a field by its **⠿** grip, resize it with the size button (one cell, two cells, or a full row for prose), remove it with **✕**, and add any other field your Jira site has. **Done** returns to reading. The layout is yours and applies to every issue.
 
