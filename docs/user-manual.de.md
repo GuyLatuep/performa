@@ -86,6 +86,7 @@ Jeder Vorgang trägt ein Fälligkeits-Badge:
 Die Zeilen sind voll ausgestattete Vorgangszeilen:
 
 - **☆ / ★** pinnt den Vorgang an den Anfang der Log-work-Liste ([Arbeit erfassen](#arbeit-erfassen))
+- Das **Vorgangstyp-Symbol** — Jiras eigenes Icon für *Bug*, *Task*, *Story* und den Rest — steht vor dem Schlüssel; beim Überfahren nennt der Tooltip den Typ. Abschaltbar unter [Einstellungen → Appearance](#einstellungen)
 - Ein Klick auf den **Vorgangsschlüssel** öffnet den Vorgang im Browser
 - Ein Klick auf die **Zusammenfassung** springt zum Log-work-Tab mit bereits geöffnetem Erfassungsformular für diesen Vorgang
 - **▶ start** startet einen Timer für den Vorgang
@@ -109,7 +110,15 @@ Alles, was gerade **bei dir liegt** — nach Priorität sortiert, bei gleicher P
 - **DEV-Vorgänge, die du selbst erstellt hast** und die wieder bei dir liegen — also jeder Status außer *Fertig*, *Backlog*, *Rückfrage beantwortet*, *In Arbeit* und *Nicht umgesetzt*.
 - **Vorgänge, die dir zugewiesen sind** (in jedem Projekt) und noch keinen Status erreicht haben, in dem jemand anderes am Zug ist — geschlossen, abgebrochen, gelöst, eskaliert, in der kaufmännischen Prüfung oder wartend auf Kunde bzw. DESIGNA Development.
 
-Die Zeilen funktionieren wie im Start-Tab (Anpinnen, im Browser öffnen, **▶ start** startet einen Timer), sind hier aber tabellarisch angeordnet — Vorgangsschlüssel, Zusammenfassung, **Priorität** und **Status** jeweils in einer eigenen Spalte, sodass man die Liste von oben nach unten überfliegen kann. Fälligkeiten zeigt dieser Tab bewusst nicht; die sind Thema des Start-Tabs.
+Die Zeilen funktionieren wie im Start-Tab (Anpinnen, im Browser öffnen, **▶ start** startet einen Timer), sind hier aber tabellarisch angeordnet — das **Typ-Symbol** (Spalte **T**), Vorgangsschlüssel, Zusammenfassung, **Priorität** und **Status** jeweils in einer eigenen Spalte, sodass man die Liste von oben nach unten überfliegen kann. Fälligkeiten zeigt dieser Tab bewusst nicht; die sind Thema des Start-Tabs.
+
+**Sortieren.** Ein Klick auf eine Spaltenüberschrift ordnet die Liste danach. Jede Überschrift durchläuft drei Zustände:
+
+1. **▲** aufsteigend
+2. **▼** absteigend
+3. **kein Pfeil** — zurück zur Reihenfolge aus Jira, also der oben beschriebenen
+
+Zwei Spalten sortieren nach dem, was du siehst, statt alphabetisch: **Prio** geht nach Dringlichkeit (aufsteigend heißt: dringendste zuerst), und **Status** gruppiert nach der Beschriftung auf dem Badge — alles, was als *Warten* angezeigt wird, steht also beieinander, egal wie der Status im Workflow dahinter heißt. Vorgänge ohne Wert in der sortierten Spalte bleiben in beiden Richtungen unten, und bei Gleichstand bleibt die Dringlichkeits-Reihenfolge erhalten. Sortiert wird die Liste, die bereits auf dem Bildschirm steht — **Refresh** behält die Sortierung —, und beim Verlassen des Tabs wird sie zurückgesetzt.
 
 **Ein Klick auf die Zusammenfassung öffnet den Vorgang in der App** — siehe [Die Vorgangsansicht](#die-vorgangsansicht). Ein Klick auf den **Vorgangsschlüssel** öffnet ihn stattdessen im Browser.
 
@@ -124,6 +133,8 @@ Wird ein Vorgang aus dem **Todo**- oder **Mentions**-Tab geöffnet, zeigt perfor
 **Lesen.** Vorgangsschlüssel und Zusammenfassung stehen oben, die **Statusauswahl** in der Ecke. Darunter ein Raster mit Feldern, die Beschreibung (gekürzt, mit **Show more**, wenn es mehr gibt), die Anhänge, die verknüpften Vorgänge und eine **Chronik** von allem, was passiert ist — Kommentare, Statuswechsel und Worklogs ineinander, neueste zuerst. Bei langen Verläufen werden nur die neuesten Kommentare gezeigt; die Ansicht sagt das dazu.
 
 **Einen Wert ändern.** Ein **Doppelklick** auf einen Wert mit gepunkteter Unterstreichung öffnet einen kleinen Editor darüber. Was änderbar ist, entscheidet Jira pro Vorgang — ein Feld, das deine Rechte oder der Vorgangstyp nicht zulassen, wird gar nicht erst angeboten.
+
+**Einen Wert entfernen.** Die Schaltfläche **Clear** im Editor löscht den Wert ganz. Sie ist der einzige Weg, ein Feld zu leeren, das kein Textfeld zum Löschen hat — Bearbeiter, Fälligkeitsdatum, Auswahlliste — und funktioniert genauso bei den Textfeldern. Das Feld im Editor leer zu lassen und **Save** zu drücken leert den Wert **nicht**: ein leeres Feld heißt „unverändert", die Änderung wird stattdessen abgelehnt. **Clear** erscheint nur, wenn es einen Wert zu entfernen gibt und Jira das Feld nicht verlangt.
 
 **Durch den Workflow bewegen.** Die **Statusauswahl** listet die Status, die vom aktuellen aus erreichbar sind. Manche Übergänge fragen vorher etwas ab (eine Lösung, einen Bearbeiter); dafür öffnet sich ein Formular. Ein Übergang, für den performa kein Eingabefeld hat, wird angezeigt, aber deaktiviert — mit einem Link nach Jira.
 
@@ -151,7 +162,9 @@ Das Suchfeld interpretiert deine Eingabe auf drei Arten:
 
 Die Ergebnisse aktualisieren sich beim Tippen (mit kurzer Verzögerung). Die Anfrage wird im nativen Kern der App in JQL übersetzt — du musst nie selbst JQL schreiben.
 
-**Gepinnte Vorgänge** (★) stehen immer oben in der Standardliste, abgetrennt durch eine kräftigere Linie. Pinne oder entpinne jeden Vorgang über den Stern in seiner Zeile; Pins werden lokal auf deinem Rechner gespeichert. Während einer aktiven Textsuche werden stattdessen die reinen Suchergebnisse angezeigt.
+Die Ergebnisse sind dieselben Vorgangszeilen wie im Start-Tab, samt Typ-Symbol.
+
+**Gepinnte Vorgänge** (★) stehen immer oben in der Standardliste, abgetrennt durch eine kräftigere Linie. Pinne oder entpinne jeden Vorgang über den Stern in seiner Zeile; Pins werden lokal auf deinem Rechner gespeichert — inklusive Vorgangstyp, damit eine gepinnte Zeile ihr Symbol behält. Ein Pin aus einer älteren Version zeigt kein Symbol, bis du ihn einmal ent- und wieder anpinnst. Während einer aktiven Textsuche werden stattdessen die reinen Suchergebnisse angezeigt.
 
 Jede Ergebniszeile bietet dieselben Aktionen wie auf dem Dashboard: im Browser öffnen (Schlüssel), auswählen (Zusammenfassung), pinnen (Stern) und Timer starten (▶).
 
@@ -276,14 +289,14 @@ Vorlagen werden lokal auf deinem Rechner gespeichert, nicht in Jira.
 Der **Settings**-Link in der Kopfzeile öffnet denselben Bildschirm wie bei der ersten Verbindung:
 
 - **General** — die Verbindung zu Jira (siehe unten) sowie app-weite Schalter.
-- **Appearance** — heller / dunkler Modus.
+- **Appearance** — heller / dunkler Modus, die **Akzentfarbe** und **Show issue type icons in lists** (standardmäßig an; ausgeschaltet verschwindet das Symbol aus jeder Vorgangszeile und mit ihm die Spalte **T** im Todo-Tab).
 - **Daily work hours** — 0,5–24 h; daraus ergeben sich die Tagesziel-Linie und, × 5, der Wochenziel-Ring in den Diagrammen.
 - **Timesheet days** — **Mon–Fri** (Wochenenden ausgeblendet, außer sie enthalten erfasste Zeit) oder **Full week**.
 - **Todo** — welche Status der Todo-Tab ausblendet, pro Projekt. Die meisten Sites verwenden überall dieselben Status, deshalb gibt es ein **Copy to**, um die übrigen Projekte in einem Rutsch zu füllen.
 - **Logging** — die Ausführlichkeit des Debug-Logs (**Error**, **Warn**, **Info** oder **Debug**; siehe [Debug-Log](#debug-log)) sowie ein **Open log folder**-Button.
 - **Zugangsdaten** — Site, E-Mail oder Token ändern. Bleibt das Token-Feld leer, wird das gespeicherte Token beibehalten — du musst es also nicht neu eingeben, um z. B. einen Tippfehler in der E-Mail zu korrigieren. Beim Speichern wird erneut gegen Jira geprüft.
 
-Appearance, Stunden, die Wochenend-Einstellung und der Log-Level wirken **sofort** als Live-Vorschau — **Cancel** stellt die Werte vom Öffnen des Bildschirms wieder her.
+Appearance (Theme, Akzentfarbe, Typ-Symbole), Stunden, die Wochenend-Einstellung und der Log-Level wirken **sofort** als Live-Vorschau — **Cancel** stellt die Werte vom Öffnen des Bildschirms wieder her.
 
 Welche Felder ein **Vorgang** zeigt, steht nicht hier — das liegt am Vorgang selbst, unter **Arrange fields**.
 
@@ -340,7 +353,8 @@ Das Log ist rein lokal — siehe [Daten & Datenschutz](#daten--datenschutz) — 
 | API-Token | Schlüsselbund des Betriebssystems (macOS-Schlüsselbund / Windows-Anmeldeinformationsverwaltung) |
 | Site & E-Mail | Zusammen mit dem Token im Schlüsselbund-Eintrag |
 | Worklogs | In Jira — performa speichert keine Kopie |
-| Pins, Vorlagen, Einstellungen (Theme, Stunden, Wochenenden, Log-Level) | Lokal im Speicher der App |
+| Pins, Vorlagen, Einstellungen (Theme, Akzentfarbe, Typ-Symbole, Stunden, Wochenenden, Log-Level) | Lokal im Speicher der App |
+| Vorgangstyp-Symbole | Lokal im Speicher der App — einmal von deiner Jira-Site geholt und behalten, damit die Listen nicht bei jedem Start flackern |
 | Timer-Zustand, Gesehen-/Benachrichtigt-Markierungen, ausgeblendete Update-Version | Lokal im Speicher der App |
 | Debug-Log (siehe [Debug-Log](#debug-log)) | Ordner `performa-logs` im temporären Verzeichnis deines Systems |
 

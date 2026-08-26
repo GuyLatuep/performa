@@ -86,6 +86,7 @@ Each issue carries a due badge:
 The rows are full-featured issue rows:
 
 - **☆ / ★** pins the issue to the top of the Log work list ([Logging work](#logging-work))
+- The **issue type icon** — Jira's own icon for *Bug*, *Task*, *Story* and the rest — sits in front of the key; hover it for the type's name. It can be switched off under [Settings → Appearance](#settings)
 - Clicking the **issue key** opens the issue in your browser
 - Clicking the **summary** jumps to the Log work tab with the log form already open for that issue
 - **▶ start** starts a timer for the issue
@@ -109,7 +110,15 @@ Everything that is currently **waiting on you**, most urgent first (then most re
 - **DEV issues you raised yourself** that are back in your court — i.e. every status except *Fertig*, *Backlog*, *Rückfrage beantwortet*, *In Arbeit* and *Nicht umgesetzt*.
 - **Issues assigned to you** in any project that have not reached a status where the ball is somewhere else — closed, cancelled, resolved, escalated, in commercial review, or waiting for the customer or DESIGNA Development.
 
-The rows work like those on the Start tab (pin, open in browser, **▶ start** for a timer), but are laid out as a table — issue key, summary, **priority** and **status** each in a column of their own, so you can scan down them. There are no due badges here; due dates are the Start tab's subject.
+The rows work like those on the Start tab (pin, open in browser, **▶ start** for a timer), but are laid out as a table — the **type icon** (column **T**), issue key, summary, **priority** and **status** each in a column of their own, so you can scan down them. There are no due badges here; due dates are the Start tab's subject.
+
+**Sorting.** Click a column heading to reorder the list by it. Each heading cycles through three states:
+
+1. **▲** ascending
+2. **▼** descending
+3. **no arrow** — back to the order Jira sent, i.e. the "most urgent first" above
+
+Two of the columns sort by what you actually see rather than alphabetically: **Prio** goes by urgency (highest first when ascending), and **Status** groups by the label on the badge — so every status that reads *Warten* sits together, whatever it is called in the workflow behind it. Issues with nothing in the sorted column stay at the bottom in both directions, and issues that tie keep their urgency order. The sort applies to the list already on screen — **Refresh** keeps it — and resets when you leave the tab.
 
 **Clicking the summary opens the issue in the app** — see [The issue view](#the-issue-view). Clicking the **issue key** opens it in the browser instead.
 
@@ -124,6 +133,8 @@ Opening an issue from the **Todo** or **Mentions** tab shows it inside performa 
 **Reading.** The issue key and summary sit at the top with the **status picker** in the corner. Below them a grid of fields, the description (clamped, with **Show more** when there is more), the attachments, the linked work items, and a **timeline** of everything that has happened — comments, status changes and worklogs interleaved, newest first. Long threads show only the newest comments and say so.
 
 **Changing a value.** **Double-click** any value with a dotted underline to change it; a small editor opens over it. What is editable is decided by Jira, per issue — a field your permissions or the issue type do not allow is simply not offered.
+
+**Emptying a value.** The editor's **Clear** button removes the value altogether. It is the only way to empty a field that has no text box to delete from — an assignee, a due date, a dropdown — and it works for the text ones too. Leaving the editor's box blank and pressing **Save** does *not* clear the field: a blank box means "left alone", so the change is refused instead. **Clear** is offered only where there is a value to remove and Jira does not insist on the field.
 
 **Moving it through the workflow.** The **status picker** lists the statuses you can reach from where the issue is now. Some moves ask for more first (a resolution, an assignee); those open a form. A move needing something performa cannot fill in is shown but disabled, with a link out to Jira.
 
@@ -151,7 +162,9 @@ The search field interprets your input in three ways:
 
 Search results update as you type (with a short debounce). The query itself is translated to JQL inside the app's native core — you never have to write JQL.
 
-**Pinned issues** (★) always appear at the top of the default list, separated by a heavier divider. Pin or unpin any issue with the star on its row; pins are stored locally on your machine. During an active text search the plain results are shown instead.
+The results are the same issue rows as on the Start tab, type icon included.
+
+**Pinned issues** (★) always appear at the top of the default list, separated by a heavier divider. Pin or unpin any issue with the star on its row; pins are stored locally on your machine — including the issue type, so a pinned row keeps its icon. A pin from before this version shows no icon until you unpin and pin it again. During an active text search the plain results are shown instead.
 
 Each result row offers the same actions as on the dashboard: open in browser (key), select (summary), pin (star), and start a timer (▶).
 
@@ -276,14 +289,14 @@ Templates are stored locally on your machine, not in Jira.
 The **Settings** link in the header opens the same screen used for the first-run connection:
 
 - **General** — the connection to Jira (below), plus app-wide switches.
-- **Appearance** — light / dark theme toggle.
+- **Appearance** — light / dark theme toggle, the **accent colour**, and **Show issue type icons in lists** (on by default; turning it off drops the icon from every issue row, and the **T** column from the Todo tab with it).
 - **Daily work hours** — 0.5–24 h; this drives the daily target line and, × 5, the weekly target ring in the charts.
 - **Timesheet days** — **Mon–Fri** (weekends hidden unless they contain logged time) or **Full week**.
 - **Todo** — which statuses the Todo tab hides, per project. Most sites use the same statuses everywhere, so the list carries a **Copy to** for filling the rest in at once.
 - **Logging** — the debug-log verbosity (**Error**, **Warn**, **Info**, or **Debug**; see [Debug log](#debug-log)) and an **Open log folder** button.
 - **Credentials** — change site, email, or token. Leaving the token field blank keeps the stored token, so you don't need to re-enter it to fix a typo in the email. Saving re-verifies against Jira.
 
-Appearance, hours, the weekend toggle, and the log level apply **instantly** as a live preview — pressing **Cancel** restores the values from when you opened the screen.
+Appearance (theme, accent, type icons), hours, the weekend toggle, and the log level apply **instantly** as a live preview — pressing **Cancel** restores the values from when you opened the screen.
 
 Which fields an **issue** shows is not here — that lives on the issue itself, under **Arrange fields**.
 
@@ -340,7 +353,8 @@ The log is local-only — see [Data & privacy](#data--privacy) — and is never 
 | API token | OS keychain (macOS Keychain / Windows Credential Manager) |
 | Site & email | With the token in the keychain entry |
 | Worklogs | In Jira — performa stores no copy |
-| Pins, templates, settings (theme, hours, weekends, log level) | Locally in the app's storage |
+| Pins, templates, settings (theme, accent, type icons, hours, weekends, log level) | Locally in the app's storage |
+| Issue type icons | Locally in the app's storage — fetched from your Jira site once and kept so lists don't flicker on every launch |
 | Timer state, seen/notified markers, dismissed update version | Locally in the app's storage |
 | Debug log (see [Debug log](#debug-log)) | `performa-logs` folder in your system's temp directory |
 
