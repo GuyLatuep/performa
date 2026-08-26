@@ -40,7 +40,7 @@ Zwei Grundprinzipien, die du kennen solltest:
 ### Installation
 
 Lade das aktuelle Release von der GitHub-Releases-Seite des Projekts herunter:
-
+[Releases · GuyLatuep/performa](https://github.com/GuyLatuep/performa/releases)
 - **macOS**: `.dmg` (Apple Silicon)
 - **Windows**: `.exe`-Installer
 
