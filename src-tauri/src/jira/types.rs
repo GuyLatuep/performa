@@ -88,6 +88,15 @@ pub struct IssueSummary {
     /// Priority name; only populated by searches that request it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<String>,
+    /// Issue type name ("Bug"); only populated by searches that request it
+    /// (the lists that draw an issue row).
+    #[serde(rename = "issueType", skip_serializing_if = "Option::is_none")]
+    pub issue_type: Option<String>,
+    /// Where Jira keeps that type's icon. Not the image: fetching it needs the
+    /// site credentials, so the webview asks for it by URL through
+    /// `issue_type_icon`.
+    #[serde(rename = "issueTypeIcon", skip_serializing_if = "Option::is_none")]
+    pub issue_type_icon: Option<String>,
 }
 
 /// A project the user can see. Only the settings screen asks for these — it
@@ -500,6 +509,8 @@ pub struct SearchFields {
     pub status: Option<NamedField>,
     #[serde(default)]
     pub priority: Option<NamedField>,
+    #[serde(default)]
+    pub issuetype: Option<IssueTypeField>,
 }
 
 /// The shape Jira returns for the reference fields we only need the name of.
@@ -507,6 +518,17 @@ pub struct SearchFields {
 pub struct NamedField {
     #[serde(default)]
     pub name: String,
+}
+
+/// An issue type as a search returns it. Unlike the other reference fields this
+/// one is not just a name: the row shows Jira's own icon for the type, and the
+/// URL of it is only ever handed out here.
+#[derive(Deserialize)]
+pub struct IssueTypeField {
+    #[serde(default)]
+    pub name: String,
+    #[serde(rename = "iconUrl", default)]
+    pub icon_url: Option<String>,
 }
 
 /// One page of `/project/search`. Paged, so `is_last` decides whether to ask

@@ -1358,6 +1358,19 @@ header {
   color: var(--danger);
   border-color: var(--danger);
 }
+/* Jira's icon for the issue type. A fixed box whether or not it holds an
+   image: the icon is fetched after the row is drawn, and a cell that grows when
+   it arrives would shift every row on the list. */
+.type-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+.type-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 /* Status and priority markers on issue rows (todo tab), same idiom. Status
    names are free-form per workflow, so the badge is sized to keep even a long
    one from pushing the summary out of the row. */
@@ -1396,7 +1409,7 @@ header {
    grid automatically. */
 .todo-list li {
   display: grid;
-  grid-template-columns: 22px 96px minmax(0, 1fr) 84px 116px 80px;
+  grid-template-columns: 22px 16px 96px minmax(0, 1fr) 84px 116px 80px;
   gap: 6px;
   align-items: center;
 }
@@ -1409,20 +1422,23 @@ header {
 .todo-list li > .pin-toggle {
   grid-column: 1;
 }
-.todo-list li > .issue-open {
+.todo-list li > .type-icon {
   grid-column: 2;
 }
-.todo-list li > .issue-select {
+.todo-list li > .issue-open {
   grid-column: 3;
 }
-.todo-list li > .priority-badge {
+.todo-list li > .issue-select {
   grid-column: 4;
 }
-.todo-list li > .status-badge {
+.todo-list li > .priority-badge {
   grid-column: 5;
 }
-.todo-list li > .timer-start {
+.todo-list li > .status-badge {
   grid-column: 6;
+}
+.todo-list li > .timer-start {
+  grid-column: 7;
 }
 .todo-columns {
   position: sticky;
@@ -1439,8 +1455,8 @@ header {
 }
 /* The key and summary cells carry the row's own padding; align the headers
    with the text inside them rather than with the cell edge. */
-.todo-columns span:nth-child(2),
-.todo-columns span:nth-child(3) {
+.todo-columns span:nth-child(3),
+.todo-columns span:nth-child(4) {
   padding-left: 8px;
 }
 /* One line per row — a wrapping summary would break the column rhythm. */

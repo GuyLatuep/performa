@@ -113,6 +113,7 @@ export default function Todo({ site, onLogged }: Props) {
             // the scrollbar — and sticks to the top while the list scrolls.
             <li className="todo-columns" aria-hidden="true">
               <span />
+              <span />
               <span>Issue</span>
               <span>Summary</span>
               <span>Prio</span>

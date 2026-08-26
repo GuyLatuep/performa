@@ -24,6 +24,12 @@ export interface IssueSummary {
   status?: string;
   /** Priority name; only present on searches that request it (todo_issues). */
   priority?: string;
+  /** Issue type name ("Bug"); only present on searches that request it — the
+   *  ones behind an issue row. */
+  issueType?: string;
+  /** Where Jira keeps that type's icon. Not the image: fetching it needs the
+   *  credentials, so it is resolved through `api.issueTypeIcon`. */
+  issueTypeIcon?: string;
 }
 
 /** One named field of an issue, already rendered to display text by the
@@ -655,6 +661,20 @@ export const api = {
       () => invoke("attach_files", { issueKey, paths }),
     ).then(invalidateCachedReads);
   },
+  /** One issue type's icon as a `data:` URL, fetched through the Rust side
+   *  because Jira's avatar endpoints need the credentials.
+   *
+   *  Memoized like the other reference data rather than `cached`: a site has a
+   *  handful of types, every row of every list shares them, and an icon does
+   *  not go stale within a session. */
+  issueTypeIcon(url: string): Promise<string> {
+    return memo(`issue_type_icon:${url}`, () =>
+      logged(`issue_type_icon(url=${url})`, () =>
+        invoke<string>("issue_type_icon", { url }),
+      ),
+    );
+  },
+
   /** Every relationship a link can use on this site. Reference data, held for
    *  the life of the process like the field and project lists. */
   linkRelations(): Promise<LinkRelation[]> {

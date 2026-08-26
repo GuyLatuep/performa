@@ -2,10 +2,11 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { IssueSummary } from "../api";
 import { today } from "../time";
 import { togglePin } from "../pins";
+import { useIssueTypeIcon } from "../issueTypeIcons";
 import { startTimer, useTimer } from "../timer";
 
-/** One issue in a selectable list: pin star, key link, summary, timer start.
- *  Shows a due-date badge when the issue carries one. */
+/** One issue in a selectable list: pin star, type icon, key link, summary,
+ *  timer start. Shows a due-date badge when the issue carries one. */
 export default function IssueRow({
   issue,
   site,
@@ -37,6 +38,7 @@ export default function IssueRow({
       >
         {issue.key}
       </button>
+      <TypeIcon type={issue.issueType} url={issue.issueTypeIcon} />
       {/* The summary column is ellipsised (one line per row), so the full text
           only exists in the tooltip — the narrower the window, the more of it
           is cut off. */}
@@ -76,6 +78,24 @@ export default function IssueRow({
         {isRunning ? "● timing" : "▶ start"}
       </button>
     </li>
+  );
+}
+
+/** Jira's own icon for the issue's type.
+ *
+ *  The cell is drawn whether or not there is an icon in it — while one is being
+ *  fetched, when a type carries none, and on a list that didn't ask for the
+ *  type at all. An empty box of the same size is what keeps a late-arriving
+ *  icon from shifting the row it lands in.
+ *
+ *  Like `DueBadge`, the name is in the tooltip rather than beside the mark: the
+ *  column earns its width by staying narrow. */
+function TypeIcon({ type, url }: { type?: string; url?: string }) {
+  const icon = useIssueTypeIcon(url);
+  return (
+    <span className="type-icon" title={type ? `Type: ${type}` : undefined}>
+      {icon && <img src={icon} alt={type ?? ""} />}
+    </span>
   );
 }
 

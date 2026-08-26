@@ -654,6 +654,16 @@ async fn open_attachment(
     open::that(&path).map_err(|e| format!("could not open {}: {e}", path.display()))
 }
 
+/// One issue type's icon as a `data:` URL, for the icon cell on an issue row.
+///
+/// The URL is the one Jira put on the issue; the client checks it belongs to
+/// the configured site before fetching it with the credentials.
+#[tauri::command]
+async fn issue_type_icon(state: State<'_, AppState>, url: String) -> Result<String, String> {
+    let s = session(&state).await?;
+    s.client.issue_type_icon(&url).await
+}
+
 /// Remove an attachment from its issue. Irreversible in Jira, and visible to
 /// everyone on the issue — the view asks before calling this.
 #[tauri::command]
@@ -932,6 +942,7 @@ pub fn run() {
             issue_edit_fields,
             update_issue_fields,
             open_attachment,
+            issue_type_icon,
             open_attachment_folder,
             delete_attachment,
             attach_files,

@@ -1,8 +1,8 @@
 import { createStore } from "./store";
 import { IssueSummary } from "./api";
 
-// Issues pinned to the top of the log-work list. Stored locally (key +
-// summary) so they render even when a pinned issue no longer appears in
+// Issues pinned to the top of the log-work list. Stored locally (key, summary
+// and issue type) so they render even when a pinned issue no longer appears in
 // the search results.
 
 const PINS_KEY = "performa-pinned-issues";
@@ -36,7 +36,18 @@ export function togglePin(issue: IssueSummary): void {
   save(
     pins.some((p) => p.key === issue.key)
       ? pins.filter((p) => p.key !== issue.key)
-      : // Only key + summary; a snapshotted due date would go stale.
-        [...pins, { key: issue.key, summary: issue.summary }],
+      : // Not the due date or the status: both move while the pin sits there,
+        // and a snapshot would quietly go stale. The issue type is the
+        // exception — it is what the row's icon is drawn from, and a type
+        // effectively never changes.
+        [
+          ...pins,
+          {
+            key: issue.key,
+            summary: issue.summary,
+            issueType: issue.issueType,
+            issueTypeIcon: issue.issueTypeIcon,
+          },
+        ],
   );
 }

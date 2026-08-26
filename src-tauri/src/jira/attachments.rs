@@ -9,6 +9,8 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use base64::{engine::general_purpose::STANDARD, Engine};
+
 use serde_json::Value;
 
 use super::issue::{author_name, stamp};
@@ -23,6 +25,11 @@ use super::JiraClient;
 /// times out may already have been accepted — the user would see an error
 /// beside an attachment that did land.
 const TRANSFER_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+
+/// A ceiling on an issue-type icon. Jira's are a couple of kB; anything past
+/// this is not the 16px glyph a row is asking for, and a data URL built from it
+/// would be handed straight to the webview.
+const MAX_ICON_BYTES: usize = 512 * 1024;
 
 impl JiraClient {
     /// Fetch one attachment's bytes and write them beside the app's other
@@ -69,6 +76,46 @@ impl JiraClient {
             path.display()
         );
         Ok(path)
+    }
+
+    /// One issue type's icon, as a `data:` URL the webview can put in an
+    /// `<img>`.
+    ///
+    /// Here rather than in the webview for the same reason attachments are:
+    /// Jira's avatar endpoints are behind the same auth as everything else, so
+    /// the fetch has to happen where the credentials are.
+    ///
+    /// The URL comes out of Jira's own JSON, but it reaches this method by way
+    /// of the webview — so it is checked against the configured site before a
+    /// request carrying the `Authorization` header is sent anywhere near it.
+    pub async fn issue_type_icon(&self, url: &str) -> Result<String, String> {
+        if !url.starts_with(&self.site) {
+            return Err(format!("icon URL is not on {}: {url}", self.site));
+        }
+        let resp = self
+            .http
+            .get(url)
+            .header("Authorization", &self.auth)
+            .send()
+            .await
+            .map_err(|e| format!("icon download failed: {e}"))?;
+        let resp = Self::check(resp).await?;
+        // Read before trusting the length header: a chunked response has none.
+        let mime = resp
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .map(|v| v.split(';').next().unwrap_or(v).trim().to_string())
+            .filter(|v| v.starts_with("image/"))
+            .unwrap_or_else(|| "image/png".to_string());
+        let bytes = resp
+            .bytes()
+            .await
+            .map_err(|e| format!("icon download failed: {e}"))?;
+        if bytes.len() > MAX_ICON_BYTES {
+            return Err(format!("icon at {url} is larger than an icon should be"));
+        }
+        Ok(format!("data:{mime};base64,{}", STANDARD.encode(&bytes)))
     }
 
     /// Remove one attachment from an issue.

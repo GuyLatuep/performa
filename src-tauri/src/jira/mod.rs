@@ -362,7 +362,8 @@ impl JiraClient {
         jql: &str,
         max_results: u32,
     ) -> Result<Vec<IssueSummary>, String> {
-        self.search_issues_fields(jql, max_results, "summary").await
+        self.search_issues_fields(jql, max_results, "summary,issuetype")
+            .await
     }
 
     /// Like [`Self::search_issues`], but also carries each issue's `updated`
@@ -392,7 +393,8 @@ impl JiraClient {
     pub async fn due_issues(&self) -> Result<Vec<IssueSummary>, String> {
         let jql = "assignee = currentUser() AND due >= -7d AND due <= 14d \
                    AND statusCategory != Done ORDER BY due ASC";
-        self.search_issues_fields(jql, 50, "summary,duedate").await
+        self.search_issues_fields(jql, 50, "summary,duedate,issuetype")
+            .await
     }
 
     /// Issues waiting on the current user — see [`build_todo_jql`].
@@ -400,8 +402,12 @@ impl JiraClient {
     /// Deliberately without `duedate`: due dates are the start tab's subject,
     /// and an extra badge here would only break the column alignment.
     pub async fn todo_issues(&self, cfg: &TodoConfig) -> Result<Vec<IssueSummary>, String> {
-        self.search_issues_fields(&build_todo_jql(cfg), 100, "summary,status,priority")
-            .await
+        self.search_issues_fields(
+            &build_todo_jql(cfg),
+            100,
+            "summary,status,priority,issuetype",
+        )
+        .await
     }
 
     async fn search_issues_fields(
@@ -445,6 +451,15 @@ impl JiraClient {
                 updated: i.fields.updated,
                 status: i.fields.status.map(|s| s.name),
                 priority: i.fields.priority.map(|p| p.name),
+                // Split in two: the name is what the tooltip says, the URL is
+                // what the icon is fetched by, and a type can arrive with no
+                // icon of its own.
+                issue_type: i.fields.issuetype.as_ref().map(|t| t.name.clone()),
+                issue_type_icon: i
+                    .fields
+                    .issuetype
+                    .and_then(|t| t.icon_url)
+                    .filter(|u| !u.is_empty()),
             })
             .collect();
         Ok((issues, has_more))
