@@ -3,6 +3,7 @@ import { IssueSummary } from "../api";
 import { today } from "../time";
 import { togglePin } from "../pins";
 import { useIssueTypeIcon } from "../issueTypeIcons";
+import { useShowIssueTypeIcons } from "../settings";
 import { startTimer, useTimer } from "../timer";
 
 /** One issue in a selectable list: pin star, type icon, key link, summary,
@@ -31,6 +32,7 @@ export default function IssueRow({
       >
         {pinned ? "★" : "☆"}
       </button>
+      <TypeIcon type={issue.issueType} url={issue.issueTypeIcon} />
       <button
         className="issue-open key"
         title={`Open ${issue.key} in browser`}
@@ -38,7 +40,6 @@ export default function IssueRow({
       >
         {issue.key}
       </button>
-      <TypeIcon type={issue.issueType} url={issue.issueTypeIcon} />
       {/* The summary column is ellipsised (one line per row), so the full text
           only exists in the tooltip — the narrower the window, the more of it
           is cut off. */}
@@ -89,9 +90,14 @@ export default function IssueRow({
  *  icon from shifting the row it lands in.
  *
  *  Like `DueBadge`, the name is in the tooltip rather than beside the mark: the
- *  column earns its width by staying narrow. */
+ *  column earns its width by staying narrow. Turned off in Appearance, the cell
+ *  goes away entirely rather than sitting there empty. */
 function TypeIcon({ type, url }: { type?: string; url?: string }) {
-  const icon = useIssueTypeIcon(url);
+  const shown = useShowIssueTypeIcons();
+  // Nothing is fetched while the setting is off — the cell isn't drawn, so an
+  // icon for it would be a request for something nobody can see.
+  const icon = useIssueTypeIcon(shown ? url : undefined);
+  if (!shown) return null;
   return (
     <span className="type-icon" title={type ? `Type: ${type}` : undefined}>
       {icon && <img src={icon} alt={type ?? ""} />}

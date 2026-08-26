@@ -72,6 +72,34 @@ describe("weekend toggle", () => {
   });
 });
 
+describe("issue type icons", () => {
+  const KEY = "performa-show-issue-type-icons";
+
+  it("defaults to on, so an install that never opened the setting shows them", async () => {
+    const { getShowIssueTypeIcons } = await freshSettings();
+    expect(getShowIssueTypeIcons()).toBe(true);
+  });
+
+  it("round-trips being turned off", async () => {
+    const { getShowIssueTypeIcons, setShowIssueTypeIcons } =
+      await freshSettings();
+
+    setShowIssueTypeIcons(false);
+    expect(getShowIssueTypeIcons()).toBe(false);
+    expect(localStorage.getItem(KEY)).toBe("false");
+
+    const restored = await freshSettings({ [KEY]: "false" });
+    expect(restored.getShowIssueTypeIcons()).toBe(false);
+  });
+
+  it("stays on for anything stored that isn't a plain off", async () => {
+    for (const junk of ["", "true", "nope"]) {
+      const { getShowIssueTypeIcons } = await freshSettings({ [KEY]: junk });
+      expect(getShowIssueTypeIcons()).toBe(true);
+    }
+  });
+});
+
 describe("log level", () => {
   it("defaults to error and round-trips a known level", async () => {
     const { getLogLevel, setLogLevel } = await freshSettings();

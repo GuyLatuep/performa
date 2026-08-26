@@ -4,9 +4,11 @@ import { CredentialsMeta } from "../api";
 import {
   getDailyHours,
   getLogLevel,
+  getShowIssueTypeIcons,
   getShowWeekends,
   setDailyHours,
   setLogLevel,
+  setShowIssueTypeIcons,
   setShowWeekends,
 } from "../settings";
 import { getTheme, setTheme } from "../theme";
@@ -60,14 +62,15 @@ export default function Settings({
     initialTab ?? (existing ? "appearance" : "connection"),
   );
 
-  // Theme, accent, hours, weekend toggle, and log level apply instantly
-  // (live preview), so keep a snapshot from when the screen opened and
-  // restore it on Cancel.
+  // Theme, accent, hours, weekend toggle, type icons and log level apply
+  // instantly (live preview), so keep a snapshot from when the screen opened
+  // and restore it on Cancel.
   const snapshot = useRef({
     theme: getTheme(),
     accent: getAccent(),
     hours: getDailyHours(),
     weekends: getShowWeekends(),
+    typeIcons: getShowIssueTypeIcons(),
     logLevel: getLogLevel(),
     ignoredStatuses: getIgnoredStatuses(),
   });
@@ -77,6 +80,7 @@ export default function Settings({
     setAccent(snapshot.current.accent);
     setDailyHours(snapshot.current.hours);
     setShowWeekends(snapshot.current.weekends);
+    setShowIssueTypeIcons(snapshot.current.typeIcons);
     setLogLevel(snapshot.current.logLevel);
     setIgnoredStatuses(snapshot.current.ignoredStatuses);
     onCancel?.();
@@ -131,7 +135,7 @@ export default function Settings({
           <button type="button" className="secondary" onClick={cancel}>
             Cancel
           </button>
-          {/* Theme/accent/hours/weekends/log level are already live in the
+          {/* Theme/accent/hours/weekends/icons/log level are already live in the
               stores as they're changed, so "Save" is just closing without
               rolling back to the snapshot — unlike Cancel above. */}
           <button type="button" onClick={onCancel}>

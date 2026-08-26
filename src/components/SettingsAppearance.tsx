@@ -1,9 +1,12 @@
+import { setShowIssueTypeIcons, useShowIssueTypeIcons } from "../settings";
 import ThemeToggle from "./ThemeToggle";
 import AccentPicker from "./AccentPicker";
 
-/** Theme and accent colour. Both apply to the document the moment they are
- *  picked (live preview); the settings shell restores them on Cancel. */
+/** Theme, accent colour and what a list row shows. All apply to the app the
+ *  moment they are picked (live preview); the settings shell restores them on
+ *  Cancel. */
 export default function SettingsAppearance() {
+  const typeIcons = useShowIssueTypeIcons();
   return (
     <>
       <div className="field-block">
@@ -14,6 +17,21 @@ export default function SettingsAppearance() {
       <div className="field-block">
         <span className="field-label">Accent color</span>
         <AccentPicker />
+      </div>
+
+      <div className="field-block">
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={typeIcons}
+            onChange={(e) => setShowIssueTypeIcons(e.target.checked)}
+          />
+          Show issue type icons in lists
+        </label>
+        <span className="hint">
+          Jira's own icon for the issue type, in front of the key on every issue
+          row.
+        </span>
       </div>
     </>
   );

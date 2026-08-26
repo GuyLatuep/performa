@@ -1413,12 +1413,20 @@ header {
   gap: 6px;
   align-items: center;
 }
+/* Issue type icons turned off in Appearance: one column fewer, and the cells
+   after it follow because they are placed from the end of the row. */
+.todo-list.no-type-icons li {
+  grid-template-columns: 22px 96px minmax(0, 1fr) 84px 116px 80px;
+}
 .todo-list {
   border-top: 1px solid var(--hair);
 }
 /* Pin each cell to its column by hand: not every issue carries a priority or
    a status, and auto-placement would let the cells after a missing one slide
-   left — the exact misalignment this layout exists to fix. */
+   left — the exact misalignment this layout exists to fix.
+
+   Everything from the key rightwards is counted from the *end* of the row, so
+   the same rules hold whether or not the type icon has a column of its own. */
 .todo-list li > .pin-toggle {
   grid-column: 1;
 }
@@ -1426,19 +1434,19 @@ header {
   grid-column: 2;
 }
 .todo-list li > .issue-open {
-  grid-column: 3;
+  grid-column: -6;
 }
 .todo-list li > .issue-select {
-  grid-column: 4;
+  grid-column: -5;
 }
 .todo-list li > .priority-badge {
-  grid-column: 5;
+  grid-column: -4;
 }
 .todo-list li > .status-badge {
-  grid-column: 6;
+  grid-column: -3;
 }
 .todo-list li > .timer-start {
-  grid-column: 7;
+  grid-column: -2;
 }
 .todo-columns {
   position: sticky;
@@ -1454,9 +1462,10 @@ header {
   padding: 7px 0;
 }
 /* The key and summary cells carry the row's own padding; align the headers
-   with the text inside them rather than with the cell edge. */
-.todo-columns span:nth-child(3),
-.todo-columns span:nth-child(4) {
+   with the text inside them rather than with the cell edge. Named rather than
+   counted: how many spans come before them depends on the type-icon setting. */
+.todo-columns .col-key,
+.todo-columns .col-summary {
   padding-left: 8px;
 }
 /* One line per row — a wrapping summary would break the column rhythm. */

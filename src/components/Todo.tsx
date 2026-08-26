@@ -5,7 +5,7 @@ import { useIgnoredStatuses } from "../todoStatuses";
 import IssueRow from "./IssueRow";
 import IssueView from "./IssueView";
 import { useKonamiCode } from "../konami";
-import { useFunMode } from "../settings";
+import { useFunMode, useShowIssueTypeIcons } from "../settings";
 
 interface Props {
   site: string;
@@ -20,6 +20,9 @@ export default function Todo({ site, onLogged }: Props) {
   const [issues, setIssues] = useState<IssueSummary[] | null>(null);
   const [opened, setOpened] = useState<IssueSummary | null>(null);
   const funMode = useFunMode();
+  // The rows are a grid, so the header and the list have to agree on how many
+  // columns there are.
+  const typeIcons = useShowIssueTypeIcons();
   const [allClosed, setAllClosed] = useState(false);
   const dismiss = useCallback(() => setAllClosed(false), []);
   const wish = useCallback(() => setAllClosed(true), []);
@@ -106,16 +109,18 @@ export default function Todo({ site, onLogged }: Props) {
         {issues?.length === 0 && !error && (
           <p className="muted empty">Nothing waiting on you.</p>
         )}
-        <ul className="issue-list todo-list">
+        <ul
+          className={`issue-list todo-list${typeIcons ? "" : " no-type-icons"}`}
+        >
           {issues && issues.length > 0 && (
             // Column header. Inside the scroll container so it shares the row
             // grid exactly — a header outside it would drift by the width of
             // the scrollbar — and sticks to the top while the list scrolls.
             <li className="todo-columns" aria-hidden="true">
               <span />
-              <span />
-              <span>Issue</span>
-              <span>Summary</span>
+              {typeIcons && <span />}
+              <span className="col-key">Issue</span>
+              <span className="col-summary">Summary</span>
               <span>Prio</span>
               <span>Status</span>
               <span />

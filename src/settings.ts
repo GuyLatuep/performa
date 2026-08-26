@@ -9,6 +9,7 @@ const HOURS_KEY = "performa-daily-hours";
 const WEEKENDS_KEY = "performa-show-weekends";
 const LOG_LEVEL_KEY = "performa-log-level";
 const FUN_MODE_KEY = "performa-fun-mode";
+const TYPE_ICONS_KEY = "performa-show-issue-type-icons";
 const DEFAULT_DAILY_HOURS = 8;
 const DEFAULT_LOG_LEVEL: LogLevel = "error";
 
@@ -27,6 +28,12 @@ const weekendsStore = createStore<boolean>(
 );
 const funModeStore = createStore<boolean>(
   localStorage.getItem(FUN_MODE_KEY) === "true",
+);
+// On unless it has been turned off — the icons are the default look of a list,
+// and anyone who has never opened the setting should see them. That is why this
+// one reads for "false" rather than for "true" like the toggles above.
+const typeIconsStore = createStore<boolean>(
+  localStorage.getItem(TYPE_ICONS_KEY) !== "false",
 );
 
 export function getDailyHours(): number {
@@ -97,4 +104,17 @@ export function setFunMode(on: boolean): void {
 
 export function useFunMode(): boolean {
   return funModeStore.use();
+}
+
+export function getShowIssueTypeIcons(): boolean {
+  return typeIconsStore.get();
+}
+
+export function setShowIssueTypeIcons(on: boolean): void {
+  localStorage.setItem(TYPE_ICONS_KEY, String(on));
+  typeIconsStore.set(on);
+}
+
+export function useShowIssueTypeIcons(): boolean {
+  return typeIconsStore.use();
 }
