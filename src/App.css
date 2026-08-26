@@ -1626,6 +1626,11 @@ section.issue-fact .issue-description {
 section.issue-fact .field-editor {
   min-width: min(100%, 420px);
 }
+/* Emptying the field is not the ordinary way out of this popover — Save and
+   Cancel are — so it sits at the far end of the row, past the gap. */
+.field-editor .field-clear {
+  margin-left: auto;
+}
 .issue-fact dd {
   margin: 0;
   font-size: 13px;

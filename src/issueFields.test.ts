@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adfDocument,
+  clearedField,
   fieldKind,
   initialValues,
   isBlank,
@@ -168,6 +169,55 @@ describe("missingRequired", () => {
   it("ignores an empty optional field", () => {
     const fields = toFormFields([meta({ id: "n", name: "Notes" })]);
     expect(missingRequired(fields, { n: "" })).toEqual([]);
+  });
+});
+
+describe("clearedField", () => {
+  it("empties a single-value field with null", () => {
+    const [user] = toFormFields([
+      meta({ id: "assignee", name: "Assignee", schemaType: "user" }),
+    ]);
+    expect(clearedField(user)).toEqual({ assignee: null });
+
+    const [date] = toFormFields([
+      meta({ id: "duedate", name: "Due date", schemaType: "date" }),
+    ]);
+    expect(clearedField(date)).toEqual({ duedate: null });
+  });
+
+  it("empties a multi-value field with an empty array", () => {
+    // Jira refuses null for these — the array is what "none of them" looks
+    // like.
+    const [labels] = toFormFields([
+      meta({
+        id: "labels",
+        name: "Labels",
+        schemaType: "array",
+        schemaItems: "string",
+      }),
+    ]);
+    expect(clearedField(labels)).toEqual({ labels: [] });
+
+    const [multi] = toFormFields([
+      meta({
+        id: "customfield_2",
+        name: "Systems",
+        schemaType: "array",
+        schemaItems: "option",
+        schemaCustom: `${CUSTOM}:multiselect`,
+      }),
+    ]);
+    expect(clearedField(multi)).toEqual({ customfield_2: [] });
+  });
+
+  it("says something toJiraFields cannot", () => {
+    const [assignee] = toFormFields([
+      meta({ id: "assignee", name: "Assignee", schemaType: "user" }),
+    ]);
+    // A blank box means "left alone" there, which is exactly why clearing
+    // needs its own way of being said.
+    expect(toJiraFields([assignee], { assignee: "" })).toEqual({});
+    expect(clearedField(assignee)).toEqual({ assignee: null });
   });
 });
 

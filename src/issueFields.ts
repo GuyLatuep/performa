@@ -189,6 +189,26 @@ export function toJiraFields(
   return out;
 }
 
+/**
+ * The update that empties a field.
+ *
+ * Not something `toJiraFields` can express: there, a blank box means "left
+ * alone", which is why it drops one. Emptying a field is a different intention
+ * and it needs its own way of being said — the only way to clear a picker,
+ * a date or a user, none of which have a box you could delete the text out of.
+ *
+ * Jira takes `null` for the fields that hold one value and an empty array for
+ * the ones that hold several; sending `null` for a multi-value field is
+ * refused.
+ */
+export function clearedField(field: FormField): Record<string, unknown> {
+  const empty =
+    field.kind === "multiselect" ||
+    field.kind === "checkboxes" ||
+    field.kind === "labels";
+  return { [field.id]: empty ? [] : null };
+}
+
 function shapeValue(field: FormField, value: FieldValue): unknown {
   switch (field.kind) {
     case "textarea":

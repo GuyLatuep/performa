@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AssetLink, api, IssueDetail } from "../api";
 import {
+  clearedField,
   FormField,
   FormValues,
   initialValues,
@@ -170,6 +171,9 @@ export default function IssueFacts({
       issueKey={issueKey}
       label={fact.label}
       field={field}
+      // Only the fact knows whether there is anything to clear: the form
+      // metadata says what Jira will accept, not what the issue holds.
+      hasValue={!!(fact.value || fact.assets?.length)}
       onDone={() => {
         setEditing(null);
         onChanged();
@@ -407,12 +411,16 @@ function FieldEditor({
   issueKey,
   label,
   field,
+  hasValue,
   onDone,
   onCancel,
 }: {
   issueKey: string;
   label: string;
   field: FormField;
+  /** Whether the issue currently holds a value here — there is nothing to
+   *  offer to clear when it doesn't. */
+  hasValue: boolean;
   onDone: () => void;
   onCancel: () => void;
 }) {
@@ -421,6 +429,26 @@ function FieldEditor({
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Emptying a field Jira insists on would only be refused by Jira, so it is
+   *  not offered; neither is emptying one that is already empty. */
+  const clearable = hasValue && !field.required;
+
+  /** Send one field's change and close on success. Both buttons below are the
+   *  same write with a different body — what changes is what is being said
+   *  about the field, not how it is said. */
+  async function submit(fields: Record<string, unknown>, what: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.updateIssueFields(issueKey, fields);
+      logInfo(`${what} ${label} on ${issueKey}`);
+      onDone();
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function save() {
     // Marked required whatever the field itself says: a change nobody typed a
@@ -429,20 +457,17 @@ function FieldEditor({
     // shaped for Jira.
     const gaps = missingRequired([{ ...field, required: true }], values);
     if (gaps.length > 0) {
-      setError(`${label} needs a value.`);
+      // An empty box means the field was left alone, so saying so is more use
+      // than saving nothing silently — and it is where the difference between
+      // that and emptying the field belongs.
+      setError(
+        clearable
+          ? `${label} needs a value — use Clear to empty it.`
+          : `${label} needs a value.`,
+      );
       return;
     }
-    setBusy(true);
-    setError(null);
-    try {
-      await api.updateIssueFields(issueKey, toJiraFields([field], values));
-      logInfo(`changed ${label} on ${issueKey}`);
-      onDone();
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
+    await submit(toJiraFields([field], values), "changed");
   }
 
   const popover = useRef<HTMLDivElement>(null);
@@ -478,6 +503,19 @@ function FieldEditor({
         <button className="secondary" onClick={onCancel} disabled={busy}>
           Cancel
         </button>
+        {/* The only way to empty a picker, a date or a user: those have no box
+            to delete the text out of, and a blank one means "left alone"
+            anyway. Pushed to the end of the row, away from Save. */}
+        {clearable && (
+          <button
+            className="danger field-clear"
+            title={`Remove the ${label.toLowerCase()} from ${issueKey}`}
+            disabled={busy}
+            onClick={() => submit(clearedField(field), "cleared")}
+          >
+            Clear
+          </button>
+        )}
       </div>
     </div>
   );
