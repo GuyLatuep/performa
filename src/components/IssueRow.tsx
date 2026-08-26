@@ -1,5 +1,6 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { IssueSummary } from "../api";
+import { priorityClass, shortStatus } from "../issueLabels";
 import { today } from "../time";
 import { togglePin } from "../pins";
 import { useIssueTypeIcon } from "../issueTypeIcons";
@@ -103,28 +104,6 @@ function TypeIcon({ type, url }: { type?: string; url?: string }) {
       {icon && <img src={icon} alt={type ?? ""} />}
     </span>
   );
-}
-
-/** Collapse the "somebody else has it" statuses ("warte auf Support",
- *  "Waiting for CTS", …) to one short label. Which party is waited on is in
- *  the badge's tooltip; keeping it out of the badge itself is what lets the
- *  status column stay narrow. Matched as a prefix so sibling statuses are
- *  covered too, rather than a list of names that goes stale. */
-function shortStatus(status: string): string {
-  return /^(waiting for|warte[nt]? auf)\b/i.test(status.trim())
-    ? "Warten"
-    : status;
-}
-
-/** Highlight only the two ends of the scale — the names in between differ per
- *  Jira site and carry no urgency worth colouring. Matched on the English and
- *  German defaults, and left neutral for anything else. */
-function priorityClass(priority: string): string {
-  const p = priority.toLowerCase();
-  if (/highest|blocker|critical|sehr hoch|kritisch/.test(p)) return "urgent";
-  if (/^high|hoch/.test(p)) return "high";
-  if (/lowest|^low|niedrig|gering/.test(p)) return "low";
-  return "";
 }
 
 function DueBadge({ date }: { date: string }) {

@@ -6,6 +6,7 @@ import IssueRow from "./IssueRow";
 import IssueView from "./IssueView";
 import { useKonamiCode } from "../konami";
 import { useFunMode, useShowIssueTypeIcons } from "../settings";
+import { nextSort, SortColumn, sortIssues, TodoSort } from "../todoSort";
 
 interface Props {
   site: string;
@@ -34,6 +35,11 @@ export default function Todo({ site, onLogged }: Props) {
   const pinnedKeys = new Set(usePinnedIssues().map((p) => p.key));
   // Part of the query, so a change in settings has to re-run the effect.
   const ignoredStatuses = useIgnoredStatuses();
+  // Null means the order Jira sent, which is the one the query asked for.
+  // Sorting happens here rather than in the query: re-running it to reorder a
+  // list already on screen would be a Jira round trip for something the browser
+  // can do instantly, and it would lose the ordering on every refresh.
+  const [sort, setSort] = useState<TodoSort | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,17 +122,41 @@ export default function Todo({ site, onLogged }: Props) {
             // Column header. Inside the scroll container so it shares the row
             // grid exactly — a header outside it would drift by the width of
             // the scrollbar — and sticks to the top while the list scrolls.
-            <li className="todo-columns" aria-hidden="true">
+            <li className="todo-columns">
               <span />
-              {typeIcons && <span />}
-              <span className="col-key">Issue</span>
-              <span className="col-summary">Summary</span>
-              <span>Prio</span>
-              <span>Status</span>
+              {typeIcons && (
+                <SortHeader compact column="type" sort={sort} onSort={setSort}>
+                  {/* One letter, because the column is one icon wide. What it
+                      stands for is in the tooltip. */}
+                  T
+                </SortHeader>
+              )}
+              <SortHeader
+                className="col-key"
+                column="key"
+                sort={sort}
+                onSort={setSort}
+              >
+                Issue
+              </SortHeader>
+              <SortHeader
+                className="col-summary"
+                column="summary"
+                sort={sort}
+                onSort={setSort}
+              >
+                Summary
+              </SortHeader>
+              <SortHeader column="priority" sort={sort} onSort={setSort}>
+                Prio
+              </SortHeader>
+              <SortHeader column="status" sort={sort} onSort={setSort}>
+                Status
+              </SortHeader>
               <span />
             </li>
           )}
-          {issues?.map((issue) => (
+          {sortIssues(issues ?? [], sort).map((issue) => (
             <IssueRow
               key={issue.key}
               issue={issue}
@@ -140,3 +170,68 @@ export default function Todo({ site, onLogged }: Props) {
     </div>
   );
 }
+
+/** The name of a sortable column, and the click that reorders the list by it.
+ *
+ *  A button rather than a span with a handler: it is the only thing on this
+ *  screen that reorders the list, and it has to be reachable by keyboard like
+ *  every other control on it. */
+function SortHeader({
+  column,
+  sort,
+  onSort,
+  className,
+  compact = false,
+  children,
+}: {
+  column: SortColumn;
+  sort: TodoSort | null;
+  onSort: (sort: TodoSort | null) => void;
+  className?: string;
+  /** A column too narrow to hold a name and an arrow side by side — the type
+   *  column is one icon wide. It shows the arrow *instead of* its name while it
+   *  is the sorted one; the tooltip says which it is either way. */
+  compact?: boolean;
+  children: React.ReactNode;
+}) {
+  const active = sort?.column === column ? sort.direction : null;
+  return (
+    <button
+      type="button"
+      className={`col-sort${active ? " sorted" : ""}${
+        className ? ` ${className}` : ""
+      }`}
+      title={
+        active === null
+          ? `Sort by ${COLUMN_NAMES[column]}`
+          : active === "asc"
+            ? `Sorted by ${COLUMN_NAMES[column]} — click to reverse`
+            : `Sorted by ${COLUMN_NAMES[column]}, reversed — click for Jira's own order`
+      }
+      onClick={() => onSort(nextSort(sort, column))}
+    >
+      {!(compact && active) && children}
+      {/* Kept at a fixed width rather than appearing and disappearing, so
+          naming a column doesn't shift as it is sorted and unsorted. */}
+      {!compact && (
+        <span className="sort-marker" aria-hidden="true">
+          {active === "asc" ? "▲" : active === "desc" ? "▼" : ""}
+        </span>
+      )}
+      {compact && active && (
+        <span className="sort-marker" aria-hidden="true">
+          {active === "asc" ? "▲" : "▼"}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/** What each column is called when a tooltip has to say it out loud. */
+const COLUMN_NAMES: Record<SortColumn, string> = {
+  type: "issue type",
+  key: "issue key",
+  summary: "summary",
+  priority: "priority",
+  status: "status",
+};

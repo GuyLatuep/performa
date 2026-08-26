@@ -1468,6 +1468,47 @@ header {
 .todo-columns .col-summary {
   padding-left: 8px;
 }
+/* A column name is a button — clicking it sorts the list — but it is still a
+   column name, so it inherits the header's type rather than looking like a
+   control parked in the row. */
+.todo-columns .col-sort {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.todo-columns .col-sort:hover,
+.todo-columns .col-sort:focus-visible {
+  color: var(--ink);
+}
+/* The sorted column says so by weight as well as by its arrow: the arrow is
+   four pixels of glyph on a row of small caps. */
+.todo-columns .col-sort.sorted {
+  color: var(--ink);
+  font-weight: 700;
+}
+/* Fixed width whether or not there is an arrow in it, so naming the column
+   doesn't shift as it is sorted and unsorted. */
+.todo-columns .sort-marker {
+  flex: 0 0 auto;
+  width: 7px;
+  font-size: 7px;
+  line-height: 1;
+}
+/* The type, priority and status columns are all centred over what is under
+   them — an icon and two badges — rather than over the column's left edge. */
+.todo-columns .col-sort:not(.col-key):not(.col-summary) {
+  justify-content: center;
+}
 /* One line per row — a wrapping summary would break the column rhythm. */
 .todo-list .issue-select {
   display: block;
