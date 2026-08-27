@@ -129,7 +129,11 @@ export default function Todo({ site, onLogged }: Props) {
                 Restore default
               </button>
             )}
-            <button className="link" onClick={reload} disabled={issues === null}>
+            <button
+              className="link"
+              onClick={reload}
+              disabled={issues === null}
+            >
               Refresh
             </button>
           </span>
@@ -149,7 +153,12 @@ export default function Todo({ site, onLogged }: Props) {
             <li className="todo-columns">
               <span />
               {typeIcons && (
-                <SortHeader compact column="type" sort={sort} onSort={setTodoSort}>
+                <SortHeader
+                  compact
+                  column="type"
+                  sort={sort}
+                  onSort={setTodoSort}
+                >
                   {/* One letter, because the column is one icon wide. What it
                       stands for is in the tooltip. */}
                   T
