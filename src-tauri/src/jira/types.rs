@@ -49,7 +49,8 @@ pub struct MissingConfig {
     pub window_secs: i64,
     pub grace_secs: i64,
     /// Issues from this project log their time on the issue they link to with
-    /// `escalation_link` (fallback: the issue itself).
+    /// `escalation_link`, as long as that issue is assigned to the same user
+    /// (fallback: the issue itself).
     pub escalation_project: String,
     pub escalation_link: String,
     /// Terminal statuses that still accept worklogs — every other
@@ -141,7 +142,8 @@ pub struct MissingWorklog {
     #[serde(rename = "activityAt")]
     pub activity_at: String,
     /// Issue the work should be logged on: the escalation source for issues
-    /// from the escalation project, otherwise the issue itself.
+    /// from the escalation project when that source is the user's own,
+    /// otherwise the issue itself.
     #[serde(rename = "logKey")]
     pub log_key: String,
     #[serde(rename = "logSummary")]
@@ -838,4 +840,21 @@ pub struct LinkedIssue {
     pub key: String,
     #[serde(default)]
     pub fields: Option<SearchFields>,
+}
+
+/// One issue's assignee, as `?fields=assignee` returns it. Only the account id
+/// is read: who an issue belongs to is compared with the signed-in user, and
+/// display names are neither unique nor stable.
+#[derive(Deserialize)]
+pub struct AssigneeResp {
+    #[serde(default)]
+    pub fields: Option<AssigneeFields>,
+}
+
+#[derive(Deserialize)]
+pub struct AssigneeFields {
+    /// `null` on an unassigned issue — which is nobody, and so never the
+    /// signed-in user.
+    #[serde(default)]
+    pub assignee: Option<WorklogAuthor>,
 }

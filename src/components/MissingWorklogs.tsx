@@ -25,7 +25,8 @@ interface Props {
 
 // Reminder list: issues with recent own activity but no worklog around it.
 // Clicking an item opens an inline log form; saving returns to the refreshed
-// list. DEV issues log their time on the linked escalation-source issue.
+// list. DEV issues log their time on the linked escalation-source issue, when
+// that issue is the user's own.
 export default function MissingWorklogs({ site, onLogged }: Props) {
   const items = useMissing();
   const error = useMissingError();

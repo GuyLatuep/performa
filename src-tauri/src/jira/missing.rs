@@ -61,8 +61,8 @@ impl JiraClient {
     /// watches, or owns serve as candidates — viewing history also covers
     /// JSM internal comments, which don't auto-watch.
     /// Issues from `config.escalation_project` log their time on the issue they
-    /// are linked to as `config.escalation_link` (when present), so worklogs on
-    /// either issue clear the reminder.
+    /// are linked to as `config.escalation_link` — when there is one and it is
+    /// assigned to this user — so worklogs on either issue clear the reminder.
     pub async fn missing_worklogs(
         &self,
         account_id: &str,
@@ -174,8 +174,9 @@ impl JiraClient {
             return Ok(None);
         }
 
-        // Escalation-project issues log their time on the linked source
-        // issue, so it becomes the log target and its worklogs count too.
+        // Escalation-project issues log their time on the linked source issue
+        // when that issue is the user's own, so it becomes the log target and
+        // its worklogs count too.
         let escalation_prefix = format!("{}-", config.escalation_project);
         let is_escalation = issue.key.starts_with(&escalation_prefix);
 
@@ -190,7 +191,8 @@ impl JiraClient {
         let (escalated, mut covered) = futures_util::try_join!(
             async {
                 if is_escalation {
-                    self.linked_issue(&issue.key, &config.escalation_link).await
+                    self.escalation_target(&issue.key, &config.escalation_link, account_id)
+                        .await
                 } else {
                     Ok(None)
                 }
@@ -355,12 +357,24 @@ impl JiraClient {
         Ok(first.values)
     }
 
-    /// The issue this one links to with the given description (e.g. the issue
-    /// a DEV ticket "is an escalation for"), if such a link exists.
-    async fn linked_issue(
+    /// The issue an escalation books its time on: the one it links to with
+    /// `link_description` (e.g. the issue a DEV ticket "is an escalation
+    /// for"), but only while that issue is assigned to the user doing the
+    /// logging.
+    ///
+    /// The assignee rule is what keeps the forwarding from reaching into
+    /// somebody else's work. An escalation is worked by a developer while the
+    /// issue it came from stays with the colleague who raised it; booking the
+    /// developer's hours over there would put their time on a ticket that is
+    /// not theirs. With more than one person on the app that stopped being
+    /// hypothetical — so when the source belongs to somebody else (or to
+    /// nobody), the time stays on the escalation itself, which is the issue
+    /// they were actually working.
+    async fn escalation_target(
         &self,
         issue_key: &str,
         link_description: &str,
+        account_id: &str,
     ) -> Result<Option<(String, String)>, String> {
         let parsed: IssueLinksResp = self
             .get_json(
@@ -387,11 +401,31 @@ impl JiraClient {
                 None
             };
             if let Some(t) = target {
+                if !self.assigned_to(&t.key, account_id).await? {
+                    return Ok(None);
+                }
                 let summary = t.fields.map(|f| f.summary).unwrap_or_default();
                 return Ok(Some((t.key, summary)));
             }
         }
         Ok(None)
+    }
+
+    /// Whether `issue_key` is assigned to `account_id`. A separate request
+    /// because the link entries a search returns carry the target's summary
+    /// and status but not who holds it.
+    async fn assigned_to(&self, issue_key: &str, account_id: &str) -> Result<bool, String> {
+        let parsed: AssigneeResp = self
+            .get_json(
+                &format!("/rest/api/3/issue/{issue_key}"),
+                &[("fields", "assignee".to_string())],
+                "issue",
+            )
+            .await?;
+        Ok(parsed
+            .fields
+            .and_then(|f| f.assignee)
+            .is_some_and(|a| a.account_id == account_id))
     }
 }
 

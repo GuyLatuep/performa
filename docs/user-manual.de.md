@@ -258,7 +258,7 @@ Jeder Fund zeigt:
 
 Ein Klick auf einen Fund öffnet ein Inline-Erfassungsformular, vorbelegt mit **Datum und Uhrzeit der gemeldeten Aktivität** — das entstehende Worklog deckt sie ab, und die Erinnerung verschwindet bei der nächsten Prüfung.
 
-> **Eskalationsvorgänge:** Bei Vorgängen im Projekt `DEV` wird die Zeit stattdessen auf dem **verknüpften Ursprungsvorgang** erfasst (dem Vorgang mit der Verknüpfung „is an escalation for“). Das Formular zeigt beide Vorgänge, damit immer klar ist, wohin die Zeit geht. Steht der Ursprungsvorgang selbst schon auf der Liste, entfällt die `DEV`-Zeile — ein Worklog räumt ohnehin beide ab, und zwei Zeilen für dieselbe Arbeit sind nur Rauschen.
+> **Eskalationsvorgänge:** Bei Vorgängen im Projekt `DEV` wird die Zeit stattdessen auf dem **verknüpften Ursprungsvorgang** erfasst (dem Vorgang mit der Verknüpfung „is an escalation for“) — allerdings nur, wenn dieser Ursprungsvorgang dir selbst zugewiesen ist. Auf dem Ticket einer Kollegin oder eines Kollegen landet deine Zeit nie: Gehört der Ursprungsvorgang jemand anderem oder niemandem, bleibt die Zeit auf dem `DEV`-Vorgang, an dem du tatsächlich gearbeitet hast. Das Formular zeigt beide Vorgänge, damit immer klar ist, wohin die Zeit geht. Steht der Ursprungsvorgang selbst schon auf der Liste, entfällt die `DEV`-Zeile — ein Worklog räumt ohnehin beide ab, und zwei Zeilen für dieselbe Arbeit sind nur Rauschen.
 
 ## Erwähnungen
 

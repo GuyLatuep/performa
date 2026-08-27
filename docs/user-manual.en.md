@@ -258,7 +258,7 @@ Each finding shows:
 
 Clicking a finding opens an inline log form, prefilled with the **date and time of the flagged activity**, so the resulting worklog covers it and the reminder clears on the next check.
 
-> **Escalation issues:** for issues in the `DEV` project, the time is logged on the **linked escalation-source issue** instead (the issue linked as "is an escalation for"). The form shows both issues so it's always clear where the time goes. When the source issue is on the list in its own right, the `DEV` row is left out — one worklog would clear both, and two rows for the same piece of work only add noise.
+> **Escalation issues:** for issues in the `DEV` project, the time is logged on the **linked escalation-source issue** instead (the issue linked as "is an escalation for") — but only when that source issue is assigned to you. Somebody else's ticket never receives your hours: if the source belongs to a colleague or to nobody, the time stays on the `DEV` issue you were actually working. The form shows both issues so it's always clear where the time goes. When the source issue is on the list in its own right, the `DEV` row is left out — one worklog would clear both, and two rows for the same piece of work only add noise.
 
 ## Mentions
 

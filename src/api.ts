@@ -239,7 +239,8 @@ export interface MissingWorklog {
   /** The activity itself: a comment excerpt, or "Old status → New status". */
   detail: string;
   activityAt: string; // RFC3339
-  /** Issue to log the work on (escalation source for DEV issues). */
+  /** Issue to log the work on: the escalation source for DEV issues, but only
+   *  when that source is assigned to this user — otherwise the issue itself. */
   logKey: string;
   logSummary: string;
 }
