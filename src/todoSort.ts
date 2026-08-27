@@ -1,5 +1,6 @@
 import { IssueSummary } from "./api";
 import { priorityRank, shortStatus } from "./issueLabels";
+import { createStore } from "./store";
 
 // Ordering the todo list by one of its columns.
 //
@@ -100,4 +101,53 @@ function compareKeys(a: string, b: string): number {
   // return whatever Jira has) fall back to comparing what's left as text.
   if (aNumber === "" || bNumber === "") return a.localeCompare(b);
   return Number(aNumber) - Number(bNumber);
+}
+
+// The chosen ordering outlives the tab, and the app.
+//
+// It is a preference, not view state: somebody who sorts their todo list by
+// priority means it for their todo list, not for this one visit to it. So it
+// lives beside the other settings in localStorage and is read back at launch,
+// which also keeps it across the remounts the tab does on every refresh.
+
+const SORT_KEY = "performa-todo-sort";
+
+const COLUMNS: readonly SortColumn[] = [
+  "type",
+  "key",
+  "summary",
+  "priority",
+  "status",
+];
+
+/** The stored ordering, or null for Jira's own — which is also what a value
+ *  written by an older build, or by hand, falls back to. Nothing here may
+ *  throw: a corrupt entry must cost the ordering, not the tab. */
+function readSort(): TodoSort | null {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(SORT_KEY) ?? "null");
+    if (!raw || typeof raw !== "object") return null;
+    const { column, direction } = raw as Record<string, unknown>;
+    if (!COLUMNS.includes(column as SortColumn)) return null;
+    if (direction !== "asc" && direction !== "desc") return null;
+    return { column: column as SortColumn, direction };
+  } catch {
+    return null;
+  }
+}
+
+const sortStore = createStore<TodoSort | null>(readSort());
+
+export function getTodoSort(): TodoSort | null {
+  return sortStore.get();
+}
+
+export function setTodoSort(sort: TodoSort | null): void {
+  if (sort === null) localStorage.removeItem(SORT_KEY);
+  else localStorage.setItem(SORT_KEY, JSON.stringify(sort));
+  sortStore.set(sort);
+}
+
+export function useTodoSort(): TodoSort | null {
+  return sortStore.use();
 }

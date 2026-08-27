@@ -2486,3 +2486,11 @@ body.dragging-field {
   color: var(--danger);
   margin-right: 4px;
 }
+
+/* The buttons on the right of a section head. Grouped so the head keeps its
+   name-left / controls-right split as they come and go. */
+.head-actions {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}

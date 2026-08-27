@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IssueSummary } from "./api";
 import { nextSort, sortIssues, TodoSort } from "./todoSort";
 
@@ -92,5 +92,42 @@ describe("sortIssues", () => {
     const issues = [issue("B-1"), issue("A-1")];
     sortIssues(issues, { column: "key", direction: "asc" });
     expect(keys(issues)).toEqual(["B-1", "A-1"]);
+  });
+});
+
+describe("the remembered ordering", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("survives a reload", async () => {
+    const { setTodoSort, getTodoSort } = await import("./todoSort");
+    setTodoSort({ column: "priority", direction: "desc" });
+    vi.resetModules();
+    const reloaded = await import("./todoSort");
+    expect(reloaded.getTodoSort()).toEqual({
+      column: "priority",
+      direction: "desc",
+    });
+    expect(getTodoSort()).toEqual({ column: "priority", direction: "desc" });
+  });
+
+  it("forgets it again when the list goes back to Jira's own order", async () => {
+    const { setTodoSort } = await import("./todoSort");
+    setTodoSort({ column: "key", direction: "asc" });
+    setTodoSort(null);
+    vi.resetModules();
+    expect((await import("./todoSort")).getTodoSort()).toBeNull();
+  });
+
+  it("ignores a stored value it cannot make sense of", async () => {
+    for (const stored of [
+      "not json",
+      '{"column":"assignee","direction":"asc"}',
+      '{"column":"key","direction":"sideways"}',
+      '"key"',
+    ]) {
+      localStorage.setItem("performa-todo-sort", stored);
+      vi.resetModules();
+      expect((await import("./todoSort")).getTodoSort()).toBeNull();
+    }
   });
 });

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm build *)",
+      "Bash(pkg-config --version)",
+      "Read(//usr/lib/x86_64-linux-gnu/pkgconfig/**)",
+      "Bash(sudo -n true)",
+      "Bash(cargo tree *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

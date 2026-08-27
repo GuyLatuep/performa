@@ -6,7 +6,14 @@ import IssueRow from "./IssueRow";
 import IssueView from "./IssueView";
 import { useKonamiCode } from "../konami";
 import { useFunMode, useShowIssueTypeIcons } from "../settings";
-import { nextSort, SortColumn, sortIssues, TodoSort } from "../todoSort";
+import {
+  nextSort,
+  setTodoSort,
+  SortColumn,
+  sortIssues,
+  TodoSort,
+  useTodoSort,
+} from "../todoSort";
 
 interface Props {
   site: string;
@@ -39,7 +46,10 @@ export default function Todo({ site, onLogged }: Props) {
   // Sorting happens here rather than in the query: re-running it to reorder a
   // list already on screen would be a Jira round trip for something the browser
   // can do instantly, and it would lose the ordering on every refresh.
-  const [sort, setSort] = useState<TodoSort | null>(null);
+  //
+  // Kept in the settings store rather than in this component's state, so the
+  // ordering somebody picked is still theirs at the next launch.
+  const sort = useTodoSort();
 
   useEffect(() => {
     let cancelled = false;
@@ -106,9 +116,23 @@ export default function Todo({ site, onLogged }: Props) {
             Waiting on me
             {issues && issues.length > 0 && ` · ${issues.length}`}
           </span>
-          <button className="link" onClick={reload} disabled={issues === null}>
-            Refresh
-          </button>
+          <span className="head-actions">
+            {/* Only while there is something to restore. The list is in Jira's
+                order by default, so an always-present button would be offering
+                to undo nothing most of the time. */}
+            {sort !== null && (
+              <button
+                className="link"
+                onClick={() => setTodoSort(null)}
+                title="Forget the column ordering and go back to Jira's own"
+              >
+                Restore default
+              </button>
+            )}
+            <button className="link" onClick={reload} disabled={issues === null}>
+              Refresh
+            </button>
+          </span>
         </div>
         {issues === null && <p className="muted">Loading…</p>}
         {error && <p className="error">{error}</p>}
@@ -125,7 +149,7 @@ export default function Todo({ site, onLogged }: Props) {
             <li className="todo-columns">
               <span />
               {typeIcons && (
-                <SortHeader compact column="type" sort={sort} onSort={setSort}>
+                <SortHeader compact column="type" sort={sort} onSort={setTodoSort}>
                   {/* One letter, because the column is one icon wide. What it
                       stands for is in the tooltip. */}
                   T
@@ -135,7 +159,7 @@ export default function Todo({ site, onLogged }: Props) {
                 className="col-key"
                 column="key"
                 sort={sort}
-                onSort={setSort}
+                onSort={setTodoSort}
               >
                 Issue
               </SortHeader>
@@ -143,14 +167,14 @@ export default function Todo({ site, onLogged }: Props) {
                 className="col-summary"
                 column="summary"
                 sort={sort}
-                onSort={setSort}
+                onSort={setTodoSort}
               >
                 Summary
               </SortHeader>
-              <SortHeader column="priority" sort={sort} onSort={setSort}>
+              <SortHeader column="priority" sort={sort} onSort={setTodoSort}>
                 Prio
               </SortHeader>
-              <SortHeader column="status" sort={sort} onSort={setSort}>
+              <SortHeader column="status" sort={sort} onSort={setTodoSort}>
                 Status
               </SortHeader>
               <span />
