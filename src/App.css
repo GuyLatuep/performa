@@ -80,9 +80,10 @@
 }
 
 /* Every --fs-* token is relative to this, so it is the one knob that resizes
-   the app. */
+   the app. --text-scale is set inline on <html> by textScale.ts; the fallback
+   keeps the app at its normal size if that has not run yet. */
 html {
-  font-size: 16px;
+  font-size: calc(16px * var(--text-scale, 1));
 }
 
 body {
@@ -1471,14 +1472,14 @@ header {
    grid automatically. */
 .todo-list li {
   display: grid;
-  grid-template-columns: 22px 16px 96px minmax(0, 1fr) 84px 116px 80px;
+  grid-template-columns: 1.375rem 1rem 6rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
   gap: 6px;
   align-items: center;
 }
 /* Issue type icons turned off in Appearance: one column fewer, and the cells
    after it follow because they are placed from the end of the row. */
 .todo-list.no-type-icons li {
-  grid-template-columns: 22px 96px minmax(0, 1fr) 84px 116px 80px;
+  grid-template-columns: 1.375rem 6rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
 }
 .todo-list {
   border-top: 1px solid var(--hair);
@@ -2535,9 +2536,9 @@ body.dragging-field {
      `decimalHours` can produce ("0.25"), the total column a little more. They
      were sized for 11px mono and grew with it. */
   grid-template-columns:
-    minmax(160px, 1.4fr)
-    repeat(var(--month-cols), 50px)
-    68px;
+    minmax(10rem, 1.4fr)
+    repeat(var(--month-cols), 3.125rem)
+    4.25rem;
   border-top: 1px solid var(--hair-strong);
   min-width: min-content;
 }

@@ -14,6 +14,7 @@ import {
 import { getTheme, setTheme } from "../theme";
 import { getIgnoredStatuses, setIgnoredStatuses } from "../todoStatuses";
 import { getAccent, setAccent } from "../accent";
+import { getTextScale, setTextScale } from "../textScale";
 import Blockmark from "./Blockmark";
 import SettingsConnection from "./SettingsConnection";
 import SettingsFun from "./SettingsFun";
@@ -62,12 +63,13 @@ export default function Settings({
     initialTab ?? (existing ? "appearance" : "connection"),
   );
 
-  // Theme, accent, hours, weekend toggle, type icons and log level apply
-  // instantly (live preview), so keep a snapshot from when the screen opened
-  // and restore it on Cancel.
+  // Theme, accent, text size, hours, weekend toggle, type icons and log level
+  // apply instantly (live preview), so keep a snapshot from when the screen
+  // opened and restore it on Cancel.
   const snapshot = useRef({
     theme: getTheme(),
     accent: getAccent(),
+    textScale: getTextScale(),
     hours: getDailyHours(),
     weekends: getShowWeekends(),
     typeIcons: getShowIssueTypeIcons(),
@@ -78,6 +80,7 @@ export default function Settings({
   function cancel() {
     setTheme(snapshot.current.theme);
     setAccent(snapshot.current.accent);
+    setTextScale(snapshot.current.textScale);
     setDailyHours(snapshot.current.hours);
     setShowWeekends(snapshot.current.weekends);
     setShowIssueTypeIcons(snapshot.current.typeIcons);

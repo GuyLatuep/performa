@@ -1,10 +1,11 @@
 import { setShowIssueTypeIcons, useShowIssueTypeIcons } from "../settings";
 import ThemeToggle from "./ThemeToggle";
 import AccentPicker from "./AccentPicker";
+import TextSizeToggle from "./TextSizeToggle";
 
-/** Theme, accent colour and what a list row shows. All apply to the app the
- *  moment they are picked (live preview); the settings shell restores them on
- *  Cancel. */
+/** Theme, accent colour, text size and what a list row shows. All apply to the
+ *  app the moment they are picked (live preview); the settings shell restores
+ *  them on Cancel. */
 export default function SettingsAppearance() {
   const typeIcons = useShowIssueTypeIcons();
   return (
@@ -17,6 +18,11 @@ export default function SettingsAppearance() {
       <div className="field-block">
         <span className="field-label">Accent color</span>
         <AccentPicker />
+      </div>
+
+      <div className="field-block">
+        <span className="field-label">Text size</span>
+        <TextSizeToggle />
       </div>
 
       <div className="field-block">
