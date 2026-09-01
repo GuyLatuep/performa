@@ -2534,9 +2534,16 @@ body.dragging-field {
      from the component rather than being written here. */
   /* Column widths track the type scale: a day cell budgets the four characters
      `decimalHours` can produce ("0.25"), the total column a little more. They
-     were sized for 11px mono and grew with it. */
+     were sized for 11px mono and grew with it.
+
+     The issue column's floor is what a narrow window actually gets, because
+     its 1.4fr has nothing left to share once two dozen day columns are laid
+     out. The key eats about 5.5rem of it before the summary starts, so a
+     smaller floor leaves the summary a handful of characters and an ellipsis.
+     The grid scrolls sideways, so the cost of the wider floor is days you
+     scroll to rather than information you lose. */
   grid-template-columns:
-    minmax(10rem, 1.4fr)
+    minmax(18rem, 1.4fr)
     repeat(var(--month-cols), 3.125rem)
     4.25rem;
   border-top: 1px solid var(--hair-strong);
