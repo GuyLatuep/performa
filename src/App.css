@@ -45,6 +45,11 @@
   --fs-2xl: 1.75rem; /* 28px */
   --fs-display: 4rem; /* 64px */
 
+  /* Tracking for the small uppercase mono labels. The design used 0.06–0.09em;
+     at label size that much air pulls the letters apart faster than the caps
+     help, so it is one slightly tighter value now. */
+  --track-label: 0.05em;
+
   color-scheme: light;
   font-family: var(--font-sans);
   color: var(--ink);
@@ -207,15 +212,54 @@ button.icon.danger-icon:hover {
   color: var(--danger-ink);
 }
 
+/* ---------- Micro-labels ---------- */
+
+/* One recipe, worn by every small uppercase mono label in the app: form and
+   field names, section headings, badges, grid headers. It was written out in
+   23 rules with four different letter-spacings between them; the tracking is a
+   token now and the weight went 500 -> 600, because uppercase mono at label
+   size needs the extra stroke to hold its shape.
+
+   Size is deliberately *not* set here. There are two tiers — inline labels and
+   badges at --fs-micro, standalone form and section labels at --fs-xs — and
+   each rule keeps its own. Every rule that overrides a colour or weight below
+   (.due-badge.overdue, .todo-columns .col-sort, .day-head .muted, …) is more
+   specific than this, so it still wins. */
+.confirm-text,
+label,
+.eyebrow,
+.field-label,
+.day-labels span,
+.gauge-center span,
+.week-total,
+.day-head,
+.nb-tag,
+.due-badge,
+.status-badge,
+.priority-badge,
+.todo-columns,
+.issue-section h3,
+.issue-fact dt,
+.timeline-tag,
+.form-field > label,
+.link-relation,
+.link-form > label,
+.status-picker-box > label,
+.week-rank,
+.about-facts dt,
+.day-head-cell .dow,
+.quick-row .col-issue {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .confirm-text {
   margin-right: auto;
   align-self: center;
-  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
 }
 
 /* ---------- Forms ---------- */
@@ -223,12 +267,7 @@ label {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--muted);
   margin-bottom: 16px;
 }
 
@@ -418,12 +457,11 @@ label.checkbox input:checked {
 }
 .eyebrow {
   display: block;
-  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--muted);
+  /* The one label that keeps extra tracking: it is a one- or two-word display
+     flourish above a heading, not something read as a sentence. Still well
+     down from the 0.2em it used to carry. */
+  letter-spacing: 0.12em;
   margin-bottom: 10px;
 }
 .setup h1 {
@@ -453,12 +491,7 @@ label.checkbox input:checked {
 }
 .field-label {
   display: block;
-  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--muted);
   margin-bottom: 8px;
 }
 .theme-toggle {
@@ -1055,12 +1088,7 @@ header {
 .day-labels span {
   flex: 1;
   text-align: center;
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
 }
 .day-labels span.today {
   color: var(--ink);
@@ -1112,11 +1140,7 @@ header {
   color: var(--ink);
 }
 .gauge-center span {
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
 }
 
 .week-total {
@@ -1127,11 +1151,7 @@ header {
   margin: 12px 0 20px;
   padding-bottom: 16px;
   border-bottom: 2px solid var(--ink);
-  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--muted);
 }
 .week-total strong {
   font-family: var(--font-mono);
@@ -1147,12 +1167,7 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
   padding-bottom: 8px;
   margin-bottom: 4px;
   border-bottom: 1px solid var(--hair-strong);
@@ -1297,12 +1312,7 @@ header {
 /* Marker on rows logged as non-billable. */
 .nb-tag {
   align-self: flex-start;
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
   border: 1px solid var(--hair-strong);
   padding: 1px 6px;
   margin-top: 2px;
@@ -1394,13 +1404,8 @@ header {
 /* Due-date marker on issue rows, in the .nb-tag idiom. */
 .due-badge {
   flex: 0 0 auto;
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   white-space: nowrap;
-  color: var(--muted);
   border: 1px solid var(--hair-strong);
   padding: 1px 6px;
 }
@@ -1436,13 +1441,8 @@ header {
   max-width: 30%;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   white-space: nowrap;
-  color: var(--muted);
   border: 1px solid var(--hair-strong);
   padding: 1px 6px;
 }
@@ -1508,12 +1508,7 @@ header {
   top: 0;
   z-index: 1;
   background: var(--surface);
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
   padding: 7px 0;
 }
 /* The key and summary cells carry the row's own padding; align the headers
@@ -1633,12 +1628,7 @@ header {
   margin-top: 28px;
 }
 .issue-section h3 {
-  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
   padding-bottom: 8px;
   margin: 0 0 12px;
   border-bottom: 1px solid var(--hair);
@@ -1653,12 +1643,7 @@ header {
   margin: 0 0 4px;
 }
 .issue-fact dt {
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
   margin-bottom: 2px;
 }
 .issue-fact {
@@ -1750,14 +1735,9 @@ section.issue-fact .field-editor {
   margin-left: auto;
 }
 .timeline-tag {
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   padding: 1px 5px;
   border: 1px solid var(--hair-strong);
-  color: var(--muted);
 }
 .timeline-text {
   white-space: pre-wrap;
@@ -1829,12 +1809,7 @@ section.issue-fact .field-editor {
   gap: 5px;
 }
 .form-field > label {
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
 }
 .form-field input[type="text"],
 .form-field input[type="number"],
@@ -1943,12 +1918,7 @@ section.issue-fact .field-editor {
 }
 .link-relation {
   display: block;
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
   margin-bottom: 2px;
 }
 .link-group ul {
@@ -2018,12 +1988,7 @@ section.issue-fact .field-editor {
   padding: 12px;
 }
 .link-form > label {
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
 }
 .link-form .panel-actions {
   margin-top: 0;
@@ -2073,12 +2038,7 @@ section.issue-fact .field-editor {
   flex: 0 0 auto;
 }
 .status-picker-box > label {
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
 }
 .status-picker-box select {
   min-width: 190px;
@@ -2401,12 +2361,7 @@ section.issue-fact .issue-description {
      margin of its own. */
   width: 100%;
   margin: 0;
-  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
   text-align: center;
 }
 
@@ -2481,12 +2436,7 @@ section.issue-fact .issue-description {
   border-bottom: 1px solid var(--hair);
 }
 .about-facts dt {
-  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
   margin-bottom: 3px;
 }
 .about-facts dd {
@@ -2642,8 +2592,6 @@ body.dragging-field {
 }
 .day-head-cell .dow {
   font-size: var(--fs-micro);
-  color: var(--muted);
-  text-transform: uppercase;
 }
 .day-head-cell .dom {
   font-weight: 700;
@@ -2716,10 +2664,7 @@ body.dragging-field {
 /* The row that logs on an issue not yet in the table. Quiet until hovered —
    it is a whole row of buttons and would otherwise shout over the data. */
 .quick-row .col-issue {
-  color: var(--muted);
   font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 .quick-cell {
   /* A mark, not a number: centred and solid, unlike the hours in the columns
