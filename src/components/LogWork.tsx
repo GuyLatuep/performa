@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { api, IssueSummary, WorklogEntry } from "../api";
 import { logInfo } from "../log";
 import { formatDayLabel, formatDuration } from "../time";
-import { usePinnedIssues } from "../pins";
-import IssueRow from "./IssueRow";
+import IssuePicker from "./IssuePicker";
 import {
   DURATION_ERROR,
   toWorklogInput,
@@ -29,9 +28,6 @@ export default function LogWork({
   backLabel,
   onBack,
 }: Props) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<IssueSummary[]>([]);
-  const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<IssueSummary | null>(
     initialIssue ?? null,
   );
@@ -41,45 +37,14 @@ export default function LogWork({
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
 
-  const pinnedIssues = usePinnedIssues();
-  const pinnedKeys = new Set(pinnedIssues.map((p) => p.key));
-  // Pinned issues lead the default list; an active search shows plain results.
-  const showPinned = query.trim() === "" && pinnedIssues.length > 0;
-  const debounce = useRef<number | undefined>(undefined);
   // Bumped after logging so the history list below the form reloads.
   const [historyKey, setHistoryKey] = useState(0);
-
-  // Load issues assigned to me on mount.
-  useEffect(() => {
-    runSearch("");
-  }, []);
 
   function selectIssue(issue: IssueSummary) {
     // Billability shouldn't leak from the previous entry.
     patch({ nonBillable: false });
     setSelected(issue);
     logInfo(`opened log-work form for ${issue.key}`);
-  }
-
-  function onQueryChange(value: string) {
-    setQuery(value);
-    window.clearTimeout(debounce.current);
-    debounce.current = window.setTimeout(() => runSearch(value), 300);
-  }
-
-  // The query is interpreted on the Rust side (blank = my open issues,
-  // issue key = exact lookup, anything else = text search).
-  async function runSearch(value: string) {
-    setSearching(true);
-    setError(null);
-    try {
-      setResults(await api.searchIssues(value));
-    } catch (err) {
-      setError(String(err));
-      setResults([]);
-    } finally {
-      setSearching(false);
-    }
   }
 
   async function submit() {
@@ -146,47 +111,7 @@ export default function LogWork({
 
   return (
     <div className="panel">
-      <label>
-        Find an issue
-        <input
-          type="text"
-          placeholder="Search text or issue key (blank = assigned to me)"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          autoFocus
-        />
-      </label>
-
-      {error && <p className="error">{error}</p>}
-      {searching && <p className="muted">Searching…</p>}
-
-      <ul className="issue-list">
-        {showPinned &&
-          pinnedIssues.map((issue, i) => (
-            <IssueRow
-              key={issue.key}
-              issue={issue}
-              site={site}
-              pinned
-              lastPinned={i === pinnedIssues.length - 1}
-              onSelect={selectIssue}
-            />
-          ))}
-        {results
-          .filter((issue) => !showPinned || !pinnedKeys.has(issue.key))
-          .map((issue) => (
-            <IssueRow
-              key={issue.key}
-              issue={issue}
-              site={site}
-              pinned={pinnedKeys.has(issue.key)}
-              onSelect={selectIssue}
-            />
-          ))}
-        {!searching && results.length === 0 && (
-          <li className="muted empty">No matching issues.</li>
-        )}
-      </ul>
+      <IssuePicker site={site} onSelect={selectIssue} />
     </div>
   );
 }

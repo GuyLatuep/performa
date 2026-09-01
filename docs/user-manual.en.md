@@ -232,7 +232,11 @@ The tray menu offers:
 
 ## Timesheet
 
-The **Timesheet** tab shows one week at a time.
+The **Timesheet** tab has two views, switched with **Week / Month** at the top. Your choice is remembered until you change it.
+
+### Week
+
+Shows one week at a time.
 
 - Navigate with **← / →**; the current week is the rightmost you can go (no future weeks). Labels show "This week", "Last week", or the date range.
 - **Charts**: per-day bars measured against your daily target (a line marks the target), and a ring showing the week's progress against the weekly target (daily hours × 5 workdays). Saturday/Sunday are hidden by default but appear automatically when they contain logged time — or always, if you switch the [setting](#settings) to full week.
@@ -243,6 +247,19 @@ Row actions:
 - **↻ Log again today** — opens a prefilled form (same issue, duration, comment, billability) with **today's date and the current time**: ideal for recurring entries. The modal also offers **Save as template** ([Templates](#templates)).
 - **✎ Edit** — change any field of the existing worklog (duration, date, time, comment, billability).
 - **🗑 Delete** — removes the worklog after a second, inline confirmation (✓ / ✕).
+
+### Month
+
+A matrix: **issues down the side, days across the top**, hours in the cells. Built for filling in the gaps rather than reading history.
+
+- **Columns** are every weekday of the month, plus any Saturday or Sunday you actually booked time on — a worked weekend day is never hidden.
+- The **header row** carries each day's total, the **right-hand column** each issue's month total, and the **top-left corner** the whole month.
+- Hours read as decimals (`1.5`, `0.25`) because a column is too narrow for `1h 30m`; the full duration is in the cell's tooltip.
+- Each day's total is **coloured by how full the day is**: red under 3 hours, amber from 3 to 6, green above 6. Only ordinary working days are judged — a weekend column and a day that hasn't happened yet stay uncoloured.
+
+**Clicking a cell** opens everything booked on that issue on that day: each worklog with the familiar **↻ / ✎ / 🗑** buttons, plus **＋ Add time** to book more against the same issue and day. An empty cell opens the same window, ready to add the first entry. **Future days** are greyed out, the same rule the log form follows.
+
+**The ＋ row** under the header logs time on an issue that has no row yet: click the day, pick the issue, fill in the form. The day is already filled in for you.
 
 ## Missing worklogs
 

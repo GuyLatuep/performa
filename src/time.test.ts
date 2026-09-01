@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  eachDate,
   formatDuration,
+  isWeekend,
+  monthLabel,
+  monthRange,
   parseDuration,
   startOfWeek,
   toDateInput,
+  weekChunks,
   weekRange,
 } from "./time";
 
@@ -90,5 +95,129 @@ function withTimeZone(tz: string, body: () => void): void {
     body();
   } finally {
     vi.unstubAllEnvs();
+  }
+}
+
+describe("monthRange", () => {
+  it("spans the first to the last of the current month", () => {
+    withSystemTime(new Date(2026, 7, 17, 14, 30), () => {
+      expect(monthRange(0)).toEqual({ start: "2026-08-01", end: "2026-08-31" });
+    });
+  });
+
+  it("counts backwards across a year boundary", () => {
+    withSystemTime(new Date(2026, 0, 15), () => {
+      expect(monthRange(-1)).toEqual({
+        start: "2025-12-01",
+        end: "2025-12-31",
+      });
+      expect(monthRange(-13)).toEqual({
+        start: "2024-12-01",
+        end: "2024-12-31",
+      });
+    });
+  });
+
+  // Regression: shifting *today's* date back a month lands 31 March on
+  // 31 February, which JavaScript rolls forward into March — so the "previous
+  // month" of the 31st was the same month again.
+  it("steps back from a 31st into the shorter month before it", () => {
+    withSystemTime(new Date(2026, 2, 31), () => {
+      expect(monthRange(-1)).toEqual({
+        start: "2026-02-01",
+        end: "2026-02-28",
+      });
+    });
+  });
+
+  it("knows a leap February", () => {
+    withSystemTime(new Date(2028, 1, 10), () => {
+      expect(monthRange(0).end).toBe("2028-02-29");
+    });
+  });
+});
+
+describe("eachDate", () => {
+  it("includes both ends", () => {
+    expect(eachDate("2026-08-01", "2026-08-03")).toEqual([
+      "2026-08-01",
+      "2026-08-02",
+      "2026-08-03",
+    ]);
+    expect(eachDate("2026-08-01", "2026-08-01")).toEqual(["2026-08-01"]);
+  });
+
+  it("counts the days of a month, whatever its length", () => {
+    expect(eachDate("2026-02-01", "2026-02-28")).toHaveLength(28);
+    expect(eachDate("2028-02-01", "2028-02-29")).toHaveLength(29);
+    expect(eachDate("2026-04-01", "2026-04-30")).toHaveLength(30);
+    expect(eachDate("2026-08-01", "2026-08-31")).toHaveLength(31);
+  });
+
+  // Regression: stepping by 86_400_000ms instead of setDate turns the 23-hour
+  // day into a repeat of the day before, so March came back with 32 entries.
+  it("survives both daylight-saving transitions", () => {
+    withTimeZone("Europe/Berlin", () => {
+      expect(eachDate("2026-03-01", "2026-03-31")).toHaveLength(31);
+      expect(eachDate("2026-10-01", "2026-10-31")).toHaveLength(31);
+    });
+  });
+});
+
+describe("isWeekend", () => {
+  it("is the two days nobody is expected to book", () => {
+    expect(isWeekend("2026-08-15")).toBe(true); // Sat
+    expect(isWeekend("2026-08-16")).toBe(true); // Sun
+    expect(isWeekend("2026-08-17")).toBe(false); // Mon
+    expect(isWeekend("2026-08-21")).toBe(false); // Fri
+  });
+});
+
+describe("monthLabel", () => {
+  it("names the month and the year", () => {
+    expect(monthLabel("2026-08-01")).toMatch(/2026/);
+  });
+});
+
+describe("weekChunks", () => {
+  it("covers the range with Monday-aligned weeks", () => {
+    // August 2026 starts on a Saturday, so the first chunk reaches back into
+    // July — the overrun callers are expected to filter away.
+    const chunks = weekChunks("2026-08-01", "2026-08-31");
+    expect(chunks[0].start).toBe("2026-07-27");
+    expect(chunks[chunks.length - 1].end).toBe("2026-09-06");
+    for (const { start, end } of chunks) {
+      expect(startOfWeek(new Date(start + "T00:00:00"))).toBe(start);
+      expect(eachDate(start, end)).toHaveLength(7);
+    }
+  });
+
+  it("starts on the range itself when that is already a Monday", () => {
+    // June 2026 starts on a Monday and has 30 days: five whole weeks.
+    const chunks = weekChunks("2026-06-01", "2026-06-30");
+    expect(chunks[0].start).toBe("2026-06-01");
+    expect(chunks).toHaveLength(5);
+  });
+
+  it("leaves no day of the range uncovered", () => {
+    const covered = new Set(
+      weekChunks("2026-08-01", "2026-08-31").flatMap((c) =>
+        eachDate(c.start, c.end),
+      ),
+    );
+    for (const date of eachDate("2026-08-01", "2026-08-31"))
+      expect(covered.has(date)).toBe(true);
+  });
+});
+
+/** Run `body` with the clock pinned — the month helpers are all relative to
+ *  "now", so the suite cannot be at the mercy of the day it runs on. */
+function withSystemTime(at: Date, body: () => void): void {
+  vi.useFakeTimers();
+  vi.setSystemTime(at);
+  try {
+    body();
+  } finally {
+    vi.useRealTimers();
   }
 }

@@ -14,6 +14,11 @@
   --accent: #e6ff3d; /* neon yellow — fill only */
   --accent-ink: #0a0a0a; /* text on accent */
   --danger: #e5484d; /* destructive actions only */
+  /* How full a day is. Text colours, so they are chosen to stay readable on
+     --surface rather than to be bright. */
+  --tone-thin: #c2372c;
+  --tone-part: #a06a00;
+  --tone-full: #1a7f37;
 
   --font-display: "Space Grotesk", -apple-system, system-ui, sans-serif;
   --font-sans: "Space Grotesk", -apple-system, system-ui, sans-serif;
@@ -33,6 +38,9 @@
   --accent: #e6ff3d;
   --accent-ink: #0a0a0a;
   --danger: #ff5a5f;
+  --tone-thin: #ff6b6b;
+  --tone-part: #e3a33a;
+  --tone-full: #55c46a;
 
   color-scheme: dark;
 }
@@ -1299,6 +1307,16 @@ header {
   width: 384px;
   max-width: 100%;
 }
+/* Wide enough for a list of issues to pick from, or a day's worth of worklog
+   rows — both of which are unreadable at the standard width. */
+.modal.wide {
+  width: 560px;
+}
+/* A modal opened from inside a modal (editing one of a cell's worklogs) has to
+   sit above the one that opened it. */
+.modal .modal-backdrop {
+  z-index: 11;
+}
 .modal h3 {
   font-family: var(--font-display);
   font-weight: 700;
@@ -2493,4 +2511,176 @@ body.dragging-field {
   display: flex;
   align-items: baseline;
   gap: 14px;
+}
+
+/* ---------- Timesheet · month matrix ---------- */
+
+/* The Week/Month switch above whichever view is showing. Reuses the segmented
+   control from the settings screen; only the placement is new. */
+.timesheet-view {
+  margin-bottom: 12px;
+}
+
+/* Twenty-odd day columns do not fit any window worth having, so the grid
+   scrolls sideways inside the panel while the issue column and the day header
+   stay put. */
+.month-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  max-height: 62vh;
+  overflow-y: auto;
+}
+.month-grid {
+  display: grid;
+  /* The column count is data — how many days the month shows — so it arrives
+     from the component rather than being written here. */
+  grid-template-columns:
+    minmax(150px, 1.4fr)
+    repeat(var(--month-cols), 46px)
+    62px;
+  border-top: 1px solid var(--hair);
+  min-width: min-content;
+}
+/* Rows exist for screen readers, not for layout: `display: contents` lets the
+   cells inside them be the grid's own children, which is what the column
+   template and the sticky cells below both need. */
+.month-row {
+  display: contents;
+}
+/* Every cell, reached through the row wrapper: `display: contents` takes the
+   rows out of the layout but not out of the DOM, so a child combinator on the
+   grid itself would land on them and style nothing. */
+.month-row > * {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  text-align: right;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--hair);
+  background: var(--surface);
+}
+.month-grid .col-issue {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  text-align: left;
+  /* One line, however long the summary is — a wrapping row would break the
+     alignment every other column depends on. The full text is in the title. */
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 1px solid var(--hair);
+}
+.month-grid .col-issue .summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+.month-grid .row-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+.month-grid .corner {
+  z-index: 4;
+  font-weight: 700;
+  text-align: right;
+}
+.day-head-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1.2;
+  border-bottom: 2px solid var(--ink);
+}
+.day-head-cell .dow {
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.day-head-cell .dom {
+  font-weight: 700;
+}
+.day-head-cell .day-sum {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 700;
+}
+/* How full the day is, at a glance. Only ordinary working days are judged —
+   `dayTone` leaves weekends and days still to come uncoloured. */
+.day-sum.tone-thin {
+  color: var(--tone-thin);
+}
+.day-sum.tone-part {
+  color: var(--tone-part);
+}
+.day-sum.tone-full {
+  color: var(--tone-full);
+}
+
+.month-cell {
+  border: none;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  padding: 5px 6px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  text-align: right;
+  cursor: pointer;
+}
+.month-cell:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.month-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* Saturdays and Sundays only appear when something was booked on them, so the
+   tint is there to explain why the column exists at all. */
+.month-grid .wknd {
+  background: color-mix(in srgb, var(--ink) 5%, var(--surface));
+}
+.month-grid .today {
+  box-shadow:
+    inset 1px 0 0 var(--accent),
+    inset -1px 0 0 var(--accent);
+}
+/* Nothing can be booked in the future, which is the same rule the log form
+   enforces with its date input — so the cell is not a target at all. */
+.month-grid .future {
+  color: var(--muted);
+  opacity: 0.4;
+  cursor: default;
+}
+/* How many worklogs are hiding behind the total — the mark that says clicking
+   opens them rather than editing in place. */
+.month-cell.cell-multi::after {
+  content: attr(data-count);
+  font-size: 8px;
+  vertical-align: super;
+  color: var(--muted);
+  margin-left: 1px;
+}
+.month-grid .col-total {
+  border-left: 2px solid var(--ink);
+  font-weight: 700;
+}
+/* The row that logs on an issue not yet in the table. Quiet until hovered —
+   it is a whole row of buttons and would otherwise shout over the data. */
+.quick-row .col-issue {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.quick-cell {
+  color: var(--muted);
+  opacity: 0.35;
+}
+.quick-cell:hover:not(:disabled) {
+  opacity: 1;
 }

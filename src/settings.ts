@@ -10,6 +10,7 @@ const WEEKENDS_KEY = "performa-show-weekends";
 const LOG_LEVEL_KEY = "performa-log-level";
 const FUN_MODE_KEY = "performa-fun-mode";
 const TYPE_ICONS_KEY = "performa-show-issue-type-icons";
+const TIMESHEET_VIEW_KEY = "performa-timesheet-view";
 const DEFAULT_DAILY_HOURS = 8;
 const DEFAULT_LOG_LEVEL: LogLevel = "error";
 
@@ -117,4 +118,29 @@ export function setShowIssueTypeIcons(on: boolean): void {
 
 export function useShowIssueTypeIcons(): boolean {
   return typeIconsStore.use();
+}
+
+/** Which shape the timesheet tab is in: the week ledger or the month matrix.
+ *
+ *  Remembered rather than configured — it is a view toggle, not a preference,
+ *  so it belongs next to the tab it lives on and not in the settings screen.
+ *  A fresh install starts on the week: the month matrix wants a wide window,
+ *  and the week is the view that reads on any of them. */
+export type TimesheetView = "week" | "month";
+
+const timesheetViewStore = createStore<TimesheetView>(
+  localStorage.getItem(TIMESHEET_VIEW_KEY) === "month" ? "month" : "week",
+);
+
+export function getTimesheetView(): TimesheetView {
+  return timesheetViewStore.get();
+}
+
+export function setTimesheetView(view: TimesheetView): void {
+  localStorage.setItem(TIMESHEET_VIEW_KEY, view);
+  timesheetViewStore.set(view);
+}
+
+export function useTimesheetView(): TimesheetView {
+  return timesheetViewStore.use();
 }

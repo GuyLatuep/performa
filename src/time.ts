@@ -118,3 +118,83 @@ export function weekRange(offsetWeeks: number): { start: string; end: string } {
   endDate.setDate(startDate.getDate() + 6);
   return { start, end: toDateInput(endDate) };
 }
+
+/** The local Date at midnight of a yyyy-MM-dd. The `T00:00:00` is what makes
+ *  it local: a bare "yyyy-MM-dd" is read as UTC and lands on the day before
+ *  everywhere west of Greenwich. */
+function atMidnight(date: string): Date {
+  return new Date(date + "T00:00:00");
+}
+
+/** First and last day (yyyy-MM-dd) of the month `offsetMonths` from the
+ *  current one — the month view's range.
+ *
+ *  Built from the first of the month rather than by shifting today's date:
+ *  moving 31 March back a month has nowhere to land and JavaScript rolls it
+ *  forward into March again. */
+export function monthRange(offsetMonths: number): {
+  start: string;
+  end: string;
+} {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth() + offsetMonths, 1);
+  // Day 0 of the next month is the last day of this one, whichever length it
+  // has and whether or not February is leap.
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
+  return { start: toDateInput(first), end: toDateInput(last) };
+}
+
+/** Every date from `start` to `end`, both included.
+ *
+ *  Steps with `setDate`, which knows about the two 23- and 25-hour days a year:
+ *  adding 86_400_000 milliseconds instead would drift across a DST boundary and
+ *  hand back a month of 30 or 32 days. */
+export function eachDate(start: string, end: string): string[] {
+  const dates: string[] = [];
+  const cursor = atMidnight(start);
+  const stop = atMidnight(end);
+  while (cursor <= stop) {
+    dates.push(toDateInput(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
+/** Saturday or Sunday. */
+export function isWeekend(date: string): boolean {
+  const day = atMidnight(date).getDay();
+  return day === 0 || day === 6;
+}
+
+/** "August 2026" — the month view's heading. */
+export function monthLabel(start: string): string {
+  return atMidnight(start).toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/**
+ * Monday-aligned week windows that together cover `start`–`end`.
+ *
+ * A month is fetched as its weeks rather than in one go, so it reuses the
+ * per-week reads the timesheet and the start tab already have cached, and so
+ * no single query approaches the backend's 100-issue search page. The first
+ * and last window overrun the month at either end; callers filter what comes
+ * back to the range they asked about.
+ */
+export function weekChunks(
+  start: string,
+  end: string,
+): { start: string; end: string }[] {
+  const chunks: { start: string; end: string }[] = [];
+  const cursor = atMidnight(startOfWeek(atMidnight(start)));
+  const stop = atMidnight(end);
+  while (cursor <= stop) {
+    const chunkEnd = new Date(cursor);
+    chunkEnd.setDate(cursor.getDate() + 6);
+    chunks.push({ start: toDateInput(cursor), end: toDateInput(chunkEnd) });
+    cursor.setDate(cursor.getDate() + 7);
+  }
+  return chunks;
+}

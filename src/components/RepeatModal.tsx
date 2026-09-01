@@ -16,6 +16,9 @@ interface Props {
   initial: Partial<WorklogDraft>;
   /** Offer a "save as template" checkbox alongside logging. */
   allowSaveTemplate?: boolean;
+  /** Heading, when the entry is not a repeat of anything — the month matrix
+   *  logs a first booking through this form, and "Log again" would be a lie. */
+  title?: string;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -26,6 +29,7 @@ export default function RepeatModal({
   issueSummary,
   initial,
   allowSaveTemplate = false,
+  title,
   onClose,
   onSaved,
 }: Props) {
@@ -62,7 +66,7 @@ export default function RepeatModal({
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>Log again — {issueKey}</h3>
+        <h3>{title ?? `Log again — ${issueKey}`}</h3>
         <p className="muted modal-sub">{issueSummary}</p>
         <WorklogFields draft={draft} patch={patch} seconds={seconds} />
         {allowSaveTemplate && (

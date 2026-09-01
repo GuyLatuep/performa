@@ -232,7 +232,11 @@ Das Tray-Menü bietet:
 
 ## Timesheet
 
-Der Tab **Timesheet** zeigt jeweils eine Woche.
+Der Tab **Timesheet** hat zwei Ansichten, umschaltbar über **Week / Month** ganz oben. Die Wahl bleibt erhalten, bis du sie änderst.
+
+### Woche
+
+Zeigt jeweils eine Woche.
 
 - Navigiere mit **← / →**; die aktuelle Woche ist die rechteste erreichbare (keine zukünftigen Wochen). Die Beschriftung zeigt „This week“, „Last week“ oder den Datumsbereich.
 - **Diagramme**: Tagesbalken gemessen an deinem Tagesziel (eine Linie markiert das Ziel) und ein Ring mit dem Wochenfortschritt gegen das Wochenziel (Tagesstunden × 5 Arbeitstage). Samstag/Sonntag sind standardmäßig ausgeblendet, erscheinen aber automatisch, sobald dort Zeit erfasst ist — oder dauerhaft, wenn du die [Einstellung](#einstellungen) auf die volle Woche stellst.
@@ -243,6 +247,19 @@ Aktionen pro Zeile:
 - **↻ Log again today** — öffnet ein vorbefülltes Formular (gleicher Vorgang, Dauer, Kommentar, Abrechenbarkeit) mit **heutigem Datum und aktueller Uhrzeit**: ideal für wiederkehrende Einträge. Das Fenster bietet zusätzlich **Save as template** ([Vorlagen](#vorlagen)).
 - **✎ Edit** — jedes Feld des bestehenden Worklogs ändern (Dauer, Datum, Uhrzeit, Kommentar, Abrechenbarkeit).
 - **🗑 Delete** — löscht das Worklog nach einer zweiten Inline-Bestätigung (✓ / ✕).
+
+### Monat
+
+Eine Matrix: **Vorgänge untereinander, Tage nebeneinander**, Stunden in den Zellen. Gedacht zum Auffüllen von Lücken, nicht zum Nachlesen.
+
+- **Spalten** sind alle Werktage des Monats, dazu jeder Samstag oder Sonntag, an dem du tatsächlich Zeit erfasst hast — ein gearbeiteter Wochenendtag wird nie versteckt.
+- Die **Kopfzeile** trägt die Tagessumme, die **rechte Spalte** die Monatssumme je Vorgang, die **linke obere Ecke** den ganzen Monat.
+- Stunden stehen als Dezimalzahl (`1.5`, `0.25`), weil eine Spalte für `1h 30m` zu schmal ist; die volle Dauer steht im Tooltip der Zelle.
+- Die Tagessumme ist **nach Auslastung eingefärbt**: rot unter 3 Stunden, gelb von 3 bis 6, grün über 6. Bewertet werden nur gewöhnliche Arbeitstage — Wochenendspalten und noch nicht vergangene Tage bleiben ungefärbt.
+
+**Ein Klick auf eine Zelle** öffnet alles, was an diesem Tag auf diesen Vorgang gebucht ist: jedes Worklog mit den gewohnten Schaltflächen **↻ / ✎ / 🗑**, dazu **＋ Add time**, um weitere Zeit auf denselben Vorgang und Tag zu buchen. Eine leere Zelle öffnet dasselbe Fenster, bereit für den ersten Eintrag. **Zukünftige Tage** sind ausgegraut — dieselbe Regel wie im Erfassungsformular.
+
+**Die ＋-Zeile** unter der Kopfzeile erfasst Zeit auf einem Vorgang, der noch keine Zeile hat: Tag anklicken, Vorgang wählen, Formular ausfüllen. Der Tag ist bereits gesetzt.
 
 ## Missing Worklogs
 
