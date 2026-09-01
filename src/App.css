@@ -530,9 +530,11 @@ label.checkbox input:checked {
 
 /* ---------- App shell ---------- */
 .app {
-  /* Comfortable column in the default window, growing fluidly up to a
-     readable cap when the window is maximized or fullscreen. */
-  max-width: clamp(680px, 78vw, 1200px);
+  /* Comfortable column in the default window, growing fluidly when the window
+     is maximized or fullscreen. The cap is set by the widest thing the app
+     shows — the month matrix, which wants around 1300px before it has to
+     scroll — rather than by what is comfortable for prose. */
+  max-width: clamp(680px, 94vw, 1760px);
   margin: 0 auto;
   padding: 0 20px 48px;
 }
@@ -869,6 +871,12 @@ header {
   align-items: stretch;
   gap: 2px;
   padding: 2px 0;
+}
+/* Inside a worklog row the parent is a *column*, so a `flex` shorthand here
+   sizes the button's height rather than its width. It should be exactly as
+   tall as the lines it holds — never stretched, never squashed. */
+.worklog-main > .issue-select {
+  flex: 0 0 auto;
 }
 .key {
   font-family: var(--font-mono);
@@ -1993,12 +2001,16 @@ section.issue-fact .field-editor {
   flex: 0 0 auto;
 }
 /* The search box grows into whatever the row has left; the dropdown under it
-   is positioned against this box, like the user field's. */
-.issue-select {
+   is positioned against this box, like the user field's.
+
+   Scoped to the link form on purpose: `.issue-select` is also the button in a
+   worklog or missing-worklog row, whose parent is a *column*, and there
+   `flex: 1 1 16rem` reads as a 16rem-tall row rather than a wide one. */
+.link-form .issue-select {
   position: relative;
   flex: 1 1 16rem;
 }
-.issue-select input {
+.link-form .issue-select input {
   width: 100%;
 }
 .issue-chosen {
@@ -2678,9 +2690,15 @@ body.dragging-field {
   letter-spacing: 0.06em;
 }
 .quick-cell {
+  /* A mark, not a number: centred and solid, unlike the hours in the columns
+     below it. It was set in the cells' own right-aligned, faded style and was
+     next to impossible to pick out. */
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
   color: var(--muted);
-  opacity: 0.35;
 }
 .quick-cell:hover:not(:disabled) {
-  opacity: 1;
+  color: var(--ink);
 }
