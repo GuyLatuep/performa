@@ -3,21 +3,29 @@
    Hard edges (zero radius), bold ink borders, flat (no shadows), UPPERCASE
    display type, one reserved neon-yellow accent used only as a FILL (never as
    text on light). Space Grotesk display + JetBrains Mono for data/time.
+
+   Text colours are chosen against WCAG 2.2: everything carrying words clears
+   AA (4.5:1) on the surface it sits on, and --muted clears 7:1 because nearly
+   all of it renders at label size. --hair is decorative and deliberately below
+   that; borders that carry structure use --hair-strong, which clears the 3:1
+   non-text threshold.
    ========================================================================== */
 
 :root {
   --bg: #ecece8;
   --surface: #f5f4ef;
   --ink: #0a0a0a;
-  --muted: #6e6e68;
-  --hair: rgba(10, 10, 10, 0.16);
+  --muted: #4f4f4a; /* 7.48:1 on --surface — it is mostly label-sized */
+  --hair: rgba(10, 10, 10, 0.16); /* separators; decorative only */
+  --hair-strong: rgba(10, 10, 10, 0.45); /* 3.10:1 — borders that structure */
   --accent: #e6ff3d; /* neon yellow — fill only */
   --accent-ink: #0a0a0a; /* text on accent */
-  --danger: #e5484d; /* destructive actions only */
+  --danger: #c62a30; /* destructive actions only */
+  --danger-ink: #ffffff; /* text on --danger — 5.56:1 */
   /* How full a day is. Text colours, so they are chosen to stay readable on
      --surface rather than to be bright. */
   --tone-thin: #c2372c;
-  --tone-part: #a06a00;
+  --tone-part: #805400;
   --tone-full: #1a7f37;
 
   --font-display: "Space Grotesk", -apple-system, system-ui, sans-serif;
@@ -33,11 +41,13 @@
   --bg: #0e0e0e;
   --surface: #181818;
   --ink: #f5f4ef;
-  --muted: #9a9a94;
+  --muted: #a5a59f;
   --hair: rgba(245, 244, 239, 0.18);
+  --hair-strong: rgba(245, 244, 239, 0.38);
   --accent: #e6ff3d;
   --accent-ink: #0a0a0a;
   --danger: #ff5a5f;
+  --danger-ink: #0a0a0a; /* 6.49:1 — white on this red is only 3.05:1 */
   --tone-thin: #ff6b6b;
   --tone-part: #e3a33a;
   --tone-full: #55c46a;
@@ -160,7 +170,7 @@ button.icon:hover {
 }
 button.danger {
   background: var(--danger);
-  color: #fff;
+  color: var(--danger-ink);
   border-color: var(--danger);
 }
 button.danger:hover {
@@ -175,7 +185,7 @@ button.icon.on {
 }
 button.icon.danger-icon:hover {
   background: var(--danger);
-  color: #fff;
+  color: var(--danger-ink);
 }
 
 .confirm-text {
@@ -258,7 +268,7 @@ button.duration-add {
   padding: 4px 8px;
   background: transparent;
   color: var(--muted);
-  border: 1px solid var(--hair);
+  border: 1px solid var(--hair-strong);
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
@@ -795,7 +805,7 @@ header {
   gap: 6px;
 }
 .issue-list li:not(.empty) {
-  border-bottom: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair-strong);
 }
 .issue-list li:not(.empty):last-child {
   border-bottom: none;
@@ -1054,7 +1064,7 @@ header {
   fill: none;
 }
 .gauge-track {
-  stroke: var(--hair);
+  stroke: var(--hair-strong);
   stroke-width: 12;
 }
 /* Ink underlay 4px wider than the accent arc — reads as a 2px border,
@@ -1126,7 +1136,7 @@ header {
   color: var(--muted);
   padding-bottom: 8px;
   margin-bottom: 4px;
-  border-bottom: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair-strong);
 }
 .day-head .muted {
   color: var(--ink);
@@ -1274,7 +1284,7 @@ header {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
-  border: 1px solid var(--hair);
+  border: 1px solid var(--hair-strong);
   padding: 1px 6px;
   margin-top: 2px;
 }
@@ -1372,7 +1382,7 @@ header {
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--muted);
-  border: 1px solid var(--hair);
+  border: 1px solid var(--hair-strong);
   padding: 1px 6px;
 }
 .due-badge.due-today {
@@ -1414,7 +1424,7 @@ header {
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--muted);
-  border: 1px solid var(--hair);
+  border: 1px solid var(--hair-strong);
   padding: 1px 6px;
 }
 .priority-badge.urgent {
@@ -1558,7 +1568,7 @@ header {
 .template-chip {
   display: flex;
   align-items: center;
-  border: 1px solid var(--hair);
+  border: 1px solid var(--hair-strong);
 }
 .template-use {
   display: flex;
@@ -1727,7 +1737,7 @@ section.issue-fact .field-editor {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   padding: 1px 5px;
-  border: 1px solid var(--hair);
+  border: 1px solid var(--hair-strong);
   color: var(--muted);
 }
 .timeline-text {
@@ -1842,7 +1852,7 @@ section.issue-fact .field-editor {
   font-size: 11.5px;
   color: var(--muted);
   padding: 6px 8px;
-  border: 1px dashed var(--hair);
+  border: 1px dashed var(--hair-strong);
 }
 .transition-screen {
   border: 2px solid var(--ink);
@@ -2284,7 +2294,7 @@ section.issue-fact .issue-description {
 
 /* A field being arranged is a thing to be moved, not read. */
 .issue-fact.arranging {
-  outline: 1px dashed var(--hair);
+  outline: 1px dashed var(--hair-strong);
   outline-offset: 4px;
 }
 /* The one in hand. Kept visible rather than hidden: it is the thing being
@@ -2550,7 +2560,7 @@ body.dragging-field {
     minmax(150px, 1.4fr)
     repeat(var(--month-cols), 46px)
     62px;
-  border-top: 1px solid var(--hair);
+  border-top: 1px solid var(--hair-strong);
   min-width: min-content;
 }
 /* Rows exist for screen readers, not for layout: `display: contents` lets the
@@ -2568,7 +2578,7 @@ body.dragging-field {
   font-size: 11px;
   text-align: right;
   padding: 5px 6px;
-  border-bottom: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair-strong);
   background: var(--surface);
 }
 .month-grid .col-issue {
@@ -2583,7 +2593,7 @@ body.dragging-field {
      alignment every other column depends on. The full text is in the title. */
   overflow: hidden;
   white-space: nowrap;
-  border-right: 1px solid var(--hair);
+  border-right: 1px solid var(--hair-strong);
 }
 .month-grid .col-issue .summary {
   overflow: hidden;
@@ -2635,7 +2645,7 @@ body.dragging-field {
 
 .month-cell {
   border: none;
-  border-bottom: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair-strong);
   border-radius: 0;
   padding: 5px 6px;
   font: inherit;
