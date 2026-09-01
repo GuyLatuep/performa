@@ -32,6 +32,19 @@
   --font-sans: "Space Grotesk", -apple-system, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* One scale, in rem off a 16px root, so a single root font-size scales the
+     whole app. --fs-micro is the floor: labels, badges and grid headers all
+     sit there, and nothing ships smaller. */
+  --fs-micro: 0.6875rem; /* 11px */
+  --fs-xs: 0.75rem; /* 12px */
+  --fs-sm: 0.8125rem; /* 13px */
+  --fs-base: 0.875rem; /* 14px */
+  --fs-md: 0.9375rem; /* 15px — body */
+  --fs-lg: 1.125rem; /* 18px */
+  --fs-xl: 1.375rem; /* 22px */
+  --fs-2xl: 1.75rem; /* 28px */
+  --fs-display: 4rem; /* 64px */
+
   color-scheme: light;
   font-family: var(--font-sans);
   color: var(--ink);
@@ -59,10 +72,16 @@
   box-sizing: border-box;
 }
 
+/* Every --fs-* token is relative to this, so it is the one knob that resizes
+   the app. */
+html {
+  font-size: 16px;
+}
+
 body {
   margin: 0;
   background: var(--bg);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -109,7 +128,7 @@ button {
   color: var(--accent-ink);
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-base);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   transition:
@@ -145,7 +164,7 @@ button.link {
   padding: 3px 2px;
   width: auto;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.06em;
   text-decoration: underline;
@@ -161,7 +180,7 @@ button.icon {
   border: none;
   color: var(--muted);
   padding: 5px 7px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   letter-spacing: 0;
 }
 button.icon:hover {
@@ -192,7 +211,7 @@ button.icon.danger-icon:hover {
   margin-right: auto;
   align-self: center;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -205,7 +224,7 @@ label {
   flex-direction: column;
   gap: 7px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -270,7 +289,7 @@ button.duration-add {
   color: var(--muted);
   border: 1px solid var(--hair-strong);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.06em;
   text-transform: none;
 }
@@ -330,16 +349,16 @@ label.checkbox input:checked {
   color: var(--accent-ink);
   background: var(--accent);
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .success {
   font-family: var(--font-mono);
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .hint {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
   font-weight: 400;
   letter-spacing: normal;
@@ -349,7 +368,7 @@ label.checkbox input:checked {
   padding: 22px 0;
   text-align: center;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   letter-spacing: 0.04em;
 }
 
@@ -359,7 +378,7 @@ label.checkbox input:checked {
   height: 100vh;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
@@ -400,7 +419,7 @@ label.checkbox input:checked {
 .eyebrow {
   display: block;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -410,14 +429,14 @@ label.checkbox input:checked {
 .setup h1 {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 64px;
+  font-size: var(--fs-display);
   line-height: 0.9;
   letter-spacing: -0.02em;
   text-transform: uppercase;
   margin: 0 0 16px;
 }
 .setup > .muted {
-  font-size: 14px;
+  font-size: var(--fs-md);
   max-width: 44ch;
   margin: 0 0 28px;
 }
@@ -435,7 +454,7 @@ label.checkbox input:checked {
 .field-label {
   display: block;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -451,7 +470,7 @@ label.checkbox input:checked {
   border: none;
   color: var(--muted);
   padding: 7px 16px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .theme-toggle button + button {
   border-left: 2px solid var(--ink);
@@ -507,7 +526,7 @@ label.checkbox input:checked {
   margin-bottom: -2px;
   padding: 9px 4px;
   margin-right: 20px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   /* Never narrower than the label. Flex items shrink by default, and once a
      button is squeezed below its text the label overflows the box while the
      underline — which tracks the box — stops short of it. */
@@ -561,7 +580,7 @@ header {
   gap: 11px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 22px;
+  font-size: var(--fs-xl);
   line-height: 1;
   letter-spacing: -0.01em;
   text-transform: uppercase;
@@ -570,11 +589,11 @@ header {
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
 }
 .account .muted {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
 }
 
 .tabs {
@@ -591,7 +610,7 @@ header {
   margin-bottom: -2px;
   padding: 11px 4px;
   margin-right: 22px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .tabs button:hover {
   background: none;
@@ -647,7 +666,7 @@ header {
 }
 .missing-meta {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   white-space: nowrap;
 }
@@ -675,7 +694,7 @@ header {
 .buildinfo {
   margin: 26px 0 0;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   letter-spacing: 0.06em;
   color: var(--muted);
 }
@@ -691,7 +710,7 @@ header {
   padding: 10px 14px;
   margin: 18px 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .update-notice span {
   flex: 1;
@@ -760,13 +779,13 @@ header {
   color: var(--accent);
 }
 .timer-info .summary {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   color: rgba(245, 244, 239, 0.65);
 }
 .timer-clock {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 27px;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--accent);
@@ -823,7 +842,7 @@ header {
   padding: 11px 8px;
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 14px;
+  font-size: var(--fs-md);
   letter-spacing: normal;
   text-transform: none;
 }
@@ -850,7 +869,7 @@ header {
 /* Pin toggle: star buttons in the issue list. */
 .pin-toggle {
   flex: 0 0 auto;
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 .pin-toggle.pinned {
   color: var(--ink);
@@ -890,7 +909,7 @@ header {
 }
 .key {
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--ink);
   white-space: nowrap;
@@ -905,7 +924,7 @@ header {
   border: 2px solid transparent;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.04em;
   padding: 5px 11px;
@@ -944,7 +963,7 @@ header {
 }
 .history-more {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   margin: 8px 0 0;
 }
 
@@ -965,13 +984,13 @@ header {
   gap: 3px;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-base);
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 .week-label .muted {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
@@ -1026,7 +1045,7 @@ header {
   right: 0;
   bottom: 1px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   letter-spacing: 0.06em;
   color: var(--muted);
 }
@@ -1037,7 +1056,7 @@ header {
   flex: 1;
   text-align: center;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1088,13 +1107,13 @@ header {
 }
 .gauge-center strong {
   font-family: var(--font-mono);
-  font-size: 21px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--ink);
 }
 .gauge-center span {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--fs-micro);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -1109,14 +1128,14 @@ header {
   padding-bottom: 16px;
   border-bottom: 2px solid var(--ink);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--muted);
 }
 .week-total strong {
   font-family: var(--font-mono);
-  font-size: 22px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   letter-spacing: 0;
   color: var(--ink);
@@ -1129,7 +1148,7 @@ header {
   justify-content: space-between;
   align-items: baseline;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1156,11 +1175,11 @@ header {
   min-width: 0;
 }
 .worklog-main .summary {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--muted);
 }
 .comment {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -1193,7 +1212,7 @@ header {
   color: var(--ink);
 }
 .mention-summary .summary {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--muted);
   min-width: 0;
 }
@@ -1216,7 +1235,7 @@ header {
   margin-top: 3px;
   text-align: left;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 400;
   letter-spacing: normal;
   text-transform: none;
@@ -1230,7 +1249,7 @@ header {
    incomplete, and saying so beats implying the inbox is the whole picture. */
 .mention-partial {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--muted);
   border-left: 3px solid var(--muted);
@@ -1279,7 +1298,7 @@ header {
 .nb-tag {
   align-self: flex-start;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1290,7 +1309,7 @@ header {
 }
 .wl-time {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -1338,14 +1357,14 @@ header {
 .modal h3 {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 24px;
+  font-size: var(--fs-2xl);
   text-transform: uppercase;
   letter-spacing: -0.01em;
   margin: 0 0 4px;
 }
 .modal-sub {
   margin: 0 0 20px;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 .clock-inline {
   font-family: var(--font-mono);
@@ -1376,7 +1395,7 @@ header {
 .due-badge {
   flex: 0 0 auto;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1418,7 +1437,7 @@ header {
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1490,7 +1509,7 @@ header {
   z-index: 1;
   background: var(--surface);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1537,7 +1556,7 @@ header {
 .todo-columns .sort-marker {
   flex: 0 0 auto;
   width: 7px;
-  font-size: 7px;
+  font-size: var(--fs-micro);
   line-height: 1;
 }
 /* The type, priority and status columns are all centred over what is under
@@ -1580,7 +1599,7 @@ header {
   padding: 8px 4px 8px 10px;
   color: var(--ink);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--fs-base);
   letter-spacing: normal;
   text-transform: none;
 }
@@ -1615,7 +1634,7 @@ header {
 }
 .issue-section h3 {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1635,7 +1654,7 @@ header {
 }
 .issue-fact dt {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1669,7 +1688,7 @@ section.issue-fact .field-editor {
 }
 .issue-fact dd {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-base);
   overflow-wrap: anywhere;
 }
 /* A value that can be changed says so quietly. Double-click is invisible
@@ -1688,7 +1707,7 @@ section.issue-fact .field-editor {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   margin: 0;
-  font-size: 13.5px;
+  font-size: var(--fs-base);
   line-height: 1.55;
 }
 
@@ -1721,18 +1740,18 @@ section.issue-fact .field-editor {
   margin-bottom: 4px;
 }
 .timeline-author {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 .timeline-when {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   margin-left: auto;
 }
 .timeline-tag {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1744,14 +1763,14 @@ section.issue-fact .field-editor {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1.5;
 }
 .timeline-status,
 .timeline-worklog {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 .timeline-duration {
@@ -1763,7 +1782,7 @@ section.issue-fact .field-editor {
   width: 100%;
   resize: vertical;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1.5;
 }
 /* The button row at the foot of a panel — comment, log-work, field editor,
@@ -1811,7 +1830,7 @@ section.issue-fact .field-editor {
 }
 .form-field > label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1828,7 +1847,7 @@ section.issue-fact .field-editor {
 .form-field textarea {
   resize: vertical;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 .field-required {
   color: var(--ink);
@@ -1842,14 +1861,14 @@ section.issue-fact .field-editor {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   text-transform: none;
   letter-spacing: normal;
 }
 .field-unsupported {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--muted);
   padding: 6px 8px;
   border: 1px dashed var(--hair-strong);
@@ -1896,12 +1915,12 @@ section.issue-fact .field-editor {
 .attachment-name {
   text-transform: none;
   letter-spacing: normal;
-  font-size: 13px;
+  font-size: var(--fs-base);
   overflow-wrap: anywhere;
 }
 .attachment-meta {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   margin-left: auto;
 }
@@ -1925,7 +1944,7 @@ section.issue-fact .field-editor {
 .link-relation {
   display: block;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1949,7 +1968,7 @@ section.issue-fact .field-editor {
   text-transform: none;
   letter-spacing: normal;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 /* Takes the free space so the status and the cross stay on the right edge,
@@ -1958,7 +1977,7 @@ section.issue-fact .field-editor {
    is until the pointer is on it. */
 .linked-summary {
   flex: 1 1 12rem;
-  font-size: 13px;
+  font-size: var(--fs-base);
   overflow-wrap: anywhere;
   background: none;
   border: none;
@@ -1977,7 +1996,7 @@ section.issue-fact .field-editor {
 }
 .linked-status {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   white-space: nowrap;
 }
@@ -2000,7 +2019,7 @@ section.issue-fact .field-editor {
 }
 .link-form > label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -2055,7 +2074,7 @@ section.issue-fact .field-editor {
 }
 .status-picker-box > label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -2065,7 +2084,7 @@ section.issue-fact .field-editor {
   min-width: 190px;
 }
 .status-current {
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 
@@ -2083,7 +2102,7 @@ section.issue-fact .field-editor {
 }
 .attachment-actions .confirm-text {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--danger);
   margin-right: 4px;
 }
@@ -2167,12 +2186,12 @@ section.issue-fact .issue-description {
   border: none;
 }
 .mention-name {
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 .mention-sub {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   color: var(--muted);
 }
 .mention-option:hover .mention-sub {
@@ -2190,7 +2209,7 @@ section.issue-fact .issue-description {
   font-weight: 400;
   letter-spacing: normal;
   text-transform: none;
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1.5;
   padding: 10px 12px;
   border: 2px solid transparent;
@@ -2260,7 +2279,7 @@ section.issue-fact .issue-description {
    control, so it keeps the value's size rather than the link furniture. */
 .asset-link {
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 400;
   text-transform: none;
   letter-spacing: normal;
@@ -2318,7 +2337,7 @@ section.issue-fact .issue-description {
 .arrange-grip {
   color: var(--muted);
   cursor: grab;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   /* The gesture is a drag; letting it select the glyph instead fights it. */
   user-select: none;
   touch-action: none;
@@ -2329,7 +2348,7 @@ section.issue-fact .issue-description {
 }
 .arrange-controls .icon {
   padding: 0 3px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 /* Two cells instead of one, for a value that keeps wrapping in a single
@@ -2362,7 +2381,7 @@ section.issue-fact .issue-description {
   border: none;
   padding: 64px 12px;
   font-family: var(--font-display);
-  font-size: clamp(28px, 5vw, 52px);
+  font-size: clamp(var(--fs-2xl), 5vw, 3.25rem);
   font-weight: 900;
   line-height: 1.15;
   letter-spacing: -0.02em;
@@ -2383,7 +2402,7 @@ section.issue-fact .issue-description {
   width: 100%;
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -2419,18 +2438,18 @@ section.issue-fact .issue-description {
 }
 .achievement-mark {
   color: var(--accent);
-  font-size: 17px;
+  font-size: var(--fs-lg);
 }
 .achievement-title {
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
   text-transform: none;
   letter-spacing: normal;
 }
 .achievement-more {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 @keyframes achievement-in {
@@ -2463,7 +2482,7 @@ section.issue-fact .issue-description {
 }
 .about-facts dt {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -2472,20 +2491,20 @@ section.issue-fact .issue-description {
 }
 .about-facts dd {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-base);
   overflow-wrap: anywhere;
 }
 /* The address reads as part of the answer, not as a control. */
 .about-mail {
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 400;
   text-transform: none;
   letter-spacing: normal;
   padding: 0;
 }
 .about-text p {
-  font-size: 13.5px;
+  font-size: var(--fs-base);
   line-height: 1.6;
   max-width: 62ch;
   margin: 0 0 16px;
@@ -2503,7 +2522,7 @@ section.issue-fact .issue-description {
   color: var(--accent-ink);
   border: 2px solid var(--ink);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -2522,7 +2541,7 @@ body.dragging-field {
 }
 .arrange-reset .confirm-text {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--danger);
   margin-right: 4px;
 }
@@ -2556,10 +2575,13 @@ body.dragging-field {
   display: grid;
   /* The column count is data — how many days the month shows — so it arrives
      from the component rather than being written here. */
+  /* Column widths track the type scale: a day cell budgets the four characters
+     `decimalHours` can produce ("0.25"), the total column a little more. They
+     were sized for 11px mono and grew with it. */
   grid-template-columns:
-    minmax(150px, 1.4fr)
-    repeat(var(--month-cols), 46px)
-    62px;
+    minmax(160px, 1.4fr)
+    repeat(var(--month-cols), 50px)
+    68px;
   border-top: 1px solid var(--hair-strong);
   min-width: min-content;
 }
@@ -2575,7 +2597,7 @@ body.dragging-field {
 .month-row > * {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-align: right;
   padding: 5px 6px;
   border-bottom: 1px solid var(--hair-strong);
@@ -2619,7 +2641,7 @@ body.dragging-field {
   border-bottom: 2px solid var(--ink);
 }
 .day-head-cell .dow {
-  font-size: 9px;
+  font-size: var(--fs-micro);
   color: var(--muted);
   text-transform: uppercase;
 }
@@ -2627,7 +2649,7 @@ body.dragging-field {
   font-weight: 700;
 }
 .day-head-cell .day-sum {
-  font-size: 10px;
+  font-size: var(--fs-micro);
   color: var(--muted);
   font-weight: 700;
 }
@@ -2682,7 +2704,7 @@ body.dragging-field {
    opens them rather than editing in place. */
 .month-cell.cell-multi::after {
   content: attr(data-count);
-  font-size: 8px;
+  font-size: var(--fs-micro);
   vertical-align: super;
   color: var(--muted);
   margin-left: 1px;
@@ -2695,7 +2717,7 @@ body.dragging-field {
    it is a whole row of buttons and would otherwise shout over the data. */
 .quick-row .col-issue {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -2705,7 +2727,7 @@ body.dragging-field {
      next to impossible to pick out. */
   text-align: center;
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1;
   color: var(--muted);
 }
