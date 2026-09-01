@@ -25,13 +25,38 @@ function resolveInitial(): AccentColor {
 
 const store = createStore<AccentColor>(resolveInitial());
 
-/** Black or white ink, whichever contrasts better against the given fill. */
-function contrastingInk(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6 ? "#0a0a0a" : "#f5f4ef";
+/** The only two inks the accent is ever paired with — they match --ink in the
+ *  light and dark palettes, so accent fills sit in the same ink family as the
+ *  rest of the app. */
+export const INK_DARK = "#0a0a0a";
+export const INK_LIGHT = "#f5f4ef";
+
+/** WCAG relative luminance of an #rrggbb colour. */
+function luminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two #rrggbb colours, from 1 to 21. */
+export function contrastRatio(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** Black or white ink, whichever contrasts better against the given fill.
+ *
+ *  Measured with the WCAG luminance formula rather than a perceived-brightness
+ *  shortcut. The two disagree on saturated mid-tones: weighting the raw channels
+ *  reads the pink and light-blue presets as light and puts white on them, at
+ *  2.8:1 and 2.1:1. Since --accent-ink is the text colour on every primary
+ *  button, tab and badge, that made those presets unreadable app-wide. */
+export function contrastingInk(hex: string): string {
+  return contrastRatio(INK_DARK, hex) >= contrastRatio(INK_LIGHT, hex)
+    ? INK_DARK
+    : INK_LIGHT;
 }
 
 /** Reflect the current accent onto the document so CSS variables apply.
