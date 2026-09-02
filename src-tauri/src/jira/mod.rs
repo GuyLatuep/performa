@@ -402,12 +402,14 @@ impl JiraClient {
     /// Deliberately without `duedate`: due dates are the start tab's subject,
     /// and an extra badge here would only break the column alignment.
     pub async fn todo_issues(&self, cfg: &TodoConfig) -> Result<Vec<IssueSummary>, String> {
-        self.search_issues_fields(
-            &build_todo_jql(cfg),
-            100,
-            "summary,status,priority,issuetype",
-        )
-        .await
+        let issues = self
+            .search_issues_fields(
+                &build_todo_jql(cfg),
+                100,
+                "summary,status,priority,issuetype",
+            )
+            .await?;
+        Ok(drop_ignored_statuses(issues, cfg))
     }
 
     async fn search_issues_fields(
@@ -772,6 +774,41 @@ fn open_across_projects(ignored: &BTreeMap<String, Vec<String>>) -> String {
         ));
     }
     clause
+}
+
+/// The ignore list once more, over the issues that came back.
+///
+/// JQL resolves a status *name* to the status that literally carries it, so a
+/// site whose workflows hold both "IN PROGRESS" and "In Progress" keeps
+/// whichever spelling the user didn't tick — and the picker offers only one of
+/// them, since it collapses case variants ([`open_status_names`]). Settings
+/// treat the names case-insensitively throughout, so the rule is applied here
+/// too, where each issue's actual status is known and no name resolution is in
+/// the way.
+///
+/// The project comes from the issue key rather than a field, so it costs no
+/// extra column in the search.
+fn drop_ignored_statuses(issues: Vec<IssueSummary>, cfg: &TodoConfig) -> Vec<IssueSummary> {
+    issues
+        .into_iter()
+        .filter(|issue| {
+            let Some(status) = issue.status.as_deref() else {
+                return true;
+            };
+            let project = issue
+                .key
+                .split_once('-')
+                .map(|(project, _)| project)
+                .unwrap_or(&issue.key)
+                .to_lowercase();
+            let status = status.to_lowercase();
+            !cfg.ignored_statuses
+                .iter()
+                .filter(|(key, _)| key.to_lowercase() == project)
+                .flat_map(|(_, names)| names)
+                .any(|name| name.to_lowercase() == status)
+        })
+        .collect()
 }
 
 /// `"a", "b"` — JQL-escaped and quoted, ready for an `IN (…)` list.
@@ -1328,6 +1365,61 @@ mod tests {
         assert!(!jql.contains("NOT IN"));
         assert!(!jql.contains("OPS"));
         assert_eq!(jql.matches("statusCategory != Done").count(), 2);
+    }
+
+    fn todo_issue(key: &str, status: &str) -> IssueSummary {
+        IssueSummary {
+            key: key.to_string(),
+            summary: "whatever".to_string(),
+            due_date: None,
+            updated: None,
+            status: Some(status.to_string()),
+            priority: None,
+            issue_type: None,
+            issue_type_icon: None,
+        }
+    }
+
+    fn kept(cfg: &TodoConfig, issues: &[(&str, &str)]) -> Vec<String> {
+        let issues = issues.iter().map(|(k, s)| todo_issue(k, s)).collect();
+        drop_ignored_statuses(issues, cfg)
+            .into_iter()
+            .map(|i| i.key)
+            .collect()
+    }
+
+    #[test]
+    fn ignored_statuses_are_dropped_whatever_their_case() {
+        // The reason this sieve exists: JQL resolves "IN PROGRESS" to the
+        // status literally named that, so a workflow holding both spellings
+        // lets the other one through — and the picker only ever offered one,
+        // having collapsed the pair.
+        let cfg = todo_cfg(&[("DEV", &["IN PROGRESS"])]);
+        assert_eq!(
+            kept(&cfg, &[("DEV-4596", "In Progress"), ("DEV-1", "IN PROGRESS")]),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn ignored_statuses_stay_project_local() {
+        // Same rule as the JQL: a status ignored in one project stays visible
+        // in the others.
+        let cfg = todo_cfg(&[("DEV", &["In Progress"])]);
+        assert_eq!(
+            kept(&cfg, &[("GER-1", "In Progress"), ("DEV-2", "Escalated")]),
+            vec!["GER-1".to_string(), "DEV-2".to_string()]
+        );
+    }
+
+    #[test]
+    fn issues_without_a_status_are_kept() {
+        // The todo search asks for the status field, but an issue that arrives
+        // without one must not vanish over a filter it can't be judged by.
+        let cfg = todo_cfg(&[("DEV", &["In Progress"])]);
+        let mut issue = todo_issue("DEV-3", "In Progress");
+        issue.status = None;
+        assert_eq!(drop_ignored_statuses(vec![issue], &cfg).len(), 1);
     }
 
     #[test]
