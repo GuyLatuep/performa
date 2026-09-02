@@ -151,3 +151,100 @@ describe("overlapping scans", () => {
     expect(scans).toHaveLength(1);
   });
 });
+
+describe("ignored findings", () => {
+  // The findings store and the ignore map are both seeded at import, so these
+  // cases re-import the pair over a storage they control — the same idiom the
+  // other persisted-state tests use.
+  async function freshMissing() {
+    localStorage.clear();
+    vi.resetModules();
+    return import("./missing");
+  }
+
+  const HOUR = 60 * 60 * 1000;
+  /** Relative to the real clock: an ignore is stamped with `Date.now()`, and
+   *  freezing that around a dynamic import is more trouble than it is worth. */
+  const at = (offsetMs: number) =>
+    new Date(Date.now() + offsetMs).toISOString();
+
+  it("hides the ignored issue and counts it as hidden", async () => {
+    // The case this whole feature is for: an automation dragged the epic along
+    // with the issue the developer actually worked on.
+    const missing = await freshMissing();
+    const epic = finding("DEV-9", at(-2 * HOUR));
+    backendReturns([finding("DEV-1", at(-HOUR)), epic]);
+    await missing.refreshMissing();
+
+    missing.ignoreMissing(epic);
+
+    expect(missing.getMissing().map((i) => i.issueKey)).toEqual(["DEV-1"]);
+    expect(missing.getMissingHiddenCount()).toBe(1);
+  });
+
+  it("keeps it hidden across the next check", async () => {
+    const missing = await freshMissing();
+    const epic = finding("DEV-9", at(-2 * HOUR));
+    backendReturns([epic]);
+    await missing.refreshMissing();
+    missing.ignoreMissing(epic);
+
+    backendReturns([epic]);
+    await missing.refreshMissing("manual");
+
+    expect(missing.getMissing()).toHaveLength(0);
+    expect(missing.getMissingHiddenCount()).toBe(1);
+  });
+
+  it("does not announce what the user has ignored", async () => {
+    // `notifyNew` prunes its set to the findings it was handed, so that set is
+    // also the record of which ones it considered worth announcing.
+    const missing = await freshMissing();
+    const epic = finding("DEV-9", at(-2 * HOUR));
+    const mine = finding("DEV-1", at(-HOUR));
+    backendReturns([epic]);
+    await missing.refreshMissing();
+    missing.ignoreMissing(epic);
+
+    backendReturns([epic, mine]);
+    await missing.refreshMissing("manual");
+
+    expect(
+      JSON.parse(localStorage.getItem("performa-missing-notified") ?? "[]"),
+    ).toEqual([`DEV-1@${mine.activityAt}`]);
+  });
+
+  it("brings it back once the issue sees newer activity", async () => {
+    const missing = await freshMissing();
+    const epic = finding("DEV-9", at(-2 * HOUR));
+    backendReturns([epic]);
+    await missing.refreshMissing();
+    missing.ignoreMissing(epic);
+
+    // Real work on the epic this time, after the ignore.
+    backendReturns([finding("DEV-9", at(HOUR))]);
+    await missing.refreshMissing("manual");
+
+    expect(missing.getMissing()).toHaveLength(1);
+    expect(missing.getMissingHiddenCount()).toBe(0);
+  });
+
+  it("restores every ignore without asking Jira again", async () => {
+    const missing = await freshMissing();
+    const epic = finding("DEV-9", at(-2 * HOUR));
+    backendReturns([epic]);
+    await missing.refreshMissing();
+    missing.ignoreMissing(epic);
+    const scansBefore = mockInvoke.mock.calls.filter(
+      (call) => call[0] === "missing_worklogs",
+    ).length;
+
+    missing.restoreIgnoredMissing();
+
+    expect(missing.getMissing()).toHaveLength(1);
+    expect(missing.getMissingHiddenCount()).toBe(0);
+    expect(
+      mockInvoke.mock.calls.filter((call) => call[0] === "missing_worklogs"),
+    ).toHaveLength(scansBefore);
+  });
+});

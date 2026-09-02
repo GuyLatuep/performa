@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { api, MissingWorklog } from "../api";
 import { timeAgo, toDateInput, toTimeInput } from "../time";
 import {
+  ignoreMissing,
   markMissingSeen,
   refreshMissing,
+  restoreIgnoredMissing,
   useMissing,
   useMissingError,
+  useMissingHiddenCount,
   useMissingLastChecked,
 } from "../missing";
 import {
@@ -29,6 +32,7 @@ interface Props {
 // that issue is the user's own.
 export default function MissingWorklogs({ site, onLogged }: Props) {
   const items = useMissing();
+  const hidden = useMissingHiddenCount();
   const error = useMissingError();
   const lastChecked = useMissingLastChecked();
   const [busy, setBusy] = useState(false);
@@ -41,11 +45,12 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
   }, [items]);
 
   // Only after a real check: nothing found before the first scan means "not
-  // looked yet", which is not an achievement.
+  // looked yet", which is not an achievement. Neither is an empty list the user
+  // emptied by ignoring everything in it.
   useEffect(() => {
-    if (lastChecked && items.length === 0)
+    if (lastChecked && items.length === 0 && hidden === 0)
       setAwards(recordEvent({ kind: "missingEmpty" }));
-  }, [items, lastChecked]);
+  }, [items, hidden, lastChecked]);
 
   async function refresh() {
     setBusy(true);
@@ -88,7 +93,7 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
 
       {error && <p className="error">{error}</p>}
       {!error && !lastChecked && <p className="muted empty">Checking…</p>}
-      {!error && lastChecked && items.length === 0 && (
+      {!error && lastChecked && items.length === 0 && hidden === 0 && (
         <p className="muted empty">Nothing unlogged. All caught up.</p>
       )}
 
@@ -100,8 +105,18 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
           actionTitle={`Log work on ${item.logKey}`}
           onAction={() => setLogging(item)}
           showLogTarget
+          onIgnore={() => ignoreMissing(item)}
         />
       ))}
+
+      {hidden > 0 && (
+        <p className="hint missing-hidden">
+          {hidden} ignored ·{" "}
+          <button className="link" onClick={restoreIgnoredMissing}>
+            Show again
+          </button>
+        </p>
+      )}
     </div>
   );
 }

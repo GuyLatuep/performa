@@ -12,6 +12,9 @@ interface Props {
    *  the dedicated tab, where the user is about to log; the start tab's
    *  overview stays terse. */
   showLogTarget?: boolean;
+  /** Wave this finding away. Given by the dedicated tab only — the start tab's
+   *  overview is a summary, and dismissing belongs where the list is worked. */
+  onIgnore?: () => void;
 }
 
 /** One flagged activity: issue key linking out to Jira, a click target for
@@ -23,6 +26,7 @@ export default function MissingRow({
   actionTitle,
   onAction,
   showLogTarget = false,
+  onIgnore,
 }: Props) {
   return (
     <div className="worklog-row">
@@ -56,6 +60,15 @@ export default function MissingRow({
         {item.kind === "comment" ? "commented" : "status changed"}{" "}
         {timeAgo(item.activityAt)}
       </span>
+      {onIgnore && (
+        <button
+          className="icon"
+          title="Ignore until this issue sees newer activity"
+          onClick={onIgnore}
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }

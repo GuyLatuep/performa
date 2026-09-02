@@ -713,6 +713,10 @@ header {
 .missing-source {
   margin: 0 0 20px;
 }
+/* Sits under the list as a footnote, not as another row. */
+.missing-hidden {
+  margin: 12px 0 0;
+}
 
 /* ---------- Panels ---------- */
 .panel {

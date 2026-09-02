@@ -1,4 +1,10 @@
 import { api, MissingWorklog } from "./api";
+import {
+  clearIgnoredMissing,
+  getIgnoredMissing,
+  ignoreIssue,
+  isIgnored,
+} from "./ignoredMissing";
 import { logInfo } from "./log";
 import { notify } from "./notify";
 import { readSigSet, writeSigSet } from "./seen";
@@ -24,8 +30,11 @@ const POLL_MS = 15 * 60 * 1000;
 const INITIAL_DELAY_MS = 20 * 1000;
 
 interface MissingState {
+  /** What the last scan found, minus what the user has ignored. */
   items: MissingWorklog[];
   unseenCount: number;
+  /** How many of the last scan's findings an ignore is holding back. */
+  hiddenCount: number;
   lastError: string | null;
   /** HH:mm of the last completed check. */
   lastChecked: string | null;
@@ -34,9 +43,15 @@ interface MissingState {
 const store = createStore<MissingState>({
   items: [],
   unseenCount: 0,
+  hiddenCount: 0,
   lastError: null,
   lastChecked: null,
 });
+
+// The last scan's findings before the ignore filter. Kept so ignoring one, or
+// bringing the ignored ones back, is answered from what is already in hand
+// rather than by another burst of Jira requests.
+let found: MissingWorklog[] = [];
 
 let pollId: number | undefined;
 // The delayed opening scan — see `INITIAL_DELAY_MS`.
@@ -47,6 +62,14 @@ let inFlight: Promise<void> | null = null;
 const sig = (item: MissingWorklog) => `${item.issueKey}@${item.activityAt}`;
 
 const readSeen = () => readSigSet(SEEN_KEY);
+
+/** The findings worth showing. Filtering here rather than in the list means the
+ *  tab badge, the start-tab overview, the close guard and the desktop
+ *  notification all agree on what counts. */
+function visible(items: MissingWorklog[]): MissingWorklog[] {
+  const ignored = getIgnoredMissing();
+  return items.filter((item) => !isIgnored(ignored, item));
+}
 
 // Distinct from the seen-set: "seen" is the user's acknowledgment (stops the
 // tab blinking), "notified" only prevents duplicate desktop notifications.
@@ -85,6 +108,10 @@ export function getMissing(): MissingWorklog[] {
   return store.get().items;
 }
 
+export function getMissingHiddenCount(): number {
+  return store.get().hiddenCount;
+}
+
 /** `source` only labels the debug log — "why did this check run", separate
  *  from the generic request/result line `api.missingWorklogs()` already logs. */
 export function refreshMissing(
@@ -106,20 +133,24 @@ async function runRefresh(
 ): Promise<void> {
   logInfo(`missing-worklog check triggered (${source})`);
   const previous = store.get().items;
-  let items = previous;
+  let items = found;
   let lastError: string | null = null;
   try {
     items = await api.missingWorklogs();
-    await notifyNew(items);
+    // Filtered first: an issue the user has waved away must not buzz.
+    await notifyNew(visible(items));
   } catch (err) {
     lastError = String(err);
   }
+  found = items;
+  const shown = visible(found);
   store.set({
     // `lastChecked` below moves on every single check, so the state object is
     // always new — keeping the array identity is what spares the components
     // that only watch `items` (see the `useSelector` hooks at the bottom).
-    items: sameItems(previous, items) ? previous : items,
-    unseenCount: countUnseen(items),
+    items: sameItems(previous, shown) ? previous : shown,
+    unseenCount: countUnseen(shown),
+    hiddenCount: found.length - shown.length,
     lastError,
     lastChecked: new Date().toLocaleTimeString([], {
       hour: "2-digit",
@@ -141,7 +172,39 @@ export function stopMissingPolling(): void {
   window.clearTimeout(firstRunId);
   pollId = undefined;
   firstRunId = undefined;
-  store.set({ items: [], unseenCount: 0, lastError: null, lastChecked: null });
+  found = [];
+  store.set({
+    items: [],
+    unseenCount: 0,
+    hiddenCount: 0,
+    lastError: null,
+    lastChecked: null,
+  });
+}
+
+/** Re-apply the ignore filter to the scan already in hand, so a click takes the
+ *  row off the screen at once instead of at the next check. */
+function republish(): void {
+  const state = store.get();
+  const shown = visible(found);
+  store.set({
+    ...state,
+    items: sameItems(state.items, shown) ? state.items : shown,
+    unseenCount: countUnseen(shown),
+    hiddenCount: found.length - shown.length,
+  });
+}
+
+/** Hide this finding until its issue sees activity newer than right now. */
+export function ignoreMissing(item: MissingWorklog): void {
+  ignoreIssue(item.issueKey);
+  republish();
+}
+
+/** Undo every ignore — the way back from a misclick. */
+export function restoreIgnoredMissing(): void {
+  clearIgnoredMissing();
+  republish();
 }
 
 /** Acknowledge the current findings so the tab stops blinking for them. */
@@ -161,6 +224,10 @@ export function useMissing(): MissingWorklog[] {
 
 export function useMissingUnseenCount(): number {
   return store.useSelector((s) => s.unseenCount);
+}
+
+export function useMissingHiddenCount(): number {
+  return store.useSelector((s) => s.hiddenCount);
 }
 
 export function useMissingError(): string | null {
