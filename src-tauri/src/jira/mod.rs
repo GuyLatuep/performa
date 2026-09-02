@@ -1396,7 +1396,10 @@ mod tests {
         // having collapsed the pair.
         let cfg = todo_cfg(&[("DEV", &["IN PROGRESS"])]);
         assert_eq!(
-            kept(&cfg, &[("DEV-4596", "In Progress"), ("DEV-1", "IN PROGRESS")]),
+            kept(
+                &cfg,
+                &[("DEV-4596", "In Progress"), ("DEV-1", "IN PROGRESS")]
+            ),
             Vec::<String>::new()
         );
     }
