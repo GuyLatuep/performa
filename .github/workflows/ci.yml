@@ -80,6 +80,11 @@ jobs:
       - name: Test report
         if: always()
         run: |
+          # No errexit: GitHub runs this with `bash -e`, and every lookup below
+          # legitimately finds nothing sometimes — no coverage in the cell that
+          # doesn't measure it, no failures in a green run. A report that fails
+          # the build over an empty grep would be worse than no report.
+          set +e
           [ -f /tmp/vitest.log ] || exit 0
           # Vitest colours its output when it thinks something is watching.
           plain=$(sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g' /tmp/vitest.log)
@@ -109,6 +114,9 @@ jobs:
               printf '%s\n' "$failed"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+          # The tests decide whether the run is red; this step only describes
+          # what they did.
+          exit 0
 
       - name: Upload coverage
         if: matrix.timezone == 'Europe/Berlin'

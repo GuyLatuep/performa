@@ -197,14 +197,26 @@ describe("logging from a finding", () => {
 
   it("opens a form starting at the flagged activity", async () => {
     // So the new worklog covers it and the reminder clears.
+    //
+    // Compared against the activity in *local* time rather than against the
+    // literal in the fixture: the form shows the user's own clock, and
+    // 14:30+01:00 is 06:30 in California. Hard-coding it passed in Berlin and
+    // failed in the other matrix cell — which is what that cell is for.
+    const activity = new Date(ITEM.activityAt);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const localDate = `${activity.getFullYear()}-${pad(
+      activity.getMonth() + 1,
+    )}-${pad(activity.getDate())}`;
+    const localTime = `${pad(activity.getHours())}:${pad(activity.getMinutes())}`;
+
     renderTab();
 
     await userEvent.click(screen.getByTitle("Log work on ABC-1"));
 
-    expect(screen.getByLabelText("Date")).toHaveProperty("value", "2026-03-16");
+    expect(screen.getByLabelText("Date")).toHaveProperty("value", localDate);
     expect(screen.getByLabelText("Start time")).toHaveProperty(
       "value",
-      "14:30",
+      localTime,
     );
   });
 
