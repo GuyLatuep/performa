@@ -849,7 +849,7 @@ mod http_tests {
             .await
             .expect("scan");
 
-        assert!(found.is_empty(), "{found:?}", found = found.len());
+        assert_eq!(found.len(), 0);
     }
 
     #[tokio::test]
@@ -950,9 +950,11 @@ mod http_tests {
         )
         .await;
 
-        let Err(err) = client_for(&server).missing_worklogs(ME, &config()).await else {
-            panic!("a failed scan must not read as nothing missing");
-        };
+        let err = client_for(&server)
+            .missing_worklogs(ME, &config())
+            .await
+            .err()
+            .expect("a failed scan must not read as nothing missing");
         assert!(err.contains("503"), "{err}");
     }
 }
