@@ -178,3 +178,82 @@ describe("write-through invalidation", () => {
     expect(callsTo("list_worklogs")).toHaveLength(1);
   });
 });
+
+describe("cache keys that carry more than an id", () => {
+  // Two reads take a *selection* alongside their arguments. If the selection
+  // isn't in the key, changing it in settings serves the previous answer.
+
+  it("keys todoIssues on the ignored statuses, not just the command", async () => {
+    await api.todoIssues({ DEV: ["In Progress"] });
+    await api.todoIssues({ DEV: ["In Progress"] });
+    expect(callsTo("todo_issues")).toHaveLength(1);
+
+    await api.todoIssues({ DEV: ["Escalated"] });
+
+    expect(callsTo("todo_issues")).toHaveLength(2);
+  });
+
+  it("keys issueDetail on the configured field names as well as the key", async () => {
+    mockInvoke.mockResolvedValue({ details: [] });
+
+    await api.issueDetail("ABC-1", ["Due"]);
+    await api.issueDetail("ABC-1", ["Due"]);
+    expect(callsTo("issue_detail")).toHaveLength(1);
+
+    // Same issue, a field added in settings — the cached answer is missing it.
+    await api.issueDetail("ABC-1", ["Due", "Plant"]);
+
+    expect(callsTo("issue_detail")).toHaveLength(2);
+  });
+
+  it("passes the field names through to the backend unchanged", async () => {
+    mockInvoke.mockResolvedValue({ details: [] });
+
+    await api.issueDetail("ABC-1", ["Due", "Plant"]);
+
+    expect(callsTo("issue_detail")[0][1]).toEqual({
+      issueKey: "ABC-1",
+      fieldNames: ["Due", "Plant"],
+    });
+  });
+});
+
+describe("writes that invalidate the read cache", () => {
+  it("drops cached reads after a comment, a transition and a link", async () => {
+    // Each of these changes what a later read would return, so the cache has
+    // to go — the issue view reloads straight after every one of them.
+    for (const write of [
+      () => api.addComment("ABC-1", "hello", false),
+      () => api.transitionIssue("ABC-1", "31", {}),
+      () => api.linkIssues("ABC-1", "ABC-2", "blocks", "outward"),
+    ]) {
+      mockInvoke.mockResolvedValue([]);
+      invalidateCachedReads();
+      mockInvoke.mockClear();
+
+      await api.listWorklogs("2026-08-03", "2026-08-09");
+      await write();
+      await api.listWorklogs("2026-08-03", "2026-08-09");
+
+      expect(callsTo("list_worklogs")).toHaveLength(2);
+    }
+  });
+});
+
+describe("the call log", () => {
+  it("reports a failure and lets the error through", async () => {
+    // `logged` wraps every backend call; its failure arm must re-throw rather
+    // than resolve, or a failed write would look like a successful one.
+    mockInvoke.mockImplementation(async (command) => {
+      if (command === "todo_issues") throw new Error("Jira returned 500");
+      return [];
+    });
+
+    await expect(api.todoIssues({})).rejects.toThrow("Jira returned 500");
+
+    const logged = callsTo("frontend_log").map(([, args]) =>
+      JSON.stringify(args),
+    );
+    expect(logged.some((line) => line.includes("todo_issues"))).toBe(true);
+  });
+});
