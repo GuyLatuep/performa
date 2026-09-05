@@ -89,7 +89,7 @@ impl JiraClient {
     /// of the webview — so it is checked against the configured site before a
     /// request carrying the `Authorization` header is sent anywhere near it.
     pub async fn issue_type_icon(&self, url: &str) -> Result<String, String> {
-        if !url.starts_with(&self.site) {
+        if !on_site(&self.site, url) {
             return Err(format!("icon URL is not on {}: {url}", self.site));
         }
         let resp = self
@@ -194,4 +194,58 @@ pub(super) fn attachments(value: Option<&Value>) -> Vec<Attachment> {
         .collect();
     items.sort_by_key(|(ts, _)| std::cmp::Reverse(*ts));
     items.into_iter().map(|(_, a)| a).collect()
+}
+
+/// Is `url` on the configured site?
+///
+/// A plain `starts_with` is not enough. The site is stored with its trailing
+/// slash trimmed (see `JiraClient::new`), so `https://you.atlassian.net` is
+/// also a prefix of `https://you.atlassian.net.evil.example/x.png` — and the
+/// only caller sends the `Authorization` header, so letting that through hands
+/// the API token to whoever registered the longer name. The match has to end
+/// on a path boundary, which is the same rule `normalize_site` applies when
+/// the site is first accepted.
+fn on_site(site: &str, url: &str) -> bool {
+    url.len() > site.len() && url.starts_with(site) && url.as_bytes()[site.len()] == b'/'
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SITE: &str = "https://example.atlassian.net";
+
+    #[test]
+    fn an_icon_on_the_site_is_accepted() {
+        assert!(on_site(
+            SITE,
+            "https://example.atlassian.net/images/type.png"
+        ));
+    }
+
+    #[test]
+    fn a_look_alike_host_is_not_on_the_site() {
+        // The whole point: a prefix match would send the API token here.
+        assert!(!on_site(
+            SITE,
+            "https://example.atlassian.net.evil.example/x.png"
+        ));
+        assert!(!on_site(SITE, "https://example.atlassian.net.evil.example"));
+    }
+
+    #[test]
+    fn an_unrelated_host_is_not_on_the_site() {
+        assert!(!on_site(SITE, "https://evil.example/x.png"));
+        assert!(!on_site(
+            SITE,
+            "https://evil.example/?u=https://example.atlassian.net/"
+        ));
+    }
+
+    #[test]
+    fn the_bare_site_carries_no_icon() {
+        // No path, so nothing to fetch — and it keeps the indexing in
+        // `on_site` in bounds.
+        assert!(!on_site(SITE, SITE));
+    }
 }
