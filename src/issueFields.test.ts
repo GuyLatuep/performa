@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adfDocument,
+  buildFacts,
   clearedField,
   fieldKind,
   initialValues,
@@ -11,7 +12,27 @@ import {
   toFormFields,
   toJiraDateTime,
   toJiraFields,
+  visibleFacts,
 } from "./issueFields";
+
+import type { FieldSize } from "./issueFieldNames";
+import type { IssueDetail } from "./api";
+
+/** A minimal issue detail — only the fields a facts test states. */
+function issueDetailFor(o: Partial<IssueDetail> = {}): IssueDetail {
+  return {
+    key: "ABC-1",
+    summary: "Replace the pump",
+    createdAt: "2026-03-01T08:00:00.000+01:00",
+    updatedAt: "2026-03-15T08:00:00.000+01:00",
+    description: "",
+    details: [],
+    serviceDesk: false,
+    attachments: [],
+    links: [],
+    ...o,
+  };
+}
 import { FieldMeta } from "./api";
 
 const CUSTOM = "com.atlassian.jira.plugin.system.customfieldtypes";
@@ -381,5 +402,130 @@ describe("toJiraDateTime", () => {
   it("returns nothing for a value that isn't a date", () => {
     expect(toJiraDateTime("not a date")).toBeUndefined();
     expect(toJiraDateTime("")).toBeUndefined();
+  });
+});
+
+describe("buildFacts", () => {
+  const DETAIL = issueDetailFor({
+    issueType: "Bug",
+    priority: "High",
+    reporter: "Anna Leeson",
+    assignee: "Malte",
+    dueDate: "2026-03-20",
+    details: [
+      { id: "customfield_1", label: "Plant no.", value: "K12" },
+      {
+        id: "customfield_2",
+        label: "Machine",
+        value: "Pump 4",
+        assets: [{ name: "Pump 4", objectId: "o1" }],
+      },
+    ],
+  });
+
+  it("shortens the names whose Jira spelling is longer than the column", () => {
+    const facts = buildFacts(DETAIL, ["Issue Type", "Due date"]);
+
+    expect(facts.map((f) => f.label)).toEqual(["Type", "Due"]);
+    // The Jira name is kept: it is what the edit form is keyed by.
+    expect(facts.map((f) => f.jiraName)).toEqual(["Issue Type", "Due date"]);
+  });
+
+  it("follows the configured order, not Jira's", () => {
+    const facts = buildFacts(DETAIL, ["Plant no.", "Priority", "Assignee"]);
+
+    expect(facts.map((f) => f.value)).toEqual(["K12", "High", "Malte"]);
+  });
+
+  it("matches a configured name however it is spelled", () => {
+    // Same rule the Rust side uses, so "due date" finds "Due date".
+    const facts = buildFacts(DETAIL, ["plant no", "PLANT-NO."]);
+
+    expect(facts.map((f) => f.value)).toEqual(["K12", "K12"]);
+  });
+
+  it("prefers the typed value over the one in details", () => {
+    // A name that fails to resolve against the site's catalog would otherwise
+    // take the standard field with it.
+    const detail = issueDetailFor({
+      priority: "High",
+      details: [{ id: "priority", label: "Priority", value: "stale" }],
+    });
+
+    expect(buildFacts(detail, ["Priority"])[0].value).toBe("High");
+  });
+
+  it("carries an Assets field's objects through", () => {
+    const facts = buildFacts(DETAIL, ["Machine"]);
+
+    expect(facts[0].assets).toEqual([{ name: "Pump 4", objectId: "o1" }]);
+  });
+
+  it("keeps a configured field the issue has no value for", () => {
+    // It still has a place in the layout; whether it is drawn is decided by
+    // `visibleFacts`.
+    const facts = buildFacts(DETAIL, ["Nothing Here"]);
+
+    expect(facts).toHaveLength(1);
+    expect(facts[0].value).toBeUndefined();
+  });
+
+  it("never includes the status, which the header's picker owns", () => {
+    // Repeating it a few centimetres below invites the two to disagree.
+    const detail = issueDetailFor({ status: "In Progress" });
+
+    expect(buildFacts(detail, ["Status"])[0].value).toBeUndefined();
+  });
+});
+
+describe("visibleFacts", () => {
+  const grid = (value?: string) => ({
+    label: "Plant",
+    jiraName: "Plant",
+    value,
+  });
+  const sizes = (size: FieldSize) => ({
+    arranging: false,
+    sizeOf: () => size,
+    isEditable: () => false,
+  });
+
+  it("shows everything while arranging, values or not", () => {
+    // A field with no value still has a place that has to be movable.
+    const facts = [grid("K12"), grid(undefined)];
+
+    expect(
+      visibleFacts(facts, { ...sizes("normal"), arranging: true }),
+    ).toHaveLength(2);
+  });
+
+  it("hides an empty grid field that cannot be filled in", () => {
+    expect(visibleFacts([grid(undefined)], sizes("normal"))).toHaveLength(0);
+  });
+
+  it("keeps an empty grid field that can be", () => {
+    // That is exactly when somebody wants it.
+    expect(
+      visibleFacts([grid(undefined)], {
+        ...sizes("normal"),
+        isEditable: () => true,
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("hides an empty full-width field even when it is editable", () => {
+    // A full-width field is prose, and an empty block of prose is a heading
+    // with nothing under it.
+    expect(
+      visibleFacts([grid(undefined)], {
+        ...sizes("full"),
+        isEditable: () => true,
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("keeps anything with a value", () => {
+    expect(visibleFacts([grid("K12")], sizes("normal"))).toHaveLength(1);
+    expect(visibleFacts([grid("K12")], sizes("full"))).toHaveLength(1);
   });
 });

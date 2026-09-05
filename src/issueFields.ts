@@ -1,4 +1,5 @@
-import { AllowedValue, FieldMeta } from "./api";
+import { AllowedValue, AssetLink, FieldMeta, IssueDetail } from "./api";
+import { FieldSize } from "./issueFieldNames";
 
 /**
  * How a field is rendered and how its value travels back to Jira.
@@ -301,5 +302,99 @@ export function toJiraDateTime(local: string): string | undefined {
     `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}` +
     `T${pad(parsed.getHours())}:${pad(parsed.getMinutes())}:${pad(parsed.getSeconds())}` +
     `.000${sign}${pad(offset / 60)}${pad(offset % 60)}`
+  );
+}
+
+// ----- The issue view's facts grid -----
+
+/** One row of the facts grid. */
+export interface Fact {
+  /** What the grid shows. Short on purpose — "Type", not "Issue Type". */
+  label: string;
+  /** Set when the value is one or more Assets objects, which are places in
+   *  Jira rather than text, and so are rendered as links. */
+  assets?: AssetLink[];
+  /** The field's name on the Jira site, which is what the edit form is keyed
+   *  by. Not always the label: Jira calls them "Issue Type" and "Due date". */
+  jiraName: string;
+  value?: string;
+}
+
+/** Shorter names for the fields whose Jira spelling is longer than the column
+ *  deserves. Keyed by the normalised Jira name. */
+const SHORT_LABELS: Record<string, string> = {
+  issuetype: "Type",
+  duedate: "Due",
+};
+
+/** Compared without case, spaces or punctuation — the same rule the Rust side
+ *  matches configured field names by, so "Due date" finds "Due Date". */
+export function normalizeFieldName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Turn an issue and the user's configured field order into the grid's rows.
+ *
+ * No Status: the picker in the header shows it, and repeating it a few
+ * centimetres below invites the two to disagree — the picker is live and these
+ * facts come from a cached read.
+ *
+ * Everything else comes from the configured order, standard fields included.
+ * Their values arrive typed on the detail as well as through `details`, and the
+ * typed one is preferred: it is already rendered, and a name that fails to
+ * resolve against the site's catalog would otherwise take the field with it.
+ */
+export function buildFacts(detail: IssueDetail, configured: string[]): Fact[] {
+  const standard: Record<string, string | undefined> = {
+    issuetype: detail.issueType,
+    priority: detail.priority,
+    reporter: detail.reporter,
+    assignee: detail.assignee,
+    duedate: detail.dueDate,
+  };
+  const byName = new Map(
+    detail.details.map((f) => [normalizeFieldName(f.label), f] as const),
+  );
+
+  return configured.map((name) => {
+    const key = normalizeFieldName(name);
+    const match = byName.get(key);
+    return {
+      label: SHORT_LABELS[key] ?? name,
+      jiraName: name,
+      value: standard[key] ?? match?.value,
+      assets: match?.assets,
+    };
+  });
+}
+
+/**
+ * Which facts the grid actually draws.
+ *
+ * Arranging shows everything: a field this issue happens to have no value for
+ * still has a place in the layout, and hiding it would make that place
+ * impossible to move or resize.
+ *
+ * Reading hides what has nothing to say. A grid field is worth a row when it
+ * can be filled in — that is exactly when somebody wants it — while a
+ * full-width one is prose, and an empty block of prose is only a heading with
+ * nothing under it.
+ */
+export function visibleFacts(
+  facts: Fact[],
+  {
+    arranging,
+    sizeOf,
+    isEditable,
+  }: {
+    arranging: boolean;
+    sizeOf: (fact: Fact) => FieldSize;
+    isEditable: (fact: Fact) => boolean;
+  },
+): Fact[] {
+  if (arranging) return facts;
+  return facts.filter((f) =>
+    sizeOf(f) === "full" ? f.value : f.value || isEditable(f),
   );
 }

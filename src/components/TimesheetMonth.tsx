@@ -3,6 +3,9 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, IssueSummary, WorklogEntry } from "../api";
 import {
   buildMonthGrid,
+  dayTone,
+  decimalHours,
+  dedupeEntries,
   MonthColumn,
   MonthRow,
   rowOrderOf,
@@ -41,27 +44,6 @@ const DAY_FORMAT: Intl.DateTimeFormatOptions = {
   month: "short",
   day: "numeric",
 };
-
-/** How a day's total reads at a glance. The thresholds are about an ordinary
- *  working day, which is why they are only applied to one: a weekend is not
- *  expected to be full, and a day that hasn't happened yet is not behind. */
-const THIN_HOURS = 3;
-const FULL_HOURS = 6;
-
-function dayTone(seconds: number, col: MonthColumn): string {
-  if (col.future || col.weekend) return "";
-  const hours = seconds / 3600;
-  if (hours > FULL_HOURS) return " tone-full";
-  if (hours >= THIN_HOURS) return " tone-part";
-  return " tone-thin";
-}
-
-/** Hours as the grid shows them: "1.5", "0.25", "2". A column is barely wide
- *  enough for four characters, which "1h 30m" is not — the full duration is in
- *  the cell's tooltip instead. */
-function decimalHours(seconds: number): string {
-  return (seconds / 3600).toFixed(2).replace(/\.?0+$/, "") || "0";
-}
 
 export default function TimesheetMonth({ site, refreshKey }: Props) {
   const [offset, setOffset] = useState(0);
@@ -107,7 +89,7 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
           const got = await api.listWorklogs(chunk.start, chunk.end);
           if (cancelled) return;
           collected.push(...got);
-          setEntries(dedupe(collected));
+          setEntries(dedupeEntries(collected));
         } catch (err) {
           if (cancelled) return;
           missed.push(chunk.start);
@@ -521,7 +503,3 @@ function QuickLogModal({
 
 /** Whole weeks overlap at the month's edges, and a refetched week is merged
  *  over what was there — either way the same worklog can arrive twice. */
-function dedupe(entries: WorklogEntry[]): WorklogEntry[] {
-  const byId = new Map(entries.map((e) => [e.id, e]));
-  return [...byId.values()];
-}

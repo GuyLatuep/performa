@@ -1,14 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { AssetLink, api, IssueDetail } from "../api";
+import { api, IssueDetail } from "../api";
 import {
+  buildFacts,
   clearedField,
+  Fact,
   FormField,
   FormValues,
   initialValues,
   missingRequired,
+  normalizeFieldName,
   toFormFields,
   toJiraFields,
+  visibleFacts,
 } from "../issueFields";
 import { logInfo } from "../log";
 import {
@@ -26,32 +30,6 @@ import FieldArrangeBar from "./FieldArrangeBar";
 import { useFieldDrag } from "../fieldDrag";
 import FieldForm from "./FieldForm";
 import { useDismissOnOutside } from "../dismiss";
-
-/** One row of the facts grid. */
-interface Fact {
-  /** What the grid shows. Short on purpose — "Type", not "Issue Type". */
-  label: string;
-  /** Set when the value is one or more Assets objects, which are places in
-   *  Jira rather than text, and so are rendered as links. */
-  assets?: AssetLink[];
-  /** The field's name on the Jira site, which is what the edit form is keyed
-   *  by. Not always the label: Jira calls them "Issue Type" and "Due date". */
-  jiraName: string;
-  value?: string;
-}
-
-/** Shorter names for the fields whose Jira spelling is longer than the column
- *  deserves. Keyed by the normalised Jira name. */
-const SHORT_LABELS: Record<string, string> = {
-  issuetype: "Type",
-  duedate: "Due",
-};
-
-/** Compared without case, spaces or punctuation — the same rule the Rust side
- *  matches configured field names by, so "Due date" finds "Due Date". */
-function normalize(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
 
 /**
  * The issue's fields, each editable when Jira says it can be.
@@ -103,7 +81,7 @@ export default function IssueFacts({
               // "change" that opens a box saying it cannot be changed is worse
               // than no "change" at all.
               .filter((f) => f.kind !== "unsupported")
-              .map((f) => [normalize(f.name), f]),
+              .map((f) => [normalizeFieldName(f.name), f]),
           ),
         );
       },
@@ -114,54 +92,18 @@ export default function IssueFacts({
     };
   }, [issueKey]);
 
-  // No Status here: the picker in the header shows it, and repeating it a few
-  // centimetres below invites the two to disagree — the picker is live and
-  // these facts come from a cached read.
-  //
-  // Everything else comes from the configured order, standard fields included.
-  // Their values arrive typed on the detail as well as through `details`, and
-  // the typed one is preferred: it is already rendered, and a name that fails
-  // to resolve against the site's catalog would otherwise take the field with
-  // it.
-  const standard: Record<string, string | undefined> = {
-    issuetype: detail.issueType,
-    priority: detail.priority,
-    reporter: detail.reporter,
-    assignee: detail.assignee,
-    duedate: detail.dueDate,
-  };
-  const byName = new Map(
-    detail.details.map((f) => [normalize(f.label), f] as const),
-  );
+  const facts = buildFacts(detail, fieldConfig.detail);
 
-  const facts: Fact[] = fieldConfig.detail.map((name) => {
-    const key = normalize(name);
-    const configured = byName.get(key);
-    return {
-      label: SHORT_LABELS[key] ?? name,
-      jiraName: name,
-      value: standard[key] ?? configured?.value,
-      assets: configured?.assets,
-    };
-  });
-
-  const fieldFor = (fact: Fact) => editable.get(normalize(fact.jiraName));
+  const fieldFor = (fact: Fact) =>
+    editable.get(normalizeFieldName(fact.jiraName));
   const sizeOf = (fact: Fact): FieldSize =>
     fieldSize(fieldConfig, fact.jiraName);
 
-  // Arranging shows everything: a field this issue happens to have no value for
-  // still has a place in the layout, and hiding it would make that place
-  // impossible to move or resize.
-  //
-  // Reading hides what has nothing to say. A grid field is worth a row when it
-  // can be filled in — that is exactly when somebody wants it — while a
-  // full-width one is prose, and an empty block of prose is only a heading with
-  // nothing under it.
-  const visible = arranging
-    ? facts
-    : facts.filter((f) =>
-        sizeOf(f) === "full" ? f.value : f.value || fieldFor(f),
-      );
+  const visible = visibleFacts(facts, {
+    arranging,
+    sizeOf,
+    isEditable: (fact) => fieldFor(fact) !== undefined,
+  });
 
   const editor = (fact: Fact, field: FormField) => (
     <FieldEditor
