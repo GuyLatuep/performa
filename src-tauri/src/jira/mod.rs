@@ -1788,12 +1788,11 @@ mod http_tests {
         )
         .await;
 
-        let Err(err) = client_for(&server)
+        let err = client_for(&server)
             .my_worklogs(ME, "2026-03-15", "2026-03-15")
             .await
-        else {
-            panic!("a failed worklog fetch must not read as an empty month");
-        };
+            .err()
+            .expect("a failed worklog fetch must not read as an empty month");
         assert!(err.contains("500"), "{err}");
     }
 
@@ -1808,9 +1807,11 @@ mod http_tests {
         )
         .await;
 
-        let Err(err) = client_for(&server).search_issues("nonsense", 10).await else {
-            panic!("a rejected search must be an error");
-        };
+        let err = client_for(&server)
+            .search_issues("nonsense", 10)
+            .await
+            .err()
+            .expect("a rejected search must be an error");
         assert!(err.contains("400"), "{err}");
         assert!(err.contains("The JQL query is malformed"), "{err}");
     }
@@ -1828,11 +1829,16 @@ mod http_tests {
             .mount(&server)
             .await;
 
-        let Err(err) = client_for(&server).search_issues("", 10).await else {
-            panic!("a gateway error must be an error");
-        };
+        let err = client_for(&server)
+            .search_issues("", 10)
+            .await
+            .err()
+            .expect("a gateway error must be an error");
         assert!(err.contains("502"), "{err}");
-        assert!(err.len() < 700, "the body must be bounded: {}", err.len());
+        // Bounded, so a proxy's whole HTML page cannot reach the log or the
+        // error banner. `assert!` with a formatted message would leave the
+        // message arm as an uncovered line for no diagnostic gain here.
+        assert!(err.len() < 700);
     }
 
     #[tokio::test]

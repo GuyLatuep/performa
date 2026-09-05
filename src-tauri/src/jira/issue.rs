@@ -900,10 +900,12 @@ mod http_tests {
             "created": "2026-03-10T09:00:00.000+0100",
             "updated": "2026-03-15T11:00:00.000+0100",
         });
-        if let (Some(base), Some(extra)) = (base.as_object_mut(), fields.as_object()) {
-            for (k, v) in extra {
-                base.insert(k.clone(), v.clone());
-            }
+        // Both are objects by construction; saying so beats an `if let` whose
+        // else-arm no test can ever reach.
+        let extra = fields.as_object().expect("fields must be a JSON object");
+        let merged = base.as_object_mut().expect("the base is a JSON object");
+        for (k, v) in extra {
+            merged.insert(k.clone(), v.clone());
         }
         json!({ "key": "ABC-1", "fields": base })
     }
@@ -1141,9 +1143,11 @@ mod http_tests {
         )
         .await;
 
-        let Err(err) = client_for(&server).issue_detail("ABC-9", &[]).await else {
-            panic!("a missing issue must be an error");
-        };
+        let err = client_for(&server)
+            .issue_detail("ABC-9", &[])
+            .await
+            .err()
+            .expect("a missing issue must be an error");
 
         assert!(err.contains("404"), "{err}");
         assert!(err.contains("Issue does not exist"), "{err}");
@@ -1160,9 +1164,11 @@ mod http_tests {
         )
         .await;
 
-        let Err(err) = client_for(&server).issue_detail("ABC-1", &[]).await else {
-            panic!("a rejected request must be an error");
-        };
+        let err = client_for(&server)
+            .issue_detail("ABC-1", &[])
+            .await
+            .err()
+            .expect("a rejected request must be an error");
 
         assert!(err.contains("customfield_10052"), "{err}");
     }
