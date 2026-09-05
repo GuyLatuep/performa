@@ -116,3 +116,75 @@ describe("log level", () => {
     expect(getLogLevel()).toBe("error");
   });
 });
+
+describe("fun mode", () => {
+  const FUN_MODE_KEY = "performa-fun-mode";
+
+  it("is off until it is turned on", async () => {
+    const { getFunMode } = await freshSettings();
+
+    expect(getFunMode()).toBe(false);
+  });
+
+  it("round-trips and persists", async () => {
+    const { setFunMode, getFunMode } = await freshSettings();
+
+    setFunMode(true);
+
+    expect(getFunMode()).toBe(true);
+    expect(localStorage.getItem(FUN_MODE_KEY)).toBe("true");
+  });
+
+  it("comes back on after a reload", async () => {
+    const { getFunMode } = await freshSettings({ [FUN_MODE_KEY]: "true" });
+
+    expect(getFunMode()).toBe(true);
+  });
+
+  it("can be turned off again", async () => {
+    const { setFunMode, getFunMode } = await freshSettings({
+      [FUN_MODE_KEY]: "true",
+    });
+
+    setFunMode(false);
+
+    expect(getFunMode()).toBe(false);
+    expect(localStorage.getItem(FUN_MODE_KEY)).toBe("false");
+  });
+});
+
+describe("the timesheet view", () => {
+  const TIMESHEET_VIEW_KEY = "performa-timesheet-view";
+
+  it("starts on the week", async () => {
+    // The month matrix wants a wide window; the week reads on any of them.
+    const { getTimesheetView } = await freshSettings();
+
+    expect(getTimesheetView()).toBe("week");
+  });
+
+  it("remembers the month once chosen", async () => {
+    const { setTimesheetView, getTimesheetView } = await freshSettings();
+
+    setTimesheetView("month");
+
+    expect(getTimesheetView()).toBe("month");
+    expect(localStorage.getItem(TIMESHEET_VIEW_KEY)).toBe("month");
+  });
+
+  it("restores the stored view on the next launch", async () => {
+    const { getTimesheetView } = await freshSettings({
+      [TIMESHEET_VIEW_KEY]: "month",
+    });
+
+    expect(getTimesheetView()).toBe("month");
+  });
+
+  it("falls back to the week for anything it does not recognise", async () => {
+    const { getTimesheetView } = await freshSettings({
+      [TIMESHEET_VIEW_KEY]: "fortnight",
+    });
+
+    expect(getTimesheetView()).toBe("week");
+  });
+});

@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   eachDate,
+  formatDayLabel,
   formatDuration,
   isWeekend,
   monthLabel,
   monthRange,
   parseDuration,
   startOfWeek,
+  timeAgo,
   toDateInput,
   weekChunks,
   weekRange,
@@ -221,3 +223,76 @@ function withSystemTime(at: Date, body: () => void): void {
     vi.useRealTimers();
   }
 }
+
+describe("formatDayLabel", () => {
+  // A fixed Sunday, so "today" and "not today" are both unambiguous.
+  const NOON = new Date(2026, 2, 15, 12, 0, 0);
+
+  it("marks the current day and leaves every other day unmarked", () => {
+    withSystemTime(NOON, () => {
+      expect(formatDayLabel("2026-03-15", { weekday: "short" })).toMatch(
+        / · Today$/,
+      );
+      expect(formatDayLabel("2026-03-14", { weekday: "short" })).not.toMatch(
+        /Today/,
+      );
+    });
+  });
+
+  it("reads the date as local midnight, not UTC", () => {
+    // The bug this guards against only shows west of Greenwich, where a bare
+    // "yyyy-MM-dd" parses as UTC and renders as the day before. CI runs the
+    // suite in America/Los_Angeles for exactly this reason.
+    withSystemTime(NOON, () => {
+      const local = new Date(2026, 2, 14).toLocaleDateString(undefined, {
+        weekday: "short",
+      });
+      expect(formatDayLabel("2026-03-14", { weekday: "short" })).toBe(local);
+    });
+  });
+
+  it("passes the caller's options through", () => {
+    withSystemTime(NOON, () => {
+      const dayOnly = formatDayLabel("2026-03-14", { day: "numeric" });
+      const withMonth = formatDayLabel("2026-03-14", {
+        day: "numeric",
+        month: "long",
+      });
+      expect(withMonth.length).toBeGreaterThan(dayOnly.length);
+    });
+  });
+});
+
+describe("timeAgo", () => {
+  const NOW = new Date(2026, 2, 15, 12, 0, 0);
+
+  /** `iso` for a moment `minutes` before NOW. */
+  function agoBy(minutes: number): string {
+    return new Date(NOW.getTime() - minutes * 60_000).toISOString();
+  }
+
+  it("counts minutes below an hour", () => {
+    withSystemTime(NOW, () => {
+      expect(timeAgo(agoBy(0))).toBe("0m ago");
+      expect(timeAgo(agoBy(5))).toBe("5m ago");
+      expect(timeAgo(agoBy(59))).toBe("59m ago");
+    });
+  });
+
+  it("switches to hours, then to days", () => {
+    withSystemTime(NOW, () => {
+      expect(timeAgo(agoBy(60))).toBe("1h ago");
+      expect(timeAgo(agoBy(23 * 60))).toBe("23h ago");
+      expect(timeAgo(agoBy(24 * 60))).toBe("1d ago");
+      expect(timeAgo(agoBy(10 * 24 * 60))).toBe("10d ago");
+    });
+  });
+
+  it("never counts backwards for a timestamp in the future", () => {
+    // Clock skew between Jira and this machine is enough to produce one, and
+    // "-3m ago" would be a visible bug rather than a harmless oddity.
+    withSystemTime(NOW, () => {
+      expect(timeAgo(agoBy(-30))).toBe("0m ago");
+    });
+  });
+});

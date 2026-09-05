@@ -97,3 +97,63 @@ describe("applyAccent", () => {
     expect(style.setProperty).toHaveBeenCalledWith("--accent-ink", INK_DARK);
   });
 });
+
+describe("setAccent", () => {
+  const STORAGE_KEY = "performa-accent";
+
+  /** Fresh module over a seeded storage — the store resolves its initial
+   *  value once, at import, and applies it to the document there too. */
+  async function freshAccent(stored?: string) {
+    localStorage.clear();
+    if (stored !== undefined) localStorage.setItem(STORAGE_KEY, stored);
+    vi.resetModules();
+    style.setProperty.mockClear();
+    return import("./accent");
+  }
+
+  it("stores a valid colour and reflects it onto the document", async () => {
+    const { setAccent, getAccent } = await freshAccent();
+
+    setAccent("#ff3dc4");
+
+    expect(getAccent()).toBe("#ff3dc4");
+    expect(localStorage.getItem(STORAGE_KEY)).toBe("#ff3dc4");
+    expect(style.setProperty).toHaveBeenCalledWith("--accent", "#ff3dc4");
+  });
+
+  it("ignores anything that is not a six-digit hex colour", async () => {
+    // The value reaches here from a colour input and from storage, so a
+    // half-typed or hand-edited one must leave the accent alone rather than
+    // write a broken CSS variable the whole app then renders through.
+    const { setAccent, getAccent } = await freshAccent("#ff3dc4");
+    style.setProperty.mockClear();
+
+    for (const bad of ["", "nope", "#fff", "#ff3dc", "#ff3dc44", "ff3dc4"]) {
+      setAccent(bad);
+    }
+
+    expect(getAccent()).toBe("#ff3dc4");
+    expect(localStorage.getItem(STORAGE_KEY)).toBe("#ff3dc4");
+    expect(style.setProperty).not.toHaveBeenCalled();
+  });
+
+  it("takes a hex colour in either case", async () => {
+    const { setAccent, getAccent } = await freshAccent();
+
+    setAccent("#AABBCC");
+
+    expect(getAccent()).toBe("#AABBCC");
+  });
+
+  it("falls back to the default when storage holds something unusable", async () => {
+    const { getAccent } = await freshAccent("not-a-colour");
+
+    expect(getAccent()).toBe(DEFAULT_ACCENT);
+  });
+
+  it("restores a stored colour on the next launch", async () => {
+    const { getAccent } = await freshAccent("#123456");
+
+    expect(getAccent()).toBe("#123456");
+  });
+});
