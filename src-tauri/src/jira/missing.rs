@@ -720,3 +720,239 @@ mod tests {
         assert!(!cached(None, true).is_fresh_for(None, true));
     }
 }
+
+/// Round-trip tests for the scan itself, over a real HTTP server.
+///
+/// The pure helpers above are tested directly; this is about the heuristic as
+/// a whole — which issues get flagged, and which are correctly left alone.
+#[cfg(test)]
+mod http_tests {
+    use serde_json::json;
+    use wiremock::MockServer;
+
+    use super::MissingConfig;
+    use crate::jira::test_support::{client_for, mount_get_matching};
+
+    const ME: &str = "acc-me";
+
+    /// Far enough back that the fixtures' own stamps decide everything, with a
+    /// grace period short enough not to suppress them.
+    fn config() -> MissingConfig {
+        MissingConfig {
+            lookback_days: 30,
+            window_secs: 3 * 3600,
+            grace_secs: 0,
+            escalation_project: "DEV".to_string(),
+            escalation_link: "is an escalation for".to_string(),
+            bookable_done_statuses: vec!["Resolved".to_string()],
+        }
+    }
+
+    fn adf(text: &str) -> serde_json::Value {
+        json!({
+            "type": "doc",
+            "version": 1,
+            "content": [{
+                "type": "paragraph",
+                "content": [{ "type": "text", "text": text }]
+            }]
+        })
+    }
+
+    /// Epoch-seconds `hours_ago`, as a Jira timestamp.
+    fn hours_ago(hours: i64) -> String {
+        let when = chrono::Local::now() - chrono::Duration::hours(hours);
+        when.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string()
+    }
+
+    /// A site where the searches find one issue, it carries `comments`, and
+    /// `worklogs` have been booked on it.
+    async fn site(comments: serde_json::Value, worklogs: serde_json::Value) -> MockServer {
+        let server = MockServer::start().await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/search/jql$",
+            json!({ "issues": [{
+                "key": "ABC-1",
+                "fields": { "summary": "Replace the pump", "updated": hours_ago(1) }
+            }]}),
+        )
+        .await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/issue/[^/]+/comment$",
+            json!({ "comments": comments }),
+        )
+        .await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/issue/[^/]+/changelog$",
+            json!({ "values": [], "total": 0 }),
+        )
+        .await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/issue/[^/]+/worklog$",
+            json!({ "worklogs": worklogs }),
+        )
+        .await;
+        server
+    }
+
+    fn my_comment(hours: i64, text: &str) -> serde_json::Value {
+        json!({
+            "id": "1",
+            "created": hours_ago(hours),
+            "author": { "accountId": ME },
+            "body": adf(text),
+        })
+    }
+
+    fn my_worklog(started_hours_ago: i64, seconds: i64) -> serde_json::Value {
+        json!({
+            "id": "w1",
+            "author": { "accountId": ME },
+            "started": hours_ago(started_hours_ago),
+            "timeSpentSeconds": seconds,
+        })
+    }
+
+    #[tokio::test]
+    async fn a_comment_with_no_worklog_near_it_is_flagged() {
+        let server = site(json!([my_comment(5, "cleaned the filter")]), json!([])).await;
+
+        let found = client_for(&server)
+            .missing_worklogs(ME, &config())
+            .await
+            .expect("scan");
+
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].issue_key, "ABC-1");
+        assert_eq!(found[0].kind, "comment");
+        assert!(found[0].detail.contains("cleaned the filter"));
+        // The time goes on the issue itself when nothing redirects it.
+        assert_eq!(found[0].log_key, "ABC-1");
+    }
+
+    #[tokio::test]
+    async fn a_comment_a_worklog_already_covers_is_not_flagged() {
+        // The whole point of the heuristic: time booked around the activity
+        // means it was not forgotten.
+        let server = site(
+            json!([my_comment(5, "cleaned the filter")]),
+            json!([my_worklog(6, 2 * 3600)]),
+        )
+        .await;
+
+        let found = client_for(&server)
+            .missing_worklogs(ME, &config())
+            .await
+            .expect("scan");
+
+        assert!(found.is_empty(), "{found:?}", found = found.len());
+    }
+
+    #[tokio::test]
+    async fn somebody_elses_comment_is_not_my_missing_worklog() {
+        let server = site(
+            json!([{
+                "id": "1",
+                "created": hours_ago(5),
+                "author": { "accountId": "acc-them" },
+                "body": adf("their comment"),
+            }]),
+            json!([]),
+        )
+        .await;
+
+        let found = client_for(&server)
+            .missing_worklogs(ME, &config())
+            .await
+            .expect("scan");
+
+        assert!(found.is_empty());
+    }
+
+    #[tokio::test]
+    async fn activity_still_inside_the_grace_period_is_left_alone() {
+        // There has to be a chance to log before the reminder appears.
+        let mut cfg = config();
+        cfg.grace_secs = 24 * 3600;
+        let server = site(json!([my_comment(1, "just now")]), json!([])).await;
+
+        let found = client_for(&server)
+            .missing_worklogs(ME, &cfg)
+            .await
+            .expect("scan");
+
+        assert!(found.is_empty());
+    }
+
+    #[tokio::test]
+    async fn activity_older_than_the_lookback_is_out_of_scope() {
+        let mut cfg = config();
+        cfg.lookback_days = 1;
+        let server = site(json!([my_comment(72, "last week")]), json!([])).await;
+
+        let found = client_for(&server)
+            .missing_worklogs(ME, &cfg)
+            .await
+            .expect("scan");
+
+        assert!(found.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_worklog_far_from_the_activity_does_not_cover_it() {
+        // A worklog booked in the morning says nothing about an evening
+        // comment; `window_secs` is what "near" means.
+        let server = site(
+            json!([my_comment(2, "evening work")]),
+            json!([my_worklog(20, 3600)]),
+        )
+        .await;
+
+        let found = client_for(&server)
+            .missing_worklogs(ME, &config())
+            .await
+            .expect("scan");
+
+        assert_eq!(found.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn an_issue_with_nothing_on_it_costs_no_worklog_fetch() {
+        // The scan runs over every recently touched issue; skipping the
+        // worklog read when there is no own activity is what keeps it cheap.
+        let server = site(json!([]), json!([])).await;
+
+        let found = client_for(&server)
+            .missing_worklogs(ME, &config())
+            .await
+            .expect("scan");
+
+        assert!(found.is_empty());
+        assert_eq!(
+            crate::jira::test_support::requests_to(&server, "/worklog").await,
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn a_failing_scan_is_an_error_rather_than_an_empty_inbox() {
+        // "Nothing to log" and "we could not check" must not look the same.
+        let server = MockServer::start().await;
+        crate::jira::test_support::mount_get_failing(
+            &server,
+            r"^/rest/api/3/search/jql$",
+            503,
+            json!({ "errorMessages": ["Service unavailable"] }),
+        )
+        .await;
+
+        let Err(err) = client_for(&server).missing_worklogs(ME, &config()).await else {
+            panic!("a failed scan must not read as nothing missing");
+        };
+        assert!(err.contains("503"), "{err}");
+    }
+}

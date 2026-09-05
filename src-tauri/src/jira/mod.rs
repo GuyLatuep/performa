@@ -12,6 +12,8 @@ mod issue;
 mod links;
 mod mentions;
 mod missing;
+#[cfg(test)]
+mod test_support;
 mod types;
 
 use std::collections::{BTreeMap, HashMap};
@@ -1549,5 +1551,353 @@ mod tests {
             }]
         });
         assert_eq!(adf_to_text(&doc), "@Malte please review");
+    }
+}
+
+/// Round-trip tests for the worklog fan-out and the shared error handling,
+/// over a real HTTP server. See [`test_support`] for why a server rather than
+/// a stubbed transport.
+#[cfg(test)]
+mod http_tests {
+    use serde_json::json;
+    use wiremock::MockServer;
+
+    use super::test_support::{client_for, mount_get_failing, mount_get_matching, requests_to};
+
+    const ME: &str = "acc-me";
+    const SOMEBODY_ELSE: &str = "acc-them";
+
+    fn adf(text: &str) -> serde_json::Value {
+        json!({
+            "type": "doc",
+            "version": 1,
+            "content": [{
+                "type": "paragraph",
+                "content": [{ "type": "text", "text": text }]
+            }]
+        })
+    }
+
+    fn worklog(
+        id: &str,
+        account: &str,
+        started: &str,
+        seconds: i64,
+        comment: Option<&str>,
+    ) -> serde_json::Value {
+        let mut w = json!({
+            "id": id,
+            "author": { "accountId": account },
+            "started": started,
+            "timeSpentSeconds": seconds,
+        });
+        if let Some(text) = comment {
+            w["comment"] = adf(text);
+        }
+        w
+    }
+
+    /// A site whose search finds `issues` and whose every issue carries the
+    /// same `worklogs`.
+    async fn site_with_worklogs(
+        issues: serde_json::Value,
+        worklogs: serde_json::Value,
+    ) -> MockServer {
+        let server = MockServer::start().await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/search/jql$",
+            json!({ "issues": issues }),
+        )
+        .await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/issue/[^/]+/worklog$",
+            json!({ "worklogs": worklogs }),
+        )
+        .await;
+        server
+    }
+
+    fn one_issue() -> serde_json::Value {
+        json!([{ "key": "ABC-1", "fields": { "summary": "Replace the pump" } }])
+    }
+
+    #[tokio::test]
+    async fn only_my_own_worklogs_come_back() {
+        // The search finds issues *somebody* logged on; each issue's worklogs
+        // then arrive whole, colleagues' included.
+        let server = site_with_worklogs(
+            one_issue(),
+            json!([
+                worklog("1", ME, "2026-03-15T09:00:00.000+0100", 3600, None),
+                worklog(
+                    "2",
+                    SOMEBODY_ELSE,
+                    "2026-03-15T10:00:00.000+0100",
+                    7200,
+                    None
+                ),
+            ]),
+        )
+        .await;
+
+        let entries = client_for(&server)
+            .my_worklogs(ME, "2026-03-15", "2026-03-15")
+            .await
+            .expect("worklogs");
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, "1");
+        assert_eq!(entries[0].time_spent_seconds, 3600);
+    }
+
+    #[tokio::test]
+    async fn a_worklog_outside_the_window_is_dropped() {
+        // `startedAfter` narrows the query but does not close it: it is set a
+        // day early, and the far end is not bounded at all.
+        let server = site_with_worklogs(
+            one_issue(),
+            json!([
+                worklog("before", ME, "2026-03-14T23:00:00.000+0100", 60, None),
+                worklog("inside", ME, "2026-03-15T09:00:00.000+0100", 60, None),
+                worklog("after", ME, "2026-03-16T09:00:00.000+0100", 60, None),
+            ]),
+        )
+        .await;
+
+        let entries = client_for(&server)
+            .my_worklogs(ME, "2026-03-15", "2026-03-15")
+            .await
+            .expect("worklogs");
+
+        let ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
+        assert_eq!(ids, vec!["inside"]);
+    }
+
+    #[tokio::test]
+    async fn entries_carry_their_issue_and_are_newest_first() {
+        let server = site_with_worklogs(
+            one_issue(),
+            json!([
+                worklog("early", ME, "2026-03-15T09:00:00.000+0100", 60, None),
+                worklog("late", ME, "2026-03-15T16:30:00.000+0100", 60, None),
+            ]),
+        )
+        .await;
+
+        let entries = client_for(&server)
+            .my_worklogs(ME, "2026-03-15", "2026-03-15")
+            .await
+            .expect("worklogs");
+
+        assert_eq!(entries[0].id, "late");
+        assert_eq!(entries[0].time, "16:30");
+        assert_eq!(entries[0].date, "2026-03-15");
+        assert_eq!(entries[0].issue_key, "ABC-1");
+        assert_eq!(entries[0].issue_summary, "Replace the pump");
+    }
+
+    #[tokio::test]
+    async fn the_billable_marker_is_decoded_rather_than_shown() {
+        // ActivityTimeline encodes non-billable as a leading `~`. The user
+        // wrote the comment; they did not write the tilde.
+        let server = site_with_worklogs(
+            one_issue(),
+            json!([
+                worklog(
+                    "b",
+                    ME,
+                    "2026-03-15T09:00:00.000+0100",
+                    60,
+                    Some("real work")
+                ),
+                worklog("n", ME, "2026-03-15T10:00:00.000+0100", 60, Some("~rework")),
+            ]),
+        )
+        .await;
+
+        let entries = client_for(&server)
+            .my_worklogs(ME, "2026-03-15", "2026-03-15")
+            .await
+            .expect("worklogs");
+
+        let non_billable = entries
+            .iter()
+            .find(|e| e.id == "n")
+            .expect("the marked one");
+        assert!(!non_billable.billable);
+        assert_eq!(non_billable.comment, "rework");
+
+        let billable = entries.iter().find(|e| e.id == "b").expect("the plain one");
+        assert!(billable.billable);
+        assert_eq!(billable.comment, "real work");
+    }
+
+    #[tokio::test]
+    async fn a_week_with_nothing_logged_is_empty_rather_than_an_error() {
+        let server = site_with_worklogs(json!([]), json!([])).await;
+
+        let entries = client_for(&server)
+            .my_worklogs(ME, "2026-03-09", "2026-03-15")
+            .await
+            .expect("worklogs");
+
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn every_candidate_issue_is_asked_about() {
+        // The fan-out is what makes the month view quick; a search hit whose
+        // worklogs were never fetched would silently lose the time on it.
+        let server = site_with_worklogs(
+            json!([
+                { "key": "ABC-1", "fields": { "summary": "One" } },
+                { "key": "ABC-2", "fields": { "summary": "Two" } },
+                { "key": "ABC-3", "fields": { "summary": "Three" } },
+            ]),
+            json!([worklog("1", ME, "2026-03-15T09:00:00.000+0100", 60, None)]),
+        )
+        .await;
+
+        let entries = client_for(&server)
+            .my_worklogs(ME, "2026-03-15", "2026-03-15")
+            .await
+            .expect("worklogs");
+
+        assert_eq!(entries.len(), 3);
+        assert_eq!(requests_to(&server, "/worklog").await, 3);
+    }
+
+    #[tokio::test]
+    async fn one_failing_issue_fails_the_whole_read() {
+        // A month silently missing one issue's time is worse than an error:
+        // the totals would look right and be wrong.
+        let server = MockServer::start().await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/search/jql$",
+            json!({ "issues": one_issue() }),
+        )
+        .await;
+        mount_get_failing(
+            &server,
+            r"^/rest/api/3/issue/[^/]+/worklog$",
+            500,
+            json!({ "errorMessages": ["Internal server error"] }),
+        )
+        .await;
+
+        let Err(err) = client_for(&server)
+            .my_worklogs(ME, "2026-03-15", "2026-03-15")
+            .await
+        else {
+            panic!("a failed worklog fetch must not read as an empty month");
+        };
+        assert!(err.contains("500"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn a_jira_error_body_becomes_the_message_the_user_sees() {
+        let server = MockServer::start().await;
+        mount_get_failing(
+            &server,
+            r"^/rest/api/3/search/jql$",
+            400,
+            json!({ "errorMessages": ["The JQL query is malformed"], "errors": {} }),
+        )
+        .await;
+
+        let Err(err) = client_for(&server).search_issues("nonsense", 10).await else {
+            panic!("a rejected search must be an error");
+        };
+        assert!(err.contains("400"), "{err}");
+        assert!(err.contains("The JQL query is malformed"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn a_response_that_is_not_jiras_error_json_still_reads_as_something() {
+        // A proxy's HTML page, say. The raw body stands in, bounded so it
+        // cannot flood the log or the error banner.
+        let server = MockServer::start().await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path_regex(r"^/rest/api/3/search/jql$"))
+            .respond_with(
+                wiremock::ResponseTemplate::new(502).set_body_string("<html>Bad Gateway</html>"),
+            )
+            .mount(&server)
+            .await;
+
+        let Err(err) = client_for(&server).search_issues("", 10).await else {
+            panic!("a gateway error must be an error");
+        };
+        assert!(err.contains("502"), "{err}");
+        assert!(err.len() < 700, "the body must be bounded: {}", err.len());
+    }
+
+    #[tokio::test]
+    async fn a_comment_page_is_fetched_once_and_reused_while_the_issue_is_untouched() {
+        // Both background scans read the same page; without the cache the
+        // heaviest call in the app happened twice whenever they coincided.
+        let server = MockServer::start().await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/issue/[^/]+/comment$",
+            json!({ "comments": [
+                { "id": "1", "created": "2026-03-15T09:00:00.000+0100", "body": adf("hello") }
+            ]}),
+        )
+        .await;
+        let client = client_for(&server);
+        let stamp = Some("2026-03-15T11:00:00.000+0100");
+
+        let first = client.recent_comments("ABC-1", stamp).await;
+        let second = client.recent_comments("ABC-1", stamp).await;
+
+        assert_eq!(first.expect("first").len(), 1);
+        assert_eq!(second.expect("second").len(), 1);
+        assert_eq!(requests_to(&server, "/comment").await, 1);
+    }
+
+    #[tokio::test]
+    async fn a_comment_page_is_refetched_once_the_issue_moves() {
+        let server = MockServer::start().await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/issue/[^/]+/comment$",
+            json!({ "comments": [] }),
+        )
+        .await;
+        let client = client_for(&server);
+
+        client
+            .recent_comments("ABC-1", Some("2026-03-15T11:00:00.000+0100"))
+            .await
+            .ok();
+        client
+            .recent_comments("ABC-1", Some("2026-03-15T12:00:00.000+0100"))
+            .await
+            .ok();
+
+        assert_eq!(requests_to(&server, "/comment").await, 2);
+    }
+
+    #[tokio::test]
+    async fn a_page_that_cannot_prove_itself_current_is_never_served_from_cache() {
+        // The issue view reads with no stamp on purpose; caching that would
+        // evict the entries the background scans depend on.
+        let server = MockServer::start().await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/issue/[^/]+/comment$",
+            json!({ "comments": [] }),
+        )
+        .await;
+        let client = client_for(&server);
+
+        client.recent_comments("ABC-1", None).await.ok();
+        client.recent_comments("ABC-1", None).await.ok();
+
+        assert_eq!(requests_to(&server, "/comment").await, 2);
     }
 }
