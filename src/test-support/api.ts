@@ -227,10 +227,18 @@ function defaultAnswers(): Partial<Record<MethodName, unknown>> {
 }
 
 /** The singleton the tests steer. Vitest gives every test file its own module
- *  registry, so one file's overrides cannot reach another's. */
+ *  registry, so one file's overrides cannot reach another's.
+ *
+ *  Armed with its defaults here rather than only in `resetApiMock`: the store
+ *  modules call the backend *at import time* — `settings.ts` mirrors the log
+ *  level over on its first line — which happens before any `beforeEach` has
+ *  run. A bare `vi.fn()` returns `undefined` there, and the `.catch()` on it
+ *  takes the whole file down before a single test starts.
+ */
 export const apiMock = Object.fromEntries(
   [...METHOD_NAMES, "invalidateCachedReads"].map((name) => [name, vi.fn()]),
 ) as ApiMock;
+armDefaults();
 
 /** Put every method back to its default answer.
  *
@@ -239,10 +247,17 @@ export const apiMock = Object.fromEntries(
  *  queued, which then fires in the middle of the next one.
  */
 export function resetApiMock(): void {
+  for (const name of [...METHOD_NAMES, "invalidateCachedReads"] as const) {
+    apiMock[name].mockReset();
+  }
+  armDefaults();
+}
+
+/** Give every method its default answer. */
+function armDefaults(): void {
   const answers = defaultAnswers();
   for (const name of [...METHOD_NAMES, "invalidateCachedReads"] as const) {
     const fn = apiMock[name];
-    fn.mockReset();
     if (name === "invalidateCachedReads") {
       fn.mockImplementation(() => undefined);
     } else {
