@@ -42,3 +42,14 @@ log = { version = "0.4", features = ["std"] }
 open = "5"
 tauri-plugin-window-state = "2.4.1"
 
+
+[dev-dependencies]
+# A real HTTP server on localhost, so the client is exercised over its actual
+# transport rather than against a hand-stubbed `reqwest`. `JiraClient::new`
+# takes the base URL from the credentials it is given (see `jira::mod`), so
+# pointing one at a mock server needs no seam in the client itself.
+wiremock = "0.6"
+# The crate's own `tokio` carries only "sync" and "time" — enough for the app,
+# not enough for `#[tokio::test]`, which needs the macro and a runtime to run
+# the futures on.
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

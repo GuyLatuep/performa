@@ -870,3 +870,578 @@ mod tests {
         assert_eq!(field_value(&json!({ "id": "10001" })), None);
     }
 }
+
+/// Round-trip tests for the issue view, over a real HTTP server.
+///
+/// Separate from the pure-helper tests above because they need a runtime and a
+/// mock site — see [`super::test_support`] for why that is done with a server
+/// rather than a stubbed transport.
+#[cfg(test)]
+mod http_tests {
+    use serde_json::json;
+    use wiremock::MockServer;
+
+    use super::super::COMMENT_PAGE_LIMIT;
+    use crate::jira::test_support::{
+        client_for, field_catalog, mount_get, mount_get_failing, mount_get_matching, requests_to,
+    };
+
+    /// A minimal issue response. `fields` is merged over the standard ones so a
+    /// test only has to say what it cares about.
+    fn issue_body(fields: serde_json::Value) -> serde_json::Value {
+        let mut base = json!({
+            "summary": "Replace the pump",
+            "status": { "name": "In Progress" },
+            "priority": { "name": "High" },
+            "issuetype": { "name": "Task" },
+            "reporter": { "displayName": "Anna Leeson" },
+            "assignee": { "displayName": "Malte Polzin" },
+            "duedate": "2026-03-20",
+            "created": "2026-03-10T09:00:00.000+0100",
+            "updated": "2026-03-15T11:00:00.000+0100",
+        });
+        if let (Some(base), Some(extra)) = (base.as_object_mut(), fields.as_object()) {
+            for (k, v) in extra {
+                base.insert(k.clone(), v.clone());
+            }
+        }
+        json!({ "key": "ABC-1", "fields": base })
+    }
+
+    async fn site_with_issue(fields: serde_json::Value) -> MockServer {
+        let server = MockServer::start().await;
+        mount_get(&server, "/rest/api/3/field", field_catalog()).await;
+        mount_get_matching(&server, r"^/rest/api/3/issue/[^/]+$", issue_body(fields)).await;
+        server
+    }
+
+    #[tokio::test]
+    async fn an_issue_arrives_with_its_standard_fields_shaped() {
+        let server = site_with_issue(json!({})).await;
+
+        let detail = client_for(&server)
+            .issue_detail("ABC-1", &[])
+            .await
+            .expect("issue");
+
+        assert_eq!(detail.key, "ABC-1");
+        assert_eq!(detail.summary, "Replace the pump");
+        assert_eq!(detail.status.as_deref(), Some("In Progress"));
+        assert_eq!(detail.priority.as_deref(), Some("High"));
+        assert_eq!(detail.issue_type.as_deref(), Some("Task"));
+        assert_eq!(detail.reporter.as_deref(), Some("Anna Leeson"));
+        assert_eq!(detail.assignee.as_deref(), Some("Malte Polzin"));
+        assert_eq!(detail.due_date.as_deref(), Some("2026-03-20"));
+    }
+
+    #[tokio::test]
+    async fn an_absent_field_is_absent_rather_than_empty() {
+        // A blank string would render as a field with nothing in it; `None`
+        // lets the view leave the row out.
+        let server = MockServer::start().await;
+        mount_get(&server, "/rest/api/3/field", field_catalog()).await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/issue/[^/]+$",
+            json!({ "key": "ABC-1", "fields": { "summary": "Bare", "assignee": null } }),
+        )
+        .await;
+
+        let detail = client_for(&server)
+            .issue_detail("ABC-1", &[])
+            .await
+            .expect("issue");
+
+        assert_eq!(detail.summary, "Bare");
+        assert!(detail.assignee.is_none());
+        assert!(detail.status.is_none());
+        assert!(detail.due_date.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_configured_field_is_resolved_by_name_and_carried_through() {
+        let server = site_with_issue(json!({ "customfield_101": "K12" })).await;
+
+        let detail = client_for(&server)
+            .issue_detail("ABC-1", &["Plant no."])
+            .await
+            .expect("issue");
+
+        assert_eq!(detail.details.len(), 1);
+        let field = &detail.details[0];
+        // The label is what the user configured; the id is the site's.
+        assert_eq!(field.label, "Plant no.");
+        assert_eq!(field.id, "customfield_101");
+        assert_eq!(field.value, "K12");
+    }
+
+    #[tokio::test]
+    async fn field_names_are_matched_the_way_the_catalog_normalises_them() {
+        // Settings hold the name as the user typed it; the catalog is matched
+        // case- and punctuation-insensitively so "plant no" still resolves.
+        let server = site_with_issue(json!({ "customfield_101": "K12" })).await;
+
+        let detail = client_for(&server)
+            .issue_detail("ABC-1", &["plant no"])
+            .await
+            .expect("issue");
+
+        assert_eq!(detail.details.len(), 1);
+        assert_eq!(detail.details[0].value, "K12");
+    }
+
+    #[tokio::test]
+    async fn a_field_the_site_does_not_have_is_left_out_rather_than_failing() {
+        // A typo in the user's field list must not take the whole issue down.
+        let server = site_with_issue(json!({ "customfield_101": "K12" })).await;
+
+        let detail = client_for(&server)
+            .issue_detail("ABC-1", &["Plant no.", "No Such Field"])
+            .await
+            .expect("issue");
+
+        assert_eq!(detail.details.len(), 1);
+        assert_eq!(detail.details[0].label, "Plant no.");
+    }
+
+    #[tokio::test]
+    async fn a_field_that_resolves_but_renders_as_nothing_is_dropped() {
+        // It disappears from the view exactly as an unconfigured one would —
+        // the difference is logged, not shown.
+        let server = site_with_issue(json!({ "customfield_101": null })).await;
+
+        let detail = client_for(&server)
+            .issue_detail("ABC-1", &["Plant no."])
+            .await
+            .expect("issue");
+
+        assert!(detail.details.is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_configured_order_is_the_order_the_fields_come_back_in() {
+        let server = site_with_issue(json!({
+            "customfield_101": "K12",
+            "customfield_102": "Line 4",
+        }))
+        .await;
+
+        let detail = client_for(&server)
+            .issue_detail("ABC-1", &["Line", "Plant no."])
+            .await
+            .expect("issue");
+
+        let labels: Vec<&str> = detail.details.iter().map(|f| f.label.as_str()).collect();
+        assert_eq!(labels, vec!["Line", "Plant no."]);
+    }
+
+    #[tokio::test]
+    async fn the_request_names_every_field_it_wants() {
+        // The module docs justify the whole catalog on this: naming the fields
+        // keeps the response small enough for the view to feel immediate.
+        let server = site_with_issue(json!({ "customfield_101": "K12" })).await;
+
+        client_for(&server)
+            .issue_detail("ABC-1", &["Plant no."])
+            .await
+            .expect("issue");
+
+        let requests = server.received_requests().await.expect("requests");
+        let issue_request = requests
+            .iter()
+            .find(|r| r.url.path().ends_with("/issue/ABC-1"))
+            .expect("the issue was fetched");
+        let fields = issue_request
+            .url
+            .query_pairs()
+            .find(|(k, _)| k == "fields")
+            .map(|(_, v)| v.to_string())
+            .expect("a fields parameter");
+        assert!(fields.contains("summary"), "{fields}");
+        assert!(fields.contains("customfield_101"), "{fields}");
+        assert!(!fields.contains('*'), "no wildcard: {fields}");
+    }
+
+    #[tokio::test]
+    async fn a_service_desk_project_is_recognised_from_the_project_itself() {
+        // Whether a comment can be public is a property of the project. Getting
+        // this wrong offers a "reply to customer" button that reaches the
+        // customer while claiming it does not.
+        let server = site_with_issue(json!({
+            "project": { "projectTypeKey": "service_desk" },
+        }))
+        .await;
+
+        let detail = client_for(&server)
+            .issue_detail("ABC-1", &[])
+            .await
+            .expect("issue");
+
+        assert!(detail.service_desk);
+    }
+
+    #[tokio::test]
+    async fn an_ordinary_project_is_not_a_service_desk() {
+        let server = site_with_issue(json!({
+            "project": { "projectTypeKey": "software" },
+        }))
+        .await;
+
+        let detail = client_for(&server)
+            .issue_detail("ABC-1", &[])
+            .await
+            .expect("issue");
+
+        assert!(!detail.service_desk);
+    }
+
+    #[tokio::test]
+    async fn a_request_type_stands_in_when_the_project_is_missing() {
+        // An agent-raised ticket carries no request type, so the project is the
+        // better signal — but when Jira returns no project at all, a request
+        // type still proves it is a service desk.
+        let server = site_with_issue(json!({ "customfield_103": { "value": "Fault" } })).await;
+
+        let detail = client_for(&server)
+            .issue_detail("ABC-1", &[])
+            .await
+            .expect("issue");
+
+        assert!(detail.service_desk);
+    }
+
+    #[tokio::test]
+    async fn the_field_catalog_is_fetched_once_for_the_whole_app_run() {
+        // It is the heaviest endpoint on the site; a second issue must not pay
+        // for it again.
+        let server = site_with_issue(json!({ "customfield_101": "K12" })).await;
+        let client = client_for(&server);
+
+        client
+            .issue_detail("ABC-1", &["Plant no."])
+            .await
+            .expect("first");
+        client
+            .issue_detail("ABC-2", &["Plant no."])
+            .await
+            .expect("second");
+
+        assert_eq!(requests_to(&server, "/rest/api/3/field").await, 1);
+    }
+
+    #[tokio::test]
+    async fn a_jira_error_reaches_the_caller_as_its_own_message() {
+        let server = MockServer::start().await;
+        mount_get(&server, "/rest/api/3/field", field_catalog()).await;
+        mount_get_failing(
+            &server,
+            r"^/rest/api/3/issue/[^/]+$",
+            404,
+            json!({ "errorMessages": ["Issue does not exist"], "errors": {} }),
+        )
+        .await;
+
+        let Err(err) = client_for(&server).issue_detail("ABC-9", &[]).await else {
+            panic!("a missing issue must be an error");
+        };
+
+        assert!(err.contains("404"), "{err}");
+        assert!(err.contains("Issue does not exist"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn a_field_level_error_names_the_field_it_is_about() {
+        let server = MockServer::start().await;
+        mount_get_failing(
+            &server,
+            r"^/rest/api/3/field$",
+            400,
+            json!({ "errors": { "customfield_10052": "Operation value must be an ADF" } }),
+        )
+        .await;
+
+        let Err(err) = client_for(&server).issue_detail("ABC-1", &[]).await else {
+            panic!("a rejected request must be an error");
+        };
+
+        assert!(err.contains("customfield_10052"), "{err}");
+    }
+
+    /// Mount the three endpoints `issue_activity` joins.
+    async fn site_with_activity(
+        comments: serde_json::Value,
+        changelog: serde_json::Value,
+        worklogs: serde_json::Value,
+    ) -> MockServer {
+        let server = MockServer::start().await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/issue/[^/]+/comment$",
+            json!({ "comments": comments }),
+        )
+        .await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/issue/[^/]+/changelog$",
+            json!({ "values": changelog, "total": 0 }),
+        )
+        .await;
+        mount_get_matching(
+            &server,
+            r"^/rest/api/3/issue/[^/]+/worklog$",
+            json!({ "worklogs": worklogs }),
+        )
+        .await;
+        server
+    }
+
+    fn adf(text: &str) -> serde_json::Value {
+        json!({
+            "type": "doc",
+            "version": 1,
+            "content": [{
+                "type": "paragraph",
+                "content": [{ "type": "text", "text": text }]
+            }]
+        })
+    }
+
+    #[tokio::test]
+    async fn the_activity_feed_keeps_its_three_kinds_apart() {
+        // They share a timeline in the view but are not three kinds of one
+        // thing — see CONTEXT.md. The client hands over three lists.
+        let server = site_with_activity(
+            json!([{
+                "id": "1",
+                "created": "2026-03-15T09:00:00.000+0100",
+                "author": { "displayName": "Anna Leeson" },
+                "body": adf("Pump stalled again"),
+            }]),
+            json!([{
+                "created": "2026-03-15T10:00:00.000+0100",
+                "author": { "displayName": "Malte" },
+                "items": [{ "field": "status", "fromString": "Open", "toString": "In Progress" }],
+            }]),
+            json!([{
+                "id": "9",
+                "started": "2026-03-15T11:00:00.000+0100",
+                "author": { "displayName": "Malte" },
+                "timeSpentSeconds": 5400,
+                "comment": adf("swapped the seal"),
+            }]),
+        )
+        .await;
+
+        let activity = client_for(&server)
+            .issue_activity("ABC-1")
+            .await
+            .expect("activity");
+
+        assert_eq!(activity.comments.len(), 1);
+        assert_eq!(activity.comments[0].author, "Anna Leeson");
+        assert_eq!(activity.comments[0].text, "Pump stalled again");
+        assert_eq!(activity.status_changes.len(), 1);
+        assert_eq!(activity.status_changes[0].from.as_deref(), Some("Open"));
+        assert_eq!(
+            activity.status_changes[0].to.as_deref(),
+            Some("In Progress")
+        );
+        assert_eq!(activity.worklogs.len(), 1);
+        assert_eq!(activity.worklogs[0].time_spent_seconds, 5400);
+        assert_eq!(activity.worklogs[0].comment, "swapped the seal");
+    }
+
+    #[tokio::test]
+    async fn an_issue_nothing_has_happened_on_gives_three_empty_lists() {
+        let server = site_with_activity(json!([]), json!([]), json!([])).await;
+
+        let activity = client_for(&server)
+            .issue_activity("ABC-1")
+            .await
+            .expect("activity");
+
+        assert!(activity.comments.is_empty());
+        assert!(activity.status_changes.is_empty());
+        assert!(activity.worklogs.is_empty());
+        assert!(!activity.comments_truncated);
+    }
+
+    #[tokio::test]
+    async fn a_changelog_entry_contributes_only_its_status_items() {
+        // One entry can carry several field changes; the timeline is about the
+        // status moving, not about an assignee being set.
+        let server = site_with_activity(
+            json!([]),
+            json!([{
+                "created": "2026-03-15T10:00:00.000+0100",
+                "author": { "displayName": "Malte" },
+                "items": [
+                    { "field": "assignee", "fromString": "", "toString": "Malte" },
+                    { "field": "status", "fromString": "Open", "toString": "Done" },
+                ],
+            }]),
+            json!([]),
+        )
+        .await;
+
+        let activity = client_for(&server)
+            .issue_activity("ABC-1")
+            .await
+            .expect("activity");
+
+        assert_eq!(activity.status_changes.len(), 1);
+        assert_eq!(activity.status_changes[0].to.as_deref(), Some("Done"));
+    }
+
+    #[tokio::test]
+    async fn a_service_desk_internal_note_is_marked_and_a_public_one_is_not() {
+        // Who can read a comment decides whether replying is safe.
+        let server = site_with_activity(
+            json!([
+                {
+                    "id": "1",
+                    "created": "2026-03-15T09:00:00.000+0100",
+                    "body": adf("only for agents"),
+                    "jsdPublic": false,
+                },
+                {
+                    "id": "2",
+                    "created": "2026-03-15T09:30:00.000+0100",
+                    "body": adf("visible to the customer"),
+                    "jsdPublic": true,
+                },
+            ]),
+            json!([]),
+            json!([]),
+        )
+        .await;
+
+        let activity = client_for(&server)
+            .issue_activity("ABC-1")
+            .await
+            .expect("activity");
+
+        // Newest first within each kind, so the later public one leads.
+        assert_eq!(activity.comments[0].text, "visible to the customer");
+        assert!(!activity.comments[0].internal);
+        assert_eq!(activity.comments[1].text, "only for agents");
+        assert!(activity.comments[1].internal);
+    }
+
+    #[tokio::test]
+    async fn each_kind_comes_back_newest_first() {
+        // The view interleaves the three lists, and it relies on each already
+        // being ordered — it merges rather than sorts from scratch.
+        let server = site_with_activity(
+            json!([
+                { "id": "1", "created": "2026-03-15T09:00:00.000+0100", "body": adf("older") },
+                { "id": "2", "created": "2026-03-15T12:00:00.000+0100", "body": adf("newer") },
+            ]),
+            json!([]),
+            json!([
+                { "id": "8", "started": "2026-03-15T09:00:00.000+0100", "timeSpentSeconds": 60 },
+                { "id": "9", "started": "2026-03-15T12:00:00.000+0100", "timeSpentSeconds": 120 },
+            ]),
+        )
+        .await;
+
+        let activity = client_for(&server)
+            .issue_activity("ABC-1")
+            .await
+            .expect("activity");
+
+        assert_eq!(activity.comments[0].text, "newer");
+        assert_eq!(activity.worklogs[0].time_spent_seconds, 120);
+    }
+
+    #[tokio::test]
+    async fn a_comment_outside_a_service_desk_is_not_internal() {
+        // `jsdPublic` is absent entirely there, and absent must not read as
+        // "not public".
+        let server = site_with_activity(
+            json!([{
+                "id": "1",
+                "created": "2026-03-15T09:00:00.000+0100",
+                "body": adf("an ordinary comment"),
+            }]),
+            json!([]),
+            json!([]),
+        )
+        .await;
+
+        let activity = client_for(&server)
+            .issue_activity("ABC-1")
+            .await
+            .expect("activity");
+
+        assert!(!activity.comments[0].internal);
+    }
+
+    #[tokio::test]
+    async fn a_full_comment_page_admits_there_may_be_more() {
+        // A timeline that looks complete when it is not is worse than one that
+        // says so.
+        let page: Vec<serde_json::Value> = (0..COMMENT_PAGE_LIMIT)
+            .map(|i| {
+                json!({
+                    "id": i.to_string(),
+                    "created": "2026-03-15T09:00:00.000+0100",
+                    "body": adf("a comment"),
+                })
+            })
+            .collect();
+        let server = site_with_activity(json!(page), json!([]), json!([])).await;
+
+        let activity = client_for(&server)
+            .issue_activity("ABC-1")
+            .await
+            .expect("activity");
+
+        assert!(activity.comments_truncated);
+    }
+
+    #[tokio::test]
+    async fn a_worklogs_billable_marker_is_stripped_from_what_the_feed_shows() {
+        // The leading `~` is ActivityTimeline's encoding, not something the
+        // user wrote.
+        let server = site_with_activity(
+            json!([]),
+            json!([]),
+            json!([{
+                "id": "9",
+                "started": "2026-03-15T11:00:00.000+0100",
+                "timeSpentSeconds": 1800,
+                "comment": adf("~internal rework"),
+            }]),
+        )
+        .await;
+
+        let activity = client_for(&server)
+            .issue_activity("ABC-1")
+            .await
+            .expect("activity");
+
+        assert_eq!(activity.worklogs[0].comment, "internal rework");
+    }
+
+    #[tokio::test]
+    async fn a_deleted_author_still_reads_as_somebody() {
+        let server = site_with_activity(
+            json!([{
+                "id": "1",
+                "created": "2026-03-15T09:00:00.000+0100",
+                "body": adf("left behind"),
+            }]),
+            json!([]),
+            json!([]),
+        )
+        .await;
+
+        let activity = client_for(&server)
+            .issue_activity("ABC-1")
+            .await
+            .expect("activity");
+
+        assert!(!activity.comments[0].author.is_empty());
+    }
+}
