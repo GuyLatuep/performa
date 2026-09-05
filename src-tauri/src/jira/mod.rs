@@ -599,12 +599,16 @@ impl JiraClient {
         let mut entries = Vec::new();
         for (issue, worklogs) in per_issue {
             for w in worklogs {
-                let (billable, comment) =
-                    split_billable(w.comment.as_ref().map(adf_to_text).unwrap_or_default());
+                // Author first: an issue several people book time on returns
+                // all of their worklogs, and flattening a colleague's ADF
+                // comment only to discard it is the most expensive way to
+                // skip a row.
                 let author_id = w.author.map(|a| a.account_id).unwrap_or_default();
                 if author_id != account_id {
                     continue;
                 }
+                let (billable, comment) =
+                    split_billable(w.comment.as_ref().map(adf_to_text).unwrap_or_default());
                 let date = w.started.get(0..10).unwrap_or("").to_string();
                 if date.as_str() < start || date.as_str() > end {
                     continue;
@@ -789,6 +793,20 @@ fn open_across_projects(ignored: &BTreeMap<String, Vec<String>>) -> String {
 /// The project comes from the issue key rather than a field, so it costs no
 /// extra column in the search.
 fn drop_ignored_statuses(issues: Vec<IssueSummary>, cfg: &TodoConfig) -> Vec<IssueSummary> {
+    // Lowercased once, up front. Doing it inside the filter meant re-folding
+    // every configured project key and status name for every issue that came
+    // back — a fresh allocation per comparison, over up to 100 issues.
+    // Merged rather than collected: settings can hold "DEV" and "dev" as two
+    // separate keys, and the old scan matched both, so folding them has to
+    // union their names instead of letting one win.
+    let mut ignored: HashMap<String, std::collections::HashSet<String>> = HashMap::new();
+    for (project, names) in &cfg.ignored_statuses {
+        ignored
+            .entry(project.to_lowercase())
+            .or_default()
+            .extend(names.iter().map(|n| n.to_lowercase()));
+    }
+
     issues
         .into_iter()
         .filter(|issue| {
@@ -801,12 +819,9 @@ fn drop_ignored_statuses(issues: Vec<IssueSummary>, cfg: &TodoConfig) -> Vec<Iss
                 .map(|(project, _)| project)
                 .unwrap_or(&issue.key)
                 .to_lowercase();
-            let status = status.to_lowercase();
-            !cfg.ignored_statuses
-                .iter()
-                .filter(|(key, _)| key.to_lowercase() == project)
-                .flat_map(|(_, names)| names)
-                .any(|name| name.to_lowercase() == status)
+            !ignored
+                .get(&project)
+                .is_some_and(|names| names.contains(&status.to_lowercase()))
         })
         .collect()
 }
@@ -931,6 +946,12 @@ fn adf_paragraph(text: &str) -> serde_json::Value {
 /// block. Blank lines are dropped: they are paragraph separators in the
 /// textarea, and ADF spells that out with the paragraph nodes themselves.
 fn adf_doc(text: &str, mentions: &[MentionRef]) -> serde_json::Value {
+    // Ordered once for the whole document rather than per line: the mention
+    // list does not change between paragraphs. Longest name first — see
+    // [`adf_inline`] for why that ordering is what makes the match correct.
+    let mut by_length: Vec<&MentionRef> = mentions.iter().filter(|m| !m.name.is_empty()).collect();
+    by_length.sort_by_key(|m| std::cmp::Reverse(m.name.len()));
+
     let paragraphs: Vec<serde_json::Value> = text
         .lines()
         .map(str::trim_end)
@@ -938,7 +959,7 @@ fn adf_doc(text: &str, mentions: &[MentionRef]) -> serde_json::Value {
         .map(|line| {
             serde_json::json!({
                 "type": "paragraph",
-                "content": adf_inline(line, mentions)
+                "content": adf_inline(line, &by_length)
             })
         })
         .collect();
@@ -956,14 +977,12 @@ fn adf_doc(text: &str, mentions: &[MentionRef]) -> serde_json::Value {
 /// which names it meant as mentions; this turns those spans into nodes and
 /// leaves every other `@` exactly as typed.
 ///
-/// Longest name first, so "@Anna Leeson" is not read as "@Anna" followed by
-/// the word "Leeson". Two people sharing a display name are indistinguishable
-/// here by construction — the first match wins, which is the only thing plain
-/// text can support.
-fn adf_inline(line: &str, mentions: &[MentionRef]) -> Vec<serde_json::Value> {
-    let mut by_length: Vec<&MentionRef> = mentions.iter().filter(|m| !m.name.is_empty()).collect();
-    by_length.sort_by_key(|m| std::cmp::Reverse(m.name.len()));
-
+/// `by_length` arrives sorted longest name first, so "@Anna Leeson" is not
+/// read as "@Anna" followed by the word "Leeson" — [`adf_doc`] does that once
+/// for the whole document. Two people sharing a display name are
+/// indistinguishable here by construction — the first match wins, which is the
+/// only thing plain text can support.
+fn adf_inline(line: &str, by_length: &[&MentionRef]) -> Vec<serde_json::Value> {
     let mut nodes: Vec<serde_json::Value> = Vec::new();
     let mut pending = String::new();
     let mut idx = 0;
@@ -1401,6 +1420,26 @@ mod tests {
                 &[("DEV-4596", "In Progress"), ("DEV-1", "IN PROGRESS")]
             ),
             Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn case_variant_project_keys_pool_their_ignored_statuses() {
+        // Settings hold the project key as the user typed it, so the same
+        // project can appear twice in different case. Each spelling's list
+        // still counts — folding them for the lookup must union the names,
+        // not let one spelling win.
+        let cfg = todo_cfg(&[("DEV", &["In Progress"]), ("dev", &["Escalated"])]);
+        assert_eq!(
+            kept(
+                &cfg,
+                &[
+                    ("DEV-1", "In Progress"),
+                    ("DEV-2", "Escalated"),
+                    ("DEV-3", "Open"),
+                ]
+            ),
+            vec!["DEV-3".to_string()]
         );
     }
 

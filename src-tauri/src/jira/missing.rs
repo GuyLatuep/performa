@@ -102,12 +102,16 @@ impl JiraClient {
                 candidates.push(issue);
             }
         }
-        let candidate_keys: Vec<&str> = candidates.iter().map(|i| i.key.as_str()).collect();
+        // Collected inside the macro so the key list is only built when debug
+        // logging is actually on — the default level is `Error`.
         log::debug!(
             "missing_worklogs: {} candidate issue(s) to scan ({} status-changed): {:?}",
             candidates.len(),
             status_keys.len(),
-            candidate_keys
+            candidates
+                .iter()
+                .map(|i| i.key.as_str())
+                .collect::<Vec<_>>()
         );
         let scanned: HashSet<String> = candidates.iter().map(|i| i.key.clone()).collect();
 
@@ -142,11 +146,13 @@ impl JiraClient {
             .retain(|key, _| scanned.contains(key));
 
         found.sort_by_key(|(ts, _)| std::cmp::Reverse(*ts));
-        let flagged_keys: Vec<&str> = found.iter().map(|(_, m)| m.issue_key.as_str()).collect();
         log::debug!(
             "missing_worklogs: {} issue(s) flagged as unlogged: {:?}",
             found.len(),
-            flagged_keys
+            found
+                .iter()
+                .map(|(_, m)| m.issue_key.as_str())
+                .collect::<Vec<_>>()
         );
         Ok(found.into_iter().map(|(_, m)| m).collect())
     }
@@ -251,11 +257,24 @@ impl JiraClient {
             }
         }
 
+        // The comment page and the changelog share nothing, so they go out
+        // together rather than one after the other — the same reason
+        // `check_candidate` joins its two lookups. The `has_status_change`
+        // guard stays *inside* the arm, so an issue whose status did not move
+        // still issues no changelog request.
+        let (comments, changes) = futures_util::try_join!(
+            self.recent_comments(&issue.key, issue.updated.as_deref()),
+            async {
+                if has_status_change {
+                    self.recent_changelog(&issue.key).await
+                } else {
+                    Ok(Vec::new())
+                }
+            },
+        )?;
+
         let mut activities = Vec::new();
-        for c in self
-            .recent_comments(&issue.key, issue.updated.as_deref())
-            .await?
-        {
+        for c in comments {
             if c.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
                 continue;
             }
@@ -267,29 +286,27 @@ impl JiraClient {
                 });
             }
         }
-        if has_status_change {
-            for e in self.recent_changelog(&issue.key).await? {
-                if e.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
-                    continue;
-                }
-                let Some(status) = e
-                    .items
-                    .iter()
-                    .find(|i| i.field.eq_ignore_ascii_case("status"))
-                else {
-                    continue;
-                };
-                if let Some(ts) = parse_jira_ts(&e.created) {
-                    activities.push(Activity {
-                        kind: "status",
-                        ts,
-                        detail: format!(
-                            "{} → {}",
-                            status.from.as_deref().unwrap_or("?"),
-                            status.to.as_deref().unwrap_or("?"),
-                        ),
-                    });
-                }
+        for e in changes {
+            if e.author.as_ref().map(|a| a.account_id.as_str()) != Some(account_id) {
+                continue;
+            }
+            let Some(status) = e
+                .items
+                .iter()
+                .find(|i| i.field.eq_ignore_ascii_case("status"))
+            else {
+                continue;
+            };
+            if let Some(ts) = parse_jira_ts(&e.created) {
+                activities.push(Activity {
+                    kind: "status",
+                    ts,
+                    detail: format!(
+                        "{} → {}",
+                        status.from.as_deref().unwrap_or("?"),
+                        status.to.as_deref().unwrap_or("?"),
+                    ),
+                });
             }
         }
 

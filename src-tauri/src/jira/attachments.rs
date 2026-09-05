@@ -147,8 +147,12 @@ impl JiraClient {
             .and_then(|n| n.to_str())
             .ok_or_else(|| format!("{} has no file name", path.display()))?
             .to_string();
-        let bytes =
-            std::fs::read(path).map_err(|e| format!("could not read {}: {e}", path.display()))?;
+        // Async for the same reason `download_attachment` writes async: a
+        // 10 MB file read with `std::fs` holds a tokio worker for the whole
+        // read, and `attach_files` runs this over a whole batch.
+        let bytes = tokio::fs::read(path)
+            .await
+            .map_err(|e| format!("could not read {}: {e}", path.display()))?;
         let part = reqwest::multipart::Part::bytes(bytes).file_name(filename.clone());
         let form = reqwest::multipart::Form::new().part("file", part);
         let result = self

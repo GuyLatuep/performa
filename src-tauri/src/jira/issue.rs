@@ -35,7 +35,12 @@ const USER_SEARCH_LIMIT: u32 = 15;
 /// the request is the expensive one (`/rest/api/3/field` answers with every
 /// field on the instance). Shared across `JiraClient` clones like the other
 /// caches, hence the `Arc`. `None` = not fetched yet.
-pub(super) type FieldCache = Arc<tokio::sync::Mutex<Option<HashMap<String, String>>>>;
+/// The catalog is held behind a second `Arc` so a reader gets a handle rather
+/// than a copy: `/rest/api/3/field` returns every field the site defines —
+/// hundreds on a mature instance — and cloning that map per call was pure
+/// waste, most visibly in `warm_field_catalog`, whose whole job after the
+/// first run was to clone it and drop it again.
+pub(super) type FieldCache = Arc<tokio::sync::Mutex<Option<Arc<HashMap<String, String>>>>>;
 
 /// Assets object id → its display name. See [`JiraClient::asset_label`].
 pub(super) type AssetCache = Arc<tokio::sync::Mutex<HashMap<String, String>>>;
@@ -69,10 +74,10 @@ impl JiraClient {
     ///
     /// The lock is deliberately held across the request: two issues opened at
     /// once should queue behind one fetch rather than run two.
-    async fn field_ids(&self) -> Result<HashMap<String, String>, String> {
+    async fn field_ids(&self) -> Result<Arc<HashMap<String, String>>, String> {
         let mut guard = self.field_cache.lock().await;
         if let Some(map) = guard.as_ref() {
-            return Ok(map.clone());
+            return Ok(Arc::clone(map));
         }
         let started = std::time::Instant::now();
         let fields: Vec<RawField> = self.get_json("/rest/api/3/field", &[], "field").await?;
@@ -85,7 +90,7 @@ impl JiraClient {
             map.entry(normalize_name(&f.name)).or_insert(f.id);
         }
         log::info!("field catalog: {} field(s) in {elapsed}ms", map.len());
-        Ok(guard.insert(map).clone())
+        Ok(Arc::clone(guard.insert(Arc::new(map))))
     }
 
     /// What an Assets object is called, fetched once per object per app run.
@@ -172,7 +177,10 @@ impl JiraClient {
             .map(|f| f.name)
             .filter(|n| !n.trim().is_empty())
             .collect();
-        names.sort_by_key(|n| n.to_lowercase());
+        // `sort_by_cached_key`, not `sort_by_key`: the latter calls the key
+        // function on every comparison, allocating a lowercased copy of the
+        // name O(n log n) times over a catalog that runs to hundreds of names.
+        names.sort_by_cached_key(|n| n.to_lowercase());
         names.dedup();
         Ok(names)
     }
@@ -291,11 +299,15 @@ impl JiraClient {
             let raw = fields.get(id);
             // Nothing to show directly — but an Assets field only ever holds
             // references, so this is where its objects get named.
-            let assets = match raw.and_then(field_value) {
+            // Rendered once: `field_value` walks the whole ADF document for a
+            // rich-text field, and asking twice per field per issue open (up
+            // to `MAX_DETAIL_FIELDS` of them) walked it twice for nothing.
+            let rendered = raw.and_then(field_value);
+            let assets = match rendered {
                 Some(_) => Vec::new(),
                 None => self.asset_names(raw).await.unwrap_or_default(),
             };
-            let value = raw.and_then(field_value).or_else(|| {
+            let value = rendered.or_else(|| {
                 (!assets.is_empty()).then(|| {
                     assets
                         .iter()
