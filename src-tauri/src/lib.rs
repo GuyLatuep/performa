@@ -132,6 +132,24 @@ struct Session {
 #[derive(Default)]
 struct AppState {
     session: tokio::sync::Mutex<Option<Session>>,
+    /// Bumped whenever the stored credentials change — by `save_credentials`
+    /// and by `clear_credentials`. [`session`] reads it before the keychain
+    /// load and checks it again under the lock, so a build that started before
+    /// a sign-out cannot install its result afterwards.
+    generation: std::sync::atomic::AtomicU64,
+}
+
+impl AppState {
+    fn generation(&self) -> u64 {
+        self.generation.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// Mark the stored credentials as changed, invalidating any session build
+    /// already in flight.
+    fn bump_generation(&self) {
+        self.generation
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
 }
 
 /// The cached session, or build (and cache) one from the stored credentials.
@@ -143,22 +161,52 @@ struct AppState {
 /// fires several commands at once on startup. The price is that commands
 /// racing on a cold start may each fetch `myself` once; the first result to
 /// land is kept and the rest reuse it.
+///
+/// The generation read here and re-checked in [`install_session`] is what
+/// keeps that lock-free build honest across a sign-out — see there.
 async fn session(state: &State<'_, AppState>) -> Result<Session, String> {
     let cached = state.session.lock().await.clone();
     if let Some(s) = cached {
         return Ok(s);
     }
+    let started_at = state.generation();
     let creds = creds::load()?.ok_or_else(|| "not configured".to_string())?;
     let client = JiraClient::new(&creds);
     let me = client.myself().await?;
+    let built = Session {
+        client,
+        account_id: me.account_id,
+        display_name: me.display_name,
+    };
     let mut guard = state.session.lock().await;
-    Ok(guard
-        .get_or_insert(Session {
-            client,
-            account_id: me.account_id,
-            display_name: me.display_name,
-        })
-        .clone())
+    install_session(&mut guard, built, started_at, state.generation())
+}
+
+/// Decide what a finished session build may do to the session slot.
+///
+/// Three cases, and the last one is the reason this exists:
+///
+/// - Somebody else already installed a session — reuse theirs, whoever won.
+/// - The slot is empty and the credentials have not moved — install ours.
+/// - The slot is empty *because* the credentials moved under us. A command
+///   that entered [`session`] before `clear_credentials` and whose `myself`
+///   landed after it would otherwise write the signed-out account's client
+///   back in, and every later command would keep using credentials the user
+///   believes are gone until the process restarts. Install nothing and report
+///   what is now true: there are no credentials.
+fn install_session(
+    slot: &mut Option<Session>,
+    built: Session,
+    generation_at_start: u64,
+    generation_now: u64,
+) -> Result<Session, String> {
+    if let Some(existing) = slot.as_ref() {
+        return Ok(existing.clone());
+    }
+    if generation_at_start != generation_now {
+        return Err("not configured".to_string());
+    }
+    Ok(slot.insert(built).clone())
 }
 
 // ----- Input validation at the IPC boundary -----
@@ -323,6 +371,9 @@ async fn save_credentials(
     let client = JiraClient::new(&creds);
     let me = client.myself().await?;
     creds::save(&creds)?;
+    // Before the slot is written, so a build already in flight against the old
+    // credentials cannot land on top of this one.
+    state.bump_generation();
     *state.session.lock().await = Some(Session {
         client,
         account_id: me.account_id.clone(),
@@ -346,7 +397,13 @@ fn credentials_status() -> Result<Option<CredentialsMeta>, String> {
 
 #[tauri::command]
 async fn clear_credentials(state: State<'_, AppState>) -> Result<(), String> {
-    *state.session.lock().await = None;
+    // Bumped while the lock is held, so a session build racing this sign-out
+    // either reads the old generation (and is refused on the way in) or reads
+    // the new one (and finds the slot already empty).
+    let mut guard = state.session.lock().await;
+    state.bump_generation();
+    *guard = None;
+    drop(guard);
     creds::clear()
 }
 
@@ -964,6 +1021,57 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_session(account: &str) -> Session {
+        let creds = Credentials {
+            site: "https://example.atlassian.net".into(),
+            email: "a@b.c".into(),
+            token: "t".into(),
+        };
+        Session {
+            client: JiraClient::new(&creds),
+            account_id: account.into(),
+            display_name: "Test User".into(),
+        }
+    }
+
+    #[test]
+    fn a_session_build_installs_into_an_empty_slot() {
+        let mut slot = None;
+        let got = install_session(&mut slot, test_session("me"), 7, 7).expect("installed");
+        assert_eq!(got.account_id, "me");
+        assert_eq!(slot.expect("stored").account_id, "me");
+    }
+
+    #[test]
+    fn a_session_installed_by_somebody_else_wins() {
+        // Two commands raced on a cold start; the first to land is kept and
+        // the loser reuses it rather than replacing it.
+        let mut slot = Some(test_session("first"));
+        let got = install_session(&mut slot, test_session("second"), 7, 7).expect("reused");
+        assert_eq!(got.account_id, "first");
+        assert_eq!(slot.expect("stored").account_id, "first");
+    }
+
+    #[test]
+    fn a_sign_out_mid_build_is_not_undone_by_the_build() {
+        // The whole point: `clear_credentials` ran while `myself` was in
+        // flight. The finished build must not resurrect the old account.
+        let mut slot = None;
+        let Err(err) = install_session(&mut slot, test_session("old"), 7, 8) else {
+            panic!("a build begun before the sign-out must be refused");
+        };
+        assert_eq!(err, "not configured");
+        assert!(slot.is_none(), "the signed-out slot must stay empty");
+    }
+
+    #[test]
+    fn generations_only_move_forward() {
+        let state = AppState::default();
+        let start = state.generation();
+        state.bump_generation();
+        assert_ne!(state.generation(), start);
+    }
 
     #[test]
     fn comment_text_is_validated() {
