@@ -56,13 +56,59 @@ jobs:
       # Coverage comes from one cell only: both cells run the same suite, so a
       # second report would just be a duplicate for Codecov to merge, and the
       # matrix exists to catch timezone bugs rather than to measure twice.
+      # Both cells keep their output for the report below.
       - name: Test
         if: matrix.timezone != 'Europe/Berlin'
-        run: pnpm test
+        run: |
+          set -o pipefail
+          pnpm test 2>&1 | tee /tmp/vitest.log
 
       - name: Test with coverage
         if: matrix.timezone == 'Europe/Berlin'
-        run: pnpm test:coverage
+        run: |
+          set -o pipefail
+          pnpm test:coverage 2>&1 | tee /tmp/vitest.log
+
+      # Vitest prints its summary to the job log and nowhere else, so — like
+      # the cargo one below — the numbers are lifted onto the run page here.
+      # Both cells report, titled by timezone: a date bug shows up in one of
+      # them only, and a summary from the other would call the run green.
+      #
+      # Failures rather than the full list: 800-odd passing bullets would bury
+      # the thing worth reading. Runs even when the tests failed — that is when
+      # the report is worth the most.
+      - name: Test report
+        if: always()
+        run: |
+          [ -f /tmp/vitest.log ] || exit 0
+          # Vitest colours its output when it thinks something is watching.
+          plain=$(sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g' /tmp/vitest.log)
+          line() { printf '%s\n' "$plain" | grep -E "^ *$1 " | head -1 | sed -E "s/^ *$1 +//"; }
+          tests=$(line 'Tests')
+          files=$(line 'Test Files')
+          {
+            echo "## Vitest Report — ${{ matrix.timezone }}"
+            echo
+            echo "### Summary"
+            case "$tests" in
+              *failed*) echo "- Tests: ❌ ${tests:-none run}" ;;
+              "")       echo "- Tests: ⚠️ the suite did not report a total" ;;
+              *)        echo "- Tests: ✅ $tests" ;;
+            esac
+            [ -n "$files" ] && echo "- Files: $files"
+            coverage=$(printf '%s\n' "$plain" | grep -E '^(Statements|Branches|Functions|Lines) +:')
+            if [ -n "$coverage" ]; then
+              echo
+              echo "### Coverage"
+              printf '%s\n' "$coverage" | sed -E 's/^([A-Za-z]+) +: +/- \1: /'
+            fi
+            failed=$(printf '%s\n' "$plain" | sed -nE 's/^ *FAIL +(.*)$/- ❌ `\1`/p' | sort -u)
+            if [ -n "$failed" ]; then
+              echo
+              echo "### Failed"
+              printf '%s\n' "$failed"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload coverage
         if: matrix.timezone == 'Europe/Berlin'
@@ -118,9 +164,12 @@ jobs:
           cargo llvm-cov --lib --no-fail-fast --lcov --output-path lcov.info \
             2>&1 | tee /tmp/cargo-test.log
 
-      # Vitest writes its own run summary; cargo has no equivalent, so the
-      # test lines are turned into one here. Runs even when the tests failed —
-      # that is when the list is worth the most.
+      # Cargo prints its results to the job log and nowhere else, so the test
+      # lines are turned into a run-page summary here — the same reason the
+      # frontend job has one. Every test is listed rather than just the
+      # failures: there are a hundred-odd of them, which is a readable list,
+      # where the frontend's 800 would not be. Runs even when the tests
+      # failed — that is when the list is worth the most.
       - name: Test report
         if: always()
         run: |
