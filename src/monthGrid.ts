@@ -150,3 +150,39 @@ function orderRows(rows: MonthRow[], pinned?: string[]): MonthRow[] {
   const rankOf = (row: MonthRow) => rank.get(row.issueKey) ?? pinned.length;
   return byTotal.sort((a, b) => rankOf(a) - rankOf(b));
 }
+
+// ----- How the month grid reads -----
+// Extracted from the component for the reason the rest of this module was:
+// none of it is about rendering, and the edge cases — a quarter-hour that must
+// not read as "0.25000", a weekend that is not "behind" — are far easier to
+// state as a table than to reach through the DOM.
+
+/** How a day's total reads at a glance. The thresholds are about an ordinary
+ *  working day, which is why they are only applied to one: a weekend is not
+ *  expected to be full, and a day that hasn't happened yet is not behind. */
+const THIN_HOURS = 3;
+const FULL_HOURS = 6;
+
+export function dayTone(seconds: number, col: MonthColumn): string {
+  if (col.future || col.weekend) return "";
+  const hours = seconds / 3600;
+  if (hours > FULL_HOURS) return " tone-full";
+  if (hours >= THIN_HOURS) return " tone-part";
+  return " tone-thin";
+}
+
+/** Hours as the grid shows them: "1.5", "0.25", "2". A column is barely wide
+ *  enough for four characters, which "1h 30m" is not — the full duration is in
+ *  the cell's tooltip instead. */
+export function decimalHours(seconds: number): string {
+  return (seconds / 3600).toFixed(2).replace(/\.?0+$/, "") || "0";
+}
+
+/** One worklog per id.
+ *
+ *  The month is fetched a week at a time and the weeks overlap at their edges,
+ *  so the same worklog can arrive in two chunks. */
+export function dedupeEntries(entries: WorklogEntry[]): WorklogEntry[] {
+  const byId = new Map(entries.map((e) => [e.id, e]));
+  return [...byId.values()];
+}

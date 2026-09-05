@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorklogEntry } from "./api";
-import { buildMonthGrid, monthColumns, rowOrderOf } from "./monthGrid";
+import {
+  MonthColumn,
+  buildMonthGrid,
+  dayTone,
+  decimalHours,
+  dedupeEntries,
+  monthColumns,
+  rowOrderOf,
+} from "./monthGrid";
 
 // August 2026: starts on a Saturday, ends on a Monday.
 const START = "2026-08-01";
@@ -195,5 +203,95 @@ describe("buildMonthGrid", () => {
     expect(grid.columns).toHaveLength(21);
     expect(grid.rows).toEqual([]);
     expect(grid.total).toBe(0);
+  });
+});
+
+describe("dayTone", () => {
+  const workday = {
+    date: "2026-03-16",
+    weekend: false,
+    future: false,
+  } as MonthColumn;
+  const hours = (h: number) => h * 3600;
+
+  it("marks a full day, a partial one and a thin one apart", () => {
+    expect(dayTone(hours(8), workday)).toBe(" tone-full");
+    expect(dayTone(hours(4), workday)).toBe(" tone-part");
+    expect(dayTone(hours(1), workday)).toBe(" tone-thin");
+  });
+
+  it("counts an empty workday as thin", () => {
+    expect(dayTone(0, workday)).toBe(" tone-thin");
+  });
+
+  it("puts the boundaries where the thresholds say", () => {
+    // Six hours exactly is not yet "full"; three exactly is already "part".
+    expect(dayTone(hours(6), workday)).toBe(" tone-part");
+    expect(dayTone(hours(3), workday)).toBe(" tone-part");
+    expect(dayTone(hours(2.99), workday)).toBe(" tone-thin");
+  });
+
+  it("says nothing about a weekend, which is not expected to be full", () => {
+    expect(dayTone(0, { ...workday, weekend: true })).toBe("");
+    expect(dayTone(hours(8), { ...workday, weekend: true })).toBe("");
+  });
+
+  it("says nothing about a day that has not happened yet", () => {
+    // A future day is not behind.
+    expect(dayTone(0, { ...workday, future: true })).toBe("");
+  });
+});
+
+describe("decimalHours", () => {
+  it("drops the trailing zeros a column has no room for", () => {
+    expect(decimalHours(3600)).toBe("1");
+    expect(decimalHours(2 * 3600)).toBe("2");
+  });
+
+  it("keeps the fraction that matters", () => {
+    expect(decimalHours(5400)).toBe("1.5");
+    expect(decimalHours(900)).toBe("0.25");
+    expect(decimalHours(2700)).toBe("0.75");
+  });
+
+  it("reads zero as one character, not as an empty cell", () => {
+    // The `|| "0"` fallback: stripping the zeros off "0.00" leaves nothing.
+    expect(decimalHours(0)).toBe("0");
+  });
+
+  it("rounds to what two decimals can say", () => {
+    // 10 minutes is 0.1666…; the column has room for neither.
+    expect(decimalHours(600)).toBe("0.17");
+  });
+});
+
+describe("dedupeEntries", () => {
+  const entry = (id: string, seconds = 3600): WorklogEntry => ({
+    id,
+    issueKey: "ABC-1",
+    issueSummary: "Replace the pump",
+    timeSpentSeconds: seconds,
+    date: "2026-03-16",
+    time: "09:00",
+    comment: "",
+    billable: true,
+  });
+
+  it("keeps one worklog per id", () => {
+    // The month is fetched a week at a time and the weeks overlap at their
+    // edges, so the same worklog arrives twice.
+    const deduped = dedupeEntries([entry("1"), entry("2"), entry("1")]);
+
+    expect(deduped.map((e) => e.id)).toEqual(["1", "2"]);
+  });
+
+  it("leaves a list with no repeats alone", () => {
+    const entries = [entry("1"), entry("2")];
+
+    expect(dedupeEntries(entries)).toHaveLength(2);
+  });
+
+  it("is empty for nothing", () => {
+    expect(dedupeEntries([])).toEqual([]);
   });
 });

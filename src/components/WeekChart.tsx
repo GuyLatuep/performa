@@ -1,5 +1,5 @@
 import { WorklogEntry } from "../api";
-import { formatDuration, toDateInput, today } from "../time";
+import { formatDuration, today } from "../time";
 import { useEffect } from "react";
 import {
   useDailyHours,
@@ -9,6 +9,7 @@ import {
 } from "../settings";
 import { rankFor } from "../rank";
 import { recordEvent } from "../achievements";
+import { weekBars } from "../weekBars";
 
 /** Per-day bars against the daily target, plus a weekly progress ring. */
 export default function WeekChart({
@@ -24,30 +25,10 @@ export default function WeekChart({
   const dayTarget = dailyHours * 3600;
   const weekTarget = dayTarget * WORKDAYS_PER_WEEK;
 
-  const startDate = new Date(start + "T00:00:00");
-  const allDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(startDate);
-    d.setDate(startDate.getDate() + i);
-    return {
-      date: toDateInput(d),
-      label: d.toLocaleDateString(undefined, { weekday: "short" }),
-      seconds: 0,
-    };
+  const { days, scaleMax, total, pct } = weekBars(start, entries, {
+    dayTarget,
+    showWeekends,
   });
-  for (const e of entries) {
-    const day = allDays.find((d) => d.date === e.date);
-    if (day) day.seconds += e.timeSpentSeconds;
-  }
-
-  // Weekends are hidden by default, but a weekend day with logged time is
-  // always shown so no bar silently disappears.
-  const days = allDays.filter(
-    (d, i) => i < WORKDAYS_PER_WEEK || showWeekends || d.seconds > 0,
-  );
-
-  const scaleMax = Math.max(dayTarget, ...days.map((d) => d.seconds), 1);
-  const total = allDays.reduce((s, d) => s + d.seconds, 0);
-  const pct = weekTarget > 0 ? total / weekTarget : 0;
 
   // A full week is worth an award, awarded once like the rest.
   const reachedTarget = weekTarget > 0 && total >= weekTarget;
