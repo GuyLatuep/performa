@@ -1,0 +1,36 @@
+# Coverage policy. The two lcov reports uploaded by ci.yml — `frontend` from
+# vitest, `rust` from cargo llvm-cov — are merged by Codecov into one project
+# number, which is what the README badge shows.
+
+coverage:
+  status:
+    # A ratchet, not a fixed bar: `auto` compares against the base commit, so a
+    # pull request fails only when it *lowers* coverage. That keeps the number
+    # honest without anyone having to keep raising a hard-coded target — and
+    # without unrelated work being blocked by a threshold it never touched.
+    project:
+      default:
+        target: auto
+        # Rounding noise and a handful of lines moving between files should not
+        # fail a build; a real regression is larger than this.
+        threshold: 0.5%
+    # New code is held to a real bar. The project ratchet alone would let an
+    # untested feature land as long as it was small enough to hide in the
+    # rounding, which is exactly how coverage rots.
+    patch:
+      default:
+        target: 70%
+
+# Both jobs must report before a verdict, otherwise a fast frontend upload
+# would post a "coverage dropped" status while the Rust half is still running.
+flags:
+  frontend:
+    paths:
+      - src/
+  rust:
+    paths:
+      - src-tauri/src/
+
+comment:
+  layout: "reach, diff, flags, files"
+  require_changes: false

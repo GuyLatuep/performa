@@ -53,8 +53,27 @@ jobs:
       - name: Typecheck and build
         run: pnpm build
 
+      # Coverage comes from one cell only: both cells run the same suite, so a
+      # second report would just be a duplicate for Codecov to merge, and the
+      # matrix exists to catch timezone bugs rather than to measure twice.
       - name: Test
+        if: matrix.timezone != 'Europe/Berlin'
         run: pnpm test
+
+      - name: Test with coverage
+        if: matrix.timezone == 'Europe/Berlin'
+        run: pnpm test:coverage
+
+      - name: Upload coverage
+        if: matrix.timezone == 'Europe/Berlin'
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage/lcov.info
+          flags: frontend
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # A Codecov outage is not a reason to fail a green build; the
+          # coverage gate is the status check Codecov posts, not this step.
+          fail_ci_if_error: false
 
   rust:
     # macOS mirrors the primary release target and needs no system packages,
@@ -72,8 +91,15 @@ jobs:
 
       - uses: swatinem/rust-cache@v2
         with:
-          # Same key as release.yml so both share one cache.
           workspaces: "./src-tauri -> target"
+          # Its own cache, deliberately not release.yml's: llvm-cov builds with
+          # instrumentation RUSTFLAGS, so sharing one key would have the two
+          # jobs evicting each other's artifacts on every run.
+          key: coverage
+
+      # Prebuilt binary — installing it from source would cost more than the
+      # test run it measures.
+      - uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Format
         run: cargo fmt --check
@@ -81,12 +107,16 @@ jobs:
       - name: Lint
         run: cargo clippy --all-targets -- -D warnings
 
-      # `--no-fail-fast` so one failing binary doesn't hide the rest, and the
-      # output is kept for the report below.
-      - name: Test
+      # `cargo llvm-cov` *runs* the tests, so this is the test step, not an
+      # extra pass over them. `--lib` because the crate is also a staticlib and
+      # cdylib, which llvm-cov handles badly at workspace scope — and all the
+      # tests live in the lib anyway. `--no-fail-fast` so one failing binary
+      # doesn't hide the rest, and the output is kept for the report below.
+      - name: Test with coverage
         run: |
           set -o pipefail
-          cargo test --no-fail-fast 2>&1 | tee /tmp/cargo-test.log
+          cargo llvm-cov --lib --no-fail-fast --lcov --output-path lcov.info \
+            2>&1 | tee /tmp/cargo-test.log
 
       # Vitest writes its own run summary; cargo has no equivalent, so the
       # test lines are turned into one here. Runs even when the tests failed —
@@ -117,3 +147,11 @@ jobs:
               -e 's/^test \(.*\) \.\.\. ignored.*$/- ⚪ `\1`/p' \
               /tmp/cargo-test.log
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./src-tauri/lcov.info
+          flags: rust
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

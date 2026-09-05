@@ -14,6 +14,10 @@ jobs:
     uses: ./.github/workflows/ci.yml
     permissions:
       contents: read
+    # A called workflow gets no secrets unless they are passed down, and CI now
+    # uploads coverage with CODECOV_TOKEN — without this a tag build would run
+    # that step with an empty token.
+    secrets: inherit
 
   build:
     needs: test

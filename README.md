@@ -11,6 +11,7 @@ Cross-platform (macOS · Windows) · built with Tauri v2 · your API token never
 [![CI](https://github.com/GuyLatuep/performa/actions/workflows/ci.yml/badge.svg)](https://github.com/GuyLatuep/performa/actions/workflows/ci.yml)
 [![Release](https://github.com/GuyLatuep/performa/actions/workflows/release.yml/badge.svg)](https://github.com/GuyLatuep/performa/actions/workflows/release.yml)
 [![Latest release](https://img.shields.io/github/v/release/GuyLatuep/performa?sort=semver)](https://github.com/GuyLatuep/performa/releases)
+[![codecov](https://codecov.io/gh/GuyLatuep/performa/branch/main/graph/badge.svg)](https://codecov.io/gh/GuyLatuep/performa)
 
 [![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-stable-000000?logo=rust&logoColor=white)](https://rustup.rs)
@@ -85,6 +86,7 @@ then paste it into the app's connect screen along with your Jira site and email.
 | --- | --- |
 | `pnpm tauri dev` | Run the app with hot reload |
 | `pnpm test` | Run the Vitest suite |
+| `pnpm test:coverage` | Vitest with a coverage report in `coverage/` |
 | `pnpm lint` | ESLint, zero warnings tolerated |
 | `pnpm format` | Prettier over the repo |
 | `pnpm tauri build` | Build the platform bundle |
