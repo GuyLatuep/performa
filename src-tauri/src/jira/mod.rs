@@ -827,7 +827,7 @@ fn drop_ignored_statuses(issues: Vec<IssueSummary>, cfg: &TodoConfig) -> Vec<Iss
 }
 
 /// `"a", "b"` — JQL-escaped and quoted, ready for an `IN (…)` list.
-fn quoted(names: &[String]) -> String {
+pub(super) fn quoted(names: &[String]) -> String {
     names
         .iter()
         .map(|s| format!("\"{}\"", escape_jql(s)))

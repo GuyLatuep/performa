@@ -106,7 +106,10 @@ fn checked_link_id(id: &str) -> Result<&str, String> {
 fn checked_filename(name: &str) -> Result<String, String> {
     let trimmed = name.trim();
     let safe = !trimmed.is_empty()
-        && trimmed.len() <= 200
+        // Characters, not bytes, like every other bound here: counting bytes
+        // cut a German or Japanese file name off at a third of the length and
+        // rejected it as "unsafe", which it is not.
+        && trimmed.chars().count() <= 200
         && !trimmed.contains(['/', '\\', '\0'])
         && trimmed != "."
         && trimmed != ".."
@@ -867,6 +870,10 @@ fn set_log_level(level: String) -> Result<(), String> {
 /// Reveal the folder holding the rotated debug log files in Finder/Explorer.
 #[tauri::command]
 fn open_log_folder() -> Result<(), String> {
+    // The log file is buffered (see `logging::FileLogger`), and this command
+    // exists so the user can go and *read* it — handing them a file missing
+    // its last few lines would defeat the point.
+    log::logger().flush();
     open::that(logging::log_dir()).map_err(|e| format!("could not open log folder: {e}"))
 }
 
@@ -1014,8 +1021,17 @@ pub fn run() {
             open_log_folder,
             frontend_log,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        // `set_boxed_logger` leaks its box, so the buffered writer inside it is
+        // never dropped and would take the tail of the log with it on a clean
+        // exit. Flushing here is what keeps buffering an optimisation rather
+        // than a way to lose the end of every session's log.
+        .run(|_app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                log::logger().flush();
+            }
+        });
 }
 
 #[cfg(test)]
@@ -1091,6 +1107,10 @@ mod tests {
         // The name reaches the filesystem, so a path must not survive in it.
         assert!(checked_filename("../../etc/passwd").is_err());
         assert!(checked_filename("a/b.txt").is_err());
+        // Counted in characters like the comment bound above: a name of
+        // umlauts is not two thirds of a name.
+        assert!(checked_filename(&"ä".repeat(200)).is_ok());
+        assert!(checked_filename(&"a".repeat(201)).is_err());
         assert!(checked_filename("a\\b.txt").is_err());
         assert!(checked_filename("..").is_err());
         assert!(checked_filename("").is_err());

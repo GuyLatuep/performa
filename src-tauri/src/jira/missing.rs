@@ -457,12 +457,14 @@ fn bookable_clause(bookable_done_statuses: &[String]) -> String {
         // the rule collapses to "not done at all".
         return "statusCategory != Done".to_string();
     }
-    let names = bookable_done_statuses
-        .iter()
-        .map(|s| format!("\"{s}\""))
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!("(statusCategory != Done OR status in ({names}))")
+    // Through `quoted`, which escapes: these names are a constant today, but
+    // `MissingConfig` is on its way to being user-configurable, and the todo
+    // tab's equivalent list already arrives from settings. A name carrying a
+    // quote would otherwise break the JQL and with it the whole scan.
+    format!(
+        "(statusCategory != Done OR status in ({}))",
+        super::quoted(bookable_done_statuses)
+    )
 }
 
 /// An escalation issue books its time on the issue it is linked to. When that
@@ -510,16 +512,17 @@ fn newest_uncovered<'a>(
         .max_by_key(|a| a.ts)
 }
 
+/// How much of a comment a reminder hint carries. Sized to stay one line.
+const EXCERPT_CHARS: usize = 140;
+
 /// Collapse whitespace and cap the length so a long comment stays a one-line
 /// reminder hint.
+///
+/// The folding itself is [`crate::logging::one_line`] — the same rule the log
+/// file applies to text arriving from outside the process, and there is no
+/// reason for a second copy of it to drift.
 fn excerpt(text: &str) -> String {
-    const MAX_CHARS: usize = 140;
-    let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    if collapsed.chars().count() <= MAX_CHARS {
-        return collapsed;
-    }
-    let cut: String = collapsed.chars().take(MAX_CHARS).collect();
-    format!("{}…", cut.trim_end())
+    crate::logging::one_line(text, EXCERPT_CHARS)
 }
 
 #[cfg(test)]

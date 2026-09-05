@@ -303,16 +303,14 @@ fn mentions_user(body: &serde_json::Value, account_id: &str) -> bool {
     }
 }
 
-/// Collapse whitespace and cap the length. The inbox wraps the excerpt over at
-/// most four lines, so the cap is sized to fill those rather than one line.
+/// How much of a comment the inbox shows. It wraps the excerpt over at most
+/// four lines, so the cap is sized to fill those rather than one line.
+const EXCERPT_CHARS: usize = 500;
+
+/// Collapse whitespace and cap the length — see [`crate::logging::one_line`],
+/// which is the one implementation of that rule.
 fn excerpt(text: &str) -> String {
-    const MAX_CHARS: usize = 500;
-    let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    if collapsed.chars().count() <= MAX_CHARS {
-        return collapsed;
-    }
-    let cut: String = collapsed.chars().take(MAX_CHARS).collect();
-    format!("{}…", cut.trim_end())
+    crate::logging::one_line(text, EXCERPT_CHARS)
 }
 
 #[cfg(test)]

@@ -3,8 +3,8 @@
 //! level is a plain `log::set_max_level` call, so it can change at runtime
 //! (from the Settings screen) without re-installing the logger.
 
-use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::fs::{self, OpenOptions};
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -12,11 +12,21 @@ use log::{Level, LevelFilter, Log, Metadata, Record};
 
 const KEEP_FILES: usize = 3;
 
-struct FileLogger {
-    file: Mutex<File>,
+struct FileLogger<W: Write + Send> {
+    /// Buffered rather than written straight through: `log` is called from
+    /// the tokio workers the background scans run on, and a `write` + `flush`
+    /// syscall pair per record blocked one of them every time — worst exactly
+    /// when the user has turned debug logging on to find out why something is
+    /// slow.
+    ///
+    /// The trade-off is that a hard crash can lose the tail of the buffer. So
+    /// errors are still flushed the moment they are written (see [`Log::log`]):
+    /// the records that explain a crash reach the disk immediately, and only
+    /// info/debug chatter rides in the buffer.
+    file: Mutex<BufWriter<W>>,
 }
 
-impl Log for FileLogger {
+impl<W: Write + Send + 'static> Log for FileLogger<W> {
     fn enabled(&self, _metadata: &Metadata) -> bool {
         // The global max level (set via `set_level`) already gates which
         // records reach here; nothing more to filter.
@@ -28,7 +38,11 @@ impl Log for FileLogger {
         eprint!("{line}");
         if let Ok(mut file) = self.file.lock() {
             let _ = file.write_all(line.as_bytes());
-            let _ = file.flush();
+            // An error may be the last thing written before the process dies,
+            // so it does not get to wait in the buffer.
+            if record.level() <= Level::Error {
+                let _ = file.flush();
+            }
         }
     }
 
@@ -106,7 +120,7 @@ pub fn init() -> std::io::Result<PathBuf> {
     // Errors here just mean a previous call already installed a logger
     // (shouldn't happen in practice) — logging is best-effort either way.
     let _ = log::set_boxed_logger(Box::new(FileLogger {
-        file: Mutex::new(file),
+        file: Mutex::new(BufWriter::new(file)),
     }));
     log::set_max_level(LevelFilter::Error); // matches the Settings default
     log::info!("performa {} started", env!("CARGO_PKG_VERSION"));
@@ -136,6 +150,102 @@ fn prune(dir: &std::path::Path) {
 
 #[cfg(test)]
 mod tests {
+
+    /// A sink whose bytes stay observable after the logger has taken it.
+    #[derive(Clone)]
+    struct Sink(std::sync::Arc<Mutex<Vec<u8>>>);
+
+    impl Write for Sink {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn logger_over(sink: Sink) -> FileLogger<Sink> {
+        FileLogger {
+            file: Mutex::new(BufWriter::new(sink)),
+        }
+    }
+
+    fn record_at(level: Level, msg: &str) -> String {
+        format_line(
+            &Record::builder()
+                .level(level)
+                .args(format_args!("{msg}"))
+                .build(),
+        )
+    }
+
+    #[test]
+    fn an_error_reaches_the_file_without_waiting_for_the_buffer() {
+        // The reason the buffer is safe: whatever explains a crash is on disk
+        // before the crash can happen.
+        let sink = Sink(Default::default());
+        let logger = logger_over(sink.clone());
+        logger.log(
+            &Record::builder()
+                .level(Level::Error)
+                .args(format_args!("boom"))
+                .build(),
+        );
+        let written = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+        assert!(
+            written.contains("boom"),
+            "error was left in the buffer: {written:?}"
+        );
+        assert!(written.contains("ERROR"));
+    }
+
+    #[test]
+    fn chatter_waits_in_the_buffer_until_flushed() {
+        // The point of the change: no syscall per info/debug record.
+        let sink = Sink(Default::default());
+        let logger = logger_over(sink.clone());
+        logger.log(
+            &Record::builder()
+                .level(Level::Info)
+                .args(format_args!("routine"))
+                .build(),
+        );
+        assert!(
+            sink.0.lock().unwrap().is_empty(),
+            "an info record should not have been flushed on its own"
+        );
+
+        logger.flush();
+        let written = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+        assert!(written.contains("routine"), "flush lost the buffered line");
+    }
+
+    #[test]
+    fn a_flush_carries_everything_buffered_before_it() {
+        // What `open_log_folder` and the exit hook rely on: the user reads a
+        // complete file, not one missing its last few lines.
+        let sink = Sink(Default::default());
+        let logger = logger_over(sink.clone());
+        for i in 0..5 {
+            logger.log(
+                &Record::builder()
+                    .level(Level::Debug)
+                    .args(format_args!("line {i}"))
+                    .build(),
+            );
+        }
+        logger.flush();
+        let written = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+        for i in 0..5 {
+            assert!(written.contains(&format!("line {i}")), "missing line {i}");
+        }
+    }
+
+    #[test]
+    fn warnings_render_as_python_style_warning() {
+        assert!(record_at(Level::Warn, "careful").contains(" - WARNING - careful"));
+    }
     use super::*;
 
     #[test]
