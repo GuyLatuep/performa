@@ -1274,4 +1274,93 @@ mod tests {
         assert!(checked_date("2026-07-16").is_ok());
         assert!(checked_date("2026-07-16\" OR project = X").is_err());
     }
+
+    #[test]
+    fn link_ids_are_validated() {
+        // Reaches a URL path, like the attachment ids above.
+        assert!(checked_link_id("10042").is_ok());
+        assert!(checked_link_id("").is_err());
+        assert!(checked_link_id("10042/../issue/ABC-1").is_err());
+        assert!(checked_link_id("10042?expand=all").is_err());
+        assert!(checked_link_id("abc").is_err());
+    }
+
+    #[test]
+    fn a_field_list_the_settings_screen_left_debris_in_is_cleaned_up() {
+        // Blanks and repeats are settings-screen debris, not something worth
+        // refusing the whole issue view over.
+        let names = vec![
+            "Plant no.".to_string(),
+            "   ".to_string(),
+            "plant no.".to_string(),
+            "Line".to_string(),
+        ];
+
+        let out = checked_field_names(names).unwrap();
+
+        assert_eq!(out, ["Plant no.", "Line"]);
+    }
+
+    #[test]
+    fn a_field_name_keeps_the_case_it_was_given() {
+        // Matched against the site's catalog, which is case-insensitive, but
+        // the name is what the issue view labels the row with.
+        let out = checked_field_names(vec!["  Request Type  ".to_string()]).unwrap();
+
+        assert_eq!(out, ["Request Type"]);
+    }
+
+    #[test]
+    fn an_absurdly_long_field_name_is_dropped_rather_than_refused() {
+        let long = "x".repeat(MAX_FIELD_NAME_CHARS + 1);
+
+        let out = checked_field_names(vec![long, "Line".to_string()]).unwrap();
+
+        assert_eq!(out, ["Line"]);
+    }
+
+    #[test]
+    fn too_many_fields_is_refused_outright() {
+        // A very long list makes for a very wide issue request, and unlike one
+        // bad entry there is no sensible half of it to keep.
+        let many: Vec<String> = (0..=MAX_DETAIL_FIELDS).map(|n| format!("f{n}")).collect();
+
+        assert!(checked_field_names(many).is_err());
+    }
+
+    #[test]
+    fn exactly_the_field_limit_is_allowed() {
+        let at_limit: Vec<String> = (0..MAX_DETAIL_FIELDS).map(|n| format!("f{n}")).collect();
+
+        assert_eq!(
+            checked_field_names(at_limit).unwrap().len(),
+            MAX_DETAIL_FIELDS
+        );
+    }
+
+    #[test]
+    fn the_todo_config_bounds_what_settings_can_push_into_the_jql() {
+        let mut ignored = BTreeMap::new();
+        ignored.insert("DEV".to_string(), vec!["Done".to_string()]);
+        // Not a project key, so the whole entry goes.
+        ignored.insert("../x".to_string(), vec!["Done".to_string()]);
+        // A project that ends up ignoring nothing goes too.
+        ignored.insert("OPS".to_string(), vec!["  ".to_string()]);
+
+        let cfg = todo_config(ignored);
+
+        assert_eq!(cfg.author_project, MISSING_ESCALATION_PROJECT);
+        assert_eq!(cfg.ignored_statuses.len(), 1);
+        assert_eq!(cfg.ignored_statuses["DEV"], ["Done"]);
+    }
+
+    #[test]
+    fn downloads_land_in_the_apps_own_scratch_folder() {
+        // Beside the debug logs rather than in the user's Downloads: the app
+        // sweeps these at launch, and sweeping Downloads would be a disaster.
+        let dir = attachment_dir();
+
+        assert!(dir.starts_with(std::env::temp_dir()));
+        assert_eq!(dir.file_name().unwrap(), "performa-attachments");
+    }
 }
