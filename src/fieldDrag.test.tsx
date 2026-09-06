@@ -166,6 +166,33 @@ describe("useFieldDrag", () => {
     expect(state().dragging).toBeNull();
   });
 
+  it("does not drop when the gesture is cancelled", () => {
+    // The pointer being taken away — the OS claiming it, focus lost mid-drag —
+    // is not the user finishing. Rearranging the layout on the strength of it
+    // is a change nobody asked for and cannot undo.
+    pointerLandsOn({ 10: "due", 30: "assignee" });
+    const onDrop = vi.fn();
+    render(<Harness onDrop={onDrop} />);
+
+    grab("due", 10);
+    fireEvent.pointerMove(window, { clientX: 30, clientY: 100 });
+    fireEvent.pointerCancel(window, { clientX: 30, clientY: 100 });
+
+    expect(onDrop).not.toHaveBeenCalled();
+  });
+
+  it("lets go of the field when the gesture is cancelled", () => {
+    pointerLandsOn({ 10: "due", 30: "assignee" });
+    render(<Harness onDrop={vi.fn()} />);
+
+    grab("due", 10);
+    fireEvent.pointerCancel(window, { clientX: 30, clientY: 100 });
+
+    // Nothing left in hand, and the page selectable again.
+    expect(state()).toEqual({ dragging: null, dropTarget: null, at: null });
+    expect(document.body.classList.contains("dragging-field")).toBe(false);
+  });
+
   it("stops the page selecting text while the pointer is held down", () => {
     // Without this the drag works and looks broken — the grid stays
     // highlighted afterwards, which is worse than not working.

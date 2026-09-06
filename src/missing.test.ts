@@ -248,3 +248,56 @@ describe("ignored findings", () => {
     ).toHaveLength(scansBefore);
   });
 });
+
+describe("marking the findings seen", () => {
+  async function freshMissing() {
+    localStorage.clear();
+    vi.resetModules();
+    return import("./missing");
+  }
+
+  const seen = (): unknown =>
+    JSON.parse(localStorage.getItem("performa-missing-seen") ?? "[]");
+
+  it("stops the tab blinking for what is on screen", async () => {
+    const missing = await freshMissing();
+    const item = finding("DEV-1", "2026-08-03T10:00:00+02:00");
+    backendReturns([item]);
+    await missing.refreshMissing();
+
+    missing.markMissingSeen();
+
+    expect(seen()).toEqual(["DEV-1@2026-08-03T10:00:00+02:00"]);
+  });
+
+  it("does not acknowledge a finding the user has waved away", async () => {
+    // `items` is the filtered list, so an ignored finding is not on screen to
+    // be seen — and must not be recorded as though it were.
+    const missing = await freshMissing();
+    const epic = finding("DEV-9", "2026-08-03T09:00:00+02:00");
+    backendReturns([finding("DEV-1", "2026-08-03T10:00:00+02:00"), epic]);
+    await missing.refreshMissing();
+    missing.ignoreMissing(epic);
+
+    missing.markMissingSeen();
+
+    expect(seen()).toEqual(["DEV-1@2026-08-03T10:00:00+02:00"]);
+  });
+});
+
+describe("polling", () => {
+  it("does not start a second timer when asked twice", async () => {
+    // Two intervals would double every scan for the life of the process.
+    vi.useFakeTimers();
+    try {
+      const setInterval = vi.spyOn(window, "setInterval");
+      startMissingPolling();
+      startMissingPolling();
+
+      expect(setInterval).toHaveBeenCalledTimes(1);
+    } finally {
+      stopMissingPolling();
+      vi.useRealTimers();
+    }
+  });
+});

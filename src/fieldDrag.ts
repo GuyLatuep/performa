@@ -59,13 +59,23 @@ export function useFieldDrag(
       setDropTarget(over === dragging ? null : over);
     };
 
-    const onUp = (e: PointerEvent) => {
-      const over = fieldUnder(e);
-      if (over && over !== dragging) onDrop(dragging, over);
+    const release = () => {
       setDragging(null);
       setDropTarget(null);
       setAt(null);
     };
+
+    const onUp = (e: PointerEvent) => {
+      const over = fieldUnder(e);
+      if (over && over !== dragging) onDrop(dragging, over);
+      release();
+    };
+
+    // A cancelled gesture is not a drop. The pointer being taken away — the OS
+    // claiming it, the window losing focus mid-drag — says the user did not
+    // finish, and rearranging the layout on the strength of wherever the
+    // cursor happened to be is a change nobody asked for and cannot undo.
+    const onCancel = () => release();
 
     // Held down over a page of text, a pointer drag selects it — which fights
     // the gesture and leaves the grid highlighted afterwards.
@@ -75,12 +85,12 @@ export function useFieldDrag(
     // rather than dropped if the pointer is taken away mid-drag.
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+    window.addEventListener("pointercancel", onCancel);
     return () => {
       document.body.classList.remove("dragging-field");
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("pointercancel", onCancel);
     };
   }, [dragging, onDrop]);
 

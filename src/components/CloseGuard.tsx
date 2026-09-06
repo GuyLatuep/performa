@@ -40,8 +40,16 @@ export default function CloseGuard() {
         // window closes a moment later) only makes quitting look stuck.
         event.preventDefault();
         checking.current = true;
-        await refreshMissing("close");
-        checking.current = false;
+        try {
+          await refreshMissing("close");
+        } catch {
+          // Quitting must not hinge on Jira being reachable, and the flag has
+          // to come back down either way: left raised, every later close
+          // request would hit the re-entrancy guard above and the window could
+          // never be closed again.
+        } finally {
+          checking.current = false;
+        }
         if (getMissing().length > 0) {
           setPrompting("missing");
         } else {

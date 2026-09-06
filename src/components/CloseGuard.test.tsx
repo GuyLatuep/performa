@@ -158,6 +158,34 @@ describe("when nothing is pending", () => {
   });
 });
 
+describe("when the pre-quit check goes wrong outright", () => {
+  // `refreshMissing` handles its own API errors, so this is a contract
+  // violation rather than an everyday offline moment. It is guarded because
+  // the cost of being wrong is total: the flag stays raised, every later
+  // close request hits the re-entrancy guard, and the window can never be
+  // closed again.
+  it("still quits rather than blocking the close for good", async () => {
+    missing.refreshMissing.mockRejectedValue(new Error("boom"));
+    const guard = mountGuard();
+
+    await guard.requestClose();
+
+    expect(tauri.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the guard able to run again", async () => {
+    missing.refreshMissing.mockRejectedValueOnce(new Error("boom"));
+    const guard = mountGuard();
+    await guard.requestClose();
+
+    missing.refreshMissing.mockResolvedValue(undefined);
+    await guard.requestClose();
+
+    expect(missing.refreshMissing).toHaveBeenCalledTimes(2);
+    expect(tauri.destroy).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("when a timer is still running", () => {
   it("warns instead of quitting", async () => {
     timerIs(activeTimer());

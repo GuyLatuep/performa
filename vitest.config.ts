@@ -1,6 +1,12 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // Supplied by vite.config.ts in a real build. Without it here, any component
+  // reading it (Settings prints it as the build stamp) throws a ReferenceError
+  // the moment it renders — so the value is arbitrary, but its presence is not.
+  define: {
+    __BUILT_AT__: JSON.stringify("2026-01-01T00:00:00.000Z"),
+  },
   test: {
     // The store modules touch localStorage and the Tauri IPC bridge at import
     // time; the setup file stands in for both. See src/test-support/setup.ts.
