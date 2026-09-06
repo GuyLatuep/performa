@@ -314,6 +314,466 @@ fn excerpt(text: &str) -> String {
 }
 
 #[cfg(test)]
+mod helper_tests {
+    //! The pure parts of a scan: how partial failures are folded together,
+    //! how mentions are ordered, and what the lookback window keeps.
+
+    use super::*;
+
+    fn mention(key: &str, created_ts: i64) -> Mention {
+        Mention {
+            issue_key: key.to_string(),
+            issue_summary: "An issue".to_string(),
+            comment_id: format!("c-{key}"),
+            author: "Anna Leeson".to_string(),
+            text: "look at this".to_string(),
+            created_at: format_rfc3339_local(created_ts),
+            created_ts,
+        }
+    }
+
+    #[test]
+    fn one_unreadable_issue_does_not_discard_the_rest() {
+        // Permissions changed, a comment deleted, Jira rate-limiting one
+        // request — none of it should throw away the other hundred issues.
+        let outcomes = vec![
+            Ok(vec![mention("ABC-1", 100)]),
+            Err("ABC-2 is forbidden".to_string()),
+        ];
+
+        let (found, failures) = split_outcomes(outcomes).unwrap();
+
+        assert_eq!(found.len(), 1);
+        assert_eq!(failures, ["ABC-2 is forbidden"]);
+    }
+
+    #[test]
+    fn a_scan_in_which_nothing_could_be_read_is_an_error() {
+        // Reporting an empty inbox here would say "nobody needs you", which is
+        // the opposite of what happened.
+        let outcomes: Vec<Result<Vec<Mention>, String>> = vec![
+            Err("expired token".to_string()),
+            Err("expired token".to_string()),
+        ];
+
+        assert_eq!(split_outcomes(outcomes).err().unwrap(), "expired token");
+    }
+
+    #[test]
+    fn a_clean_scan_reports_no_failures() {
+        let outcomes = vec![Ok(vec![mention("ABC-1", 100)]), Ok(vec![])];
+
+        let (found, failures) = split_outcomes(outcomes).unwrap();
+
+        assert_eq!(found.len(), 1);
+        assert!(failures.is_empty());
+    }
+
+    #[test]
+    fn having_no_candidates_at_all_is_not_a_failure() {
+        // Nothing was attempted, so nothing failed — an empty candidate set is
+        // an ordinary quiet day.
+        let (found, failures) = split_outcomes(Vec::new()).unwrap();
+
+        assert!(found.is_empty());
+        assert!(failures.is_empty());
+    }
+
+    #[test]
+    fn mentions_come_back_newest_first() {
+        let mut found = vec![
+            mention("OLD", 100),
+            mention("NEW", 300),
+            mention("MID", 200),
+        ];
+
+        newest_first(&mut found);
+
+        let keys: Vec<&str> = found.iter().map(|m| m.issue_key.as_str()).collect();
+        assert_eq!(keys, ["NEW", "MID", "OLD"]);
+    }
+
+    #[test]
+    fn ordering_follows_the_instant_rather_than_the_printed_stamp() {
+        // `created_at` carries a local UTC offset, and comparing offset-bearing
+        // strings is not chronological: when summer time ends the same
+        // wall-clock hour occurs twice with two different offsets, and the
+        // later of the two sorts first as text. The stamps here are written by
+        // hand so the two orders disagree wherever this test happens to run.
+        let mut found = vec![
+            Mention {
+                created_at: "2025-10-26T02:30:00+02:00".to_string(),
+                ..mention("EARLIER", 100)
+            },
+            Mention {
+                created_at: "2025-10-26T02:30:00+01:00".to_string(),
+                ..mention("LATER", 200)
+            },
+        ];
+        assert!(
+            found[0].created_at > found[1].created_at,
+            "the fixture is only meaningful while the strings sort backwards"
+        );
+
+        newest_first(&mut found);
+
+        assert_eq!(found[0].issue_key, "LATER");
+    }
+
+    #[test]
+    fn the_window_keeps_what_is_inside_it() {
+        let items = [mention("OLD", 50), mention("NEW", 150)];
+
+        let kept = within_lookback(&items, 100);
+
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0].issue_key, "NEW");
+    }
+
+    #[test]
+    fn a_mention_exactly_on_the_cutoff_is_still_inside() {
+        let items = [mention("EDGE", 100)];
+
+        assert_eq!(within_lookback(&items, 100).len(), 1);
+    }
+
+    #[test]
+    fn an_excerpt_is_one_bounded_line() {
+        // The inbox wraps it over at most four lines, so a comment with
+        // paragraph breaks must not blow the row open.
+        let long = "a".repeat(EXCERPT_CHARS + 50);
+
+        let out = excerpt(&format!("first\n\nsecond   line\t{long}"));
+
+        assert!(!out.contains('\n'), "{out}");
+        assert!(!out.contains("  "), "runs of whitespace collapse: {out}");
+        // The cut is `EXCERPT_CHARS` characters plus the ellipsis that says
+        // there was more.
+        assert!(out.ends_with('…'), "{out}");
+        assert_eq!(out.chars().count(), EXCERPT_CHARS + 1);
+    }
+}
+
+#[cfg(test)]
+mod http_tests {
+    //! A whole scan over a mock Jira: the two candidate searches, the comment
+    //! fetch for each issue, and what comes back out.
+
+    use super::*;
+    use crate::jira::test_support::client_for;
+    use serde_json::json;
+    use wiremock::matchers::{method, path, path_regex};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    const ME: &str = "acc-me";
+    const SOMEONE: &str = "acc-other";
+
+    /// A comment body tagging `account_id`.
+    fn tagging(account_id: &str) -> serde_json::Value {
+        json!({
+            "type": "doc",
+            "version": 1,
+            "content": [{
+                "type": "paragraph",
+                "content": [
+                    { "type": "text", "text": "can you look at this " },
+                    { "type": "mention", "attrs": { "id": account_id } },
+                ]
+            }]
+        })
+    }
+
+    /// Recent enough to be inside any lookback these tests use.
+    fn recently() -> String {
+        format_rfc3339_local(Local::now().timestamp() - 3_600)
+    }
+
+    fn comment(id: &str, author: &str, body: serde_json::Value) -> serde_json::Value {
+        json!({
+            "id": id,
+            "author": { "accountId": author, "displayName": "Anna Leeson" },
+            "created": recently(),
+            "body": body,
+        })
+    }
+
+    /// Answer both candidate searches with `issues`, and say whether Jira
+    /// claims a further page.
+    async fn mount_search(server: &MockServer, issues: serde_json::Value, more: bool) {
+        let mut body = json!({ "issues": issues });
+        if more {
+            body["nextPageToken"] = json!("more-to-come");
+        }
+        Mock::given(method("GET"))
+            .and(path("/rest/api/3/search/jql"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(body))
+            .mount(server)
+            .await;
+    }
+
+    fn issue(key: &str, updated: &str) -> serde_json::Value {
+        json!({
+            "key": key,
+            "fields": { "summary": "Replace the pump", "updated": updated },
+        })
+    }
+
+    async fn mount_comments(server: &MockServer, comments: serde_json::Value) {
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/rest/api/3/issue/.+/comment$"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "comments": comments,
+            })))
+            .mount(server)
+            .await;
+    }
+
+    /// How many times a path was asked for.
+    async fn hits(server: &MockServer, containing: &str) -> usize {
+        server
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .iter()
+            .filter(|r| r.url.path().contains(containing))
+            .count()
+    }
+
+    #[tokio::test]
+    async fn a_comment_tagging_me_is_a_mention() {
+        let server = MockServer::start().await;
+        mount_search(
+            &server,
+            json!([issue("ABC-1", "2026-03-01T09:00:00.000+0100")]),
+            false,
+        )
+        .await;
+        mount_comments(&server, json!([comment("c1", SOMEONE, tagging(ME))])).await;
+
+        let scan = client_for(&server)
+            .mentions(ME, "Malte Polzin", 30)
+            .await
+            .unwrap();
+
+        assert_eq!(scan.mentions.len(), 1);
+        assert_eq!(scan.mentions[0].issue_key, "ABC-1");
+        assert_eq!(scan.mentions[0].comment_id, "c1");
+        assert_eq!(scan.mentions[0].author, "Anna Leeson");
+        assert!(!scan.truncated);
+        assert!(!scan.name_search_skipped);
+    }
+
+    #[tokio::test]
+    async fn tagging_myself_is_not_news() {
+        let server = MockServer::start().await;
+        mount_search(
+            &server,
+            json!([issue("ABC-1", "2026-03-01T09:00:00.000+0100")]),
+            false,
+        )
+        .await;
+        mount_comments(&server, json!([comment("c1", ME, tagging(ME))])).await;
+
+        let scan = client_for(&server).mentions(ME, "Malte", 30).await.unwrap();
+
+        assert!(scan.mentions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_comment_tagging_somebody_else_is_not_mine() {
+        let server = MockServer::start().await;
+        mount_search(
+            &server,
+            json!([issue("ABC-1", "2026-03-01T09:00:00.000+0100")]),
+            false,
+        )
+        .await;
+        mount_comments(
+            &server,
+            json!([comment("c1", SOMEONE, tagging("acc-third"))]),
+        )
+        .await;
+
+        let scan = client_for(&server).mentions(ME, "Malte", 30).await.unwrap();
+
+        assert!(scan.mentions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn both_nets_run_when_there_is_a_name_to_search_for() {
+        let server = MockServer::start().await;
+        mount_search(&server, json!([]), false).await;
+
+        let scan = client_for(&server).mentions(ME, "Malte", 30).await.unwrap();
+
+        assert_eq!(hits(&server, "/search/jql").await, 2);
+        assert!(!scan.name_search_skipped);
+    }
+
+    #[tokio::test]
+    async fn an_account_with_no_display_name_skips_the_text_net() {
+        // An empty display name would search for the empty string, which
+        // matches every issue on the site.
+        let server = MockServer::start().await;
+        mount_search(&server, json!([]), false).await;
+
+        let scan = client_for(&server).mentions(ME, "   ", 30).await.unwrap();
+
+        assert_eq!(hits(&server, "/search/jql").await, 1);
+        assert!(scan.name_search_skipped);
+    }
+
+    #[tokio::test]
+    async fn an_issue_both_nets_found_is_scanned_once() {
+        // The nets overlap heavily, and scanning twice would report every
+        // mention on the issue twice.
+        let server = MockServer::start().await;
+        mount_search(
+            &server,
+            json!([issue("ABC-1", "2026-03-01T09:00:00.000+0100")]),
+            false,
+        )
+        .await;
+        mount_comments(&server, json!([comment("c1", SOMEONE, tagging(ME))])).await;
+
+        let scan = client_for(&server).mentions(ME, "Malte", 30).await.unwrap();
+
+        assert_eq!(scan.mentions.len(), 1);
+        assert_eq!(hits(&server, "/comment").await, 1);
+    }
+
+    #[tokio::test]
+    async fn a_further_page_of_candidates_makes_the_scan_truncated() {
+        // Reporting a complete inbox when a page was never fetched would hide
+        // exactly the mentions the user has not seen.
+        let server = MockServer::start().await;
+        mount_search(&server, json!([]), true).await;
+
+        let scan = client_for(&server).mentions(ME, "Malte", 30).await.unwrap();
+
+        assert!(scan.truncated);
+    }
+
+    #[tokio::test]
+    async fn an_issue_that_cannot_be_read_is_reported_as_truncation() {
+        // Same banner, no new concept: the scan is incomplete in exactly the
+        // sense the inbox already reports.
+        let server = MockServer::start().await;
+        mount_search(
+            &server,
+            json!([
+                issue("OK-1", "2026-03-01T09:00:00.000+0100"),
+                issue("BAD-1", "2026-03-01T09:00:00.000+0100"),
+            ]),
+            false,
+        )
+        .await;
+        Mock::given(method("GET"))
+            .and(path("/rest/api/3/issue/BAD-1/comment"))
+            .respond_with(ResponseTemplate::new(403).set_body_string("no permission"))
+            .mount(&server)
+            .await;
+        mount_comments(&server, json!([comment("c1", SOMEONE, tagging(ME))])).await;
+
+        let scan = client_for(&server).mentions(ME, "Malte", 30).await.unwrap();
+
+        assert_eq!(scan.mentions.len(), 1, "the readable issue still counts");
+        assert!(scan.truncated);
+    }
+
+    #[tokio::test]
+    async fn a_scan_that_could_read_nothing_at_all_fails() {
+        let server = MockServer::start().await;
+        mount_search(
+            &server,
+            json!([issue("ABC-1", "2026-03-01T09:00:00.000+0100")]),
+            false,
+        )
+        .await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/rest/api/3/issue/.+/comment$"))
+            .respond_with(ResponseTemplate::new(403).set_body_string("no permission"))
+            .mount(&server)
+            .await;
+
+        let err = client_for(&server)
+            .mentions(ME, "Malte", 30)
+            .await
+            .err()
+            .unwrap();
+
+        assert!(err.contains("403"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn a_failing_candidate_search_fails_the_scan() {
+        // Nothing to fall back on: without candidates there is no inbox.
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/rest/api/3/search/jql"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("boom"))
+            .mount(&server)
+            .await;
+
+        let err = client_for(&server)
+            .mentions(ME, "Malte", 30)
+            .await
+            .err()
+            .unwrap();
+
+        assert!(err.contains("500"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn a_comment_older_than_the_lookback_is_left_out() {
+        let server = MockServer::start().await;
+        mount_search(
+            &server,
+            json!([issue("ABC-1", "2026-03-01T09:00:00.000+0100")]),
+            false,
+        )
+        .await;
+        let long_ago = format_rfc3339_local(Local::now().timestamp() - 90 * 86_400);
+        mount_comments(
+            &server,
+            json!([{
+                "id": "c1",
+                "author": { "accountId": SOMEONE, "displayName": "Anna" },
+                "created": long_ago,
+                "body": tagging(ME),
+            }]),
+        )
+        .await;
+
+        let scan = client_for(&server).mentions(ME, "Malte", 7).await.unwrap();
+
+        assert!(scan.mentions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_unchanged_issue_is_not_refetched() {
+        // A comment cannot be written or edited without moving `updated`, so a
+        // matching stamp proves the cached mentions current.
+        let server = MockServer::start().await;
+        mount_search(
+            &server,
+            json!([issue("ABC-1", "2026-03-01T09:00:00.000+0100")]),
+            false,
+        )
+        .await;
+        mount_comments(&server, json!([comment("c1", SOMEONE, tagging(ME))])).await;
+        let client = client_for(&server);
+
+        client.mentions(ME, "Malte", 30).await.unwrap();
+        let before = hits(&server, "/comment").await;
+        let again = client.mentions(ME, "Malte", 30).await.unwrap();
+
+        assert_eq!(hits(&server, "/comment").await, before);
+        assert_eq!(again.mentions.len(), 1, "still served from the cache");
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
