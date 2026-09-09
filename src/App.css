@@ -116,8 +116,27 @@
   --dur-state: 350ms;
   --dur-nav: 450ms;
 
-  /* Minimum hit target. Non-negotiable, including icon-only buttons. */
+  /* Pointer targets, in two tiers.
+
+     --tap is the 44pt minimum, and every standalone control carries it:
+     buttons, inputs, selects, list rows.
+
+     --tap-compact is for the controls a desktop app draws small on purpose:
+     source-list rows, segmented-control segments, chips, inline text buttons.
+
+     --tap-dense is for controls inside a dense grid or a table header, where
+     44 would mean redesigning the data rather than the control — a month
+     matrix on 44pt rows is a different view, not a bigger one.
+
+     The two smaller tiers are a deliberate departure from the flat 44. That
+     figure is iOS's *touch* minimum, and this app is driven by a pointer on
+     macOS and Windows, where the system's own source lists, segmented
+     controls and grid cells all sit well below it. Sizing every one of them
+     at 44 would read as an iPad app stretched onto a desktop, which is the
+     opposite of the goal. Nothing goes below 28. */
   --tap: 44px;
+  --tap-compact: 32px;
+  --tap-dense: 28px;
 
   color-scheme: light;
   font-family: var(--font-sans);
@@ -283,20 +302,40 @@ button:hover {
   background: color-mix(in srgb, var(--accent) 88%, var(--ink));
 }
 
-/* Controls that are cells in a dense grid, or a word inside a line of text,
-   cannot carry the 44pt minimum without destroying the layout they sit in —
-   the month matrix would go from 28pt rows to 44pt ones. They are exempted
-   here rather than silently, and they are the open items for the tap-target
-   audit, which belongs after the views are laid out rather than before. */
+/* The dense tier: controls inside a grid cell or a table header, which take
+   --tap-dense instead of --tap. See the token for why the two tiers exist. */
 .month-cell,
 .quick-cell,
-.key-link,
 .col-sort,
-.day-bar,
-.arrange-grip,
+.arrange-grip {
+  min-height: var(--tap-dense);
+}
+
+/* A drag handle is a span, so it needs the box drawn on it explicitly. */
+.arrange-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-dense);
+}
+
+/* The exceptions, none of which is a target in its own right:
+
+   .key-link and .asset-link are words inside a sentence — inline links, sized
+   by the text they sit in. The row around them carries the 44pt target.
+
+   The checkbox and the accent swatch are round, with a fixed width and height;
+   a minimum would stretch them into ellipses. Each is wrapped by something
+   that is the real target — the checkbox's label, the swatch's picker row —
+   and that is where the 44 goes. */
+.key-link,
+.asset-link,
 .accent-swatch,
 label.checkbox input {
   min-height: 0;
+}
+label.checkbox {
+  min-height: var(--tap);
 }
 /* Apple's press: a small scale-down, released immediately. */
 button:active {
@@ -566,7 +605,7 @@ textarea {
 }
 button.duration-add {
   width: auto;
-  min-height: 32px;
+  min-height: var(--tap-compact);
   padding: 0 var(--sp-3);
   background: var(--fill-tertiary);
   color: var(--accent-text);
@@ -614,7 +653,6 @@ label.checkbox input {
   appearance: none;
   width: 22px;
   height: 22px;
-  min-height: 0;
   padding: 0;
   margin: 0;
   border: 1px solid var(--hair-strong);
@@ -757,7 +795,7 @@ label.checkbox input:checked::after {
   background: none;
   border: none;
   color: var(--ink);
-  min-height: 34px;
+  min-height: var(--tap-compact);
   padding: 0 var(--sp-4);
   border-radius: 8px;
   font-size: var(--fs-base);
@@ -779,9 +817,8 @@ label.checkbox input:checked::after {
   gap: 10px;
 }
 .accent-swatch {
-  width: 28px;
-  height: 28px;
-  min-height: 0;
+  width: var(--tap-dense);
+  height: var(--tap-dense);
   padding: 0;
   border: none;
   border-radius: 50%;
@@ -901,7 +938,7 @@ label.checkbox input:checked::after {
   align-items: center;
   gap: var(--sp-2);
   width: 100%;
-  min-height: 34px;
+  min-height: var(--tap-compact);
   padding: 0 var(--sp-2);
   border: none;
   border-radius: var(--r-control);
@@ -990,7 +1027,7 @@ label.checkbox input:checked::after {
 /* These sit in a tight column, so they carry a smaller target than a button
    in the body of a view — listed with the other tap-target debt above. */
 .account-actions button.link {
-  min-height: 30px;
+  min-height: var(--tap-compact);
   font-size: var(--fs-sm);
 }
 .account .confirm-text {
@@ -1377,7 +1414,7 @@ label.checkbox input:checked::after {
   font-weight: 500;
   letter-spacing: var(--track-tight);
   padding: 0 var(--sp-3);
-  min-height: 30px;
+  min-height: var(--tap-compact);
   white-space: nowrap;
 }
 .timer-start:hover:not(:disabled) {
@@ -2745,7 +2782,6 @@ section.issue-fact .issue-description {
   text-transform: none;
   letter-spacing: var(--track-tight);
   padding: 0;
-  min-height: 0;
 }
 
 /* ---------- Arranging the issue layout ---------- */
@@ -3054,9 +3090,10 @@ body.dragging-field {
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   text-align: right;
-  padding: 5px 6px;
+  padding: var(--sp-1) 6px;
   border-bottom: 1px solid var(--hair);
   background: var(--surface);
+  min-height: var(--tap-dense);
 }
 .month-grid .col-issue {
   position: sticky;
