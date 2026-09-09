@@ -9,5 +9,8 @@
       "Bash(npm install *)",
       "Bash(npx tsc *)"
     ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": false
   }
 }

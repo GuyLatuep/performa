@@ -37,5 +37,16 @@ export function useTheme(): [Theme, (theme: Theme) => void] {
   return [store.use(), setTheme];
 }
 
+/** Run something whenever the theme changes; returns an unsubscribe.
+ *
+ *  Exists for the accent, whose --accent-text is measured against the theme's
+ *  backdrop and goes stale when the theme moves. The two modules are wired
+ *  together in main.tsx rather than importing each other: each one's tests
+ *  stand in a different minimal shape for <html>, and importing either way
+ *  round would drag the other's document access into those tests. */
+export function onThemeChange(listener: () => void): () => void {
+  return store.subscribe(listener);
+}
+
 // Apply immediately on import so the first paint matches the saved theme.
 applyTheme();
