@@ -5,6 +5,7 @@ import CloseGuard from "./components/CloseGuard";
 import { applyTheme, onThemeChange } from "./theme";
 import { applyAccent } from "./accent";
 import { applyTextScale } from "./textScale";
+import { applyVibrancy } from "./vibrancy";
 import "./fonts.css";
 
 // Set the saved theme, accent and text size before the first paint to avoid a
@@ -13,6 +14,9 @@ import "./fonts.css";
 applyTheme();
 applyAccent();
 applyTextScale();
+// Only marks the document on macOS, where the window really is a vibrancy
+// surface; everywhere else every surface stays opaque.
+applyVibrancy();
 
 // Keep that variant honest when the theme is switched at runtime.
 onThemeChange(applyAccent);

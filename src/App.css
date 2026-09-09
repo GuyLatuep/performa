@@ -362,6 +362,76 @@ button.icon.danger-icon:hover {
   color: var(--danger-text);
 }
 
+/* ---------- Vibrancy (macOS only) ----------
+   The window itself is the material: tauri.macos.conf.json makes it
+   transparent and puts an NSVisualEffectView behind it. Refraction cannot be
+   reproduced outside Apple's renderer and this does not try — it simply lets
+   the real thing show through behind the source list, which is the one class
+   of element that gets it. Everything else stays opaque.
+
+   The mark is set by vibrancy.ts and only on macOS, so on Windows and Linux
+   none of this applies and every surface keeps its solid colour. */
+:root[data-vibrancy="on"] body {
+  background: transparent;
+}
+:root[data-vibrancy="on"] .sidebar {
+  background: color-mix(in srgb, var(--surface-sunken) 55%, transparent);
+}
+/* The content column keeps a solid ground: text is read there, and the whole
+   point of the material is that it moves. */
+:root[data-vibrancy="on"] .content {
+  background: var(--bg);
+}
+/* Asked for less transparency, the material goes away and the opaque surface
+   comes back — the same instruction the reduced-motion rule follows. */
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-vibrancy="on"] body {
+    background: var(--bg);
+  }
+  :root[data-vibrancy="on"] .sidebar {
+    background: var(--surface-sunken);
+  }
+}
+
+/* ---------- Motion ----------
+   Springs, not duration curves. --ease-spring is the cubic-bezier that comes
+   closest to Apple's sheet transition; anything with ease-in-out at 300ms
+   reads as generic. The prefers-reduced-motion rule further down the file
+   switches all of it off with !important, so nothing here needs to repeat
+   that check. */
+
+/* Switching views. Each tab's panel mounts fresh, so this runs on arrival —
+   a short rise and fade rather than a slide, because there is no spatial
+   relationship between the six views to honour. */
+main > * {
+  animation: view-in var(--dur-state) var(--ease-spring);
+}
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.nav-row {
+  transition:
+    background var(--dur-micro) var(--ease-spring),
+    color var(--dur-micro) var(--ease-spring);
+}
+input,
+textarea,
+select {
+  transition: border-color var(--dur-micro) var(--ease-spring);
+}
+.issue-select,
+.issue-open,
+.timer-start,
+.month-cell,
+.mention-option,
+.linked-summary {
+  transition: background var(--dur-micro) var(--ease-spring);
+}
+
 /* ---------- Icons ---------- */
 /* Lucide, at stroke 1.5-2. SF Symbols are licensed for Apple's own platforms
    and may not be redrawn or shipped, so this is the substitute; the weight and
@@ -1395,7 +1465,7 @@ label.checkbox input:checked::after {
   display: flex;
   align-items: flex-end;
   height: 120px;
-  border-bottom: 2px solid var(--ink);
+  border-bottom: 1px solid var(--hair);
 }
 .day-col {
   flex: 1;
@@ -1404,18 +1474,20 @@ label.checkbox input:checked::after {
   justify-content: center;
   height: 100%;
 }
+/* An outlined neon bar was the old idiom. A plain accent bar with a rounded
+   cap is the current one — the shape carries the value, nothing frames it. */
 .day-bar {
   width: 100%;
-  max-width: 24px;
+  max-width: 20px;
   background: var(--accent);
-  border: 1px solid var(--hair);
-  border-bottom: none;
+  border: none;
+  border-radius: var(--r-control) var(--r-control) 0 0;
 }
 .day-target {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px solid var(--muted);
+  border-top: 1px dashed var(--hair-strong);
   pointer-events: none;
 }
 .day-target span {
@@ -1450,24 +1522,23 @@ label.checkbox input:checked::after {
   width: 100%;
   height: auto;
 }
+/* A ring, drawn the way a progress ring is drawn here: a quiet track with the
+   accent laid over it and a round cap. The old version put an ink circle four
+   pixels wider underneath, to fake a border around the neon arc — there is no
+   neon and no border to fake now, so that circle is gone from the markup. */
 .gauge-track,
-.gauge-edge,
 .gauge-fill {
   fill: none;
 }
 .gauge-track {
-  stroke: var(--hair-strong);
-  stroke-width: 12;
-}
-/* Ink underlay 4px wider than the accent arc — reads as a 2px border,
-   keeping the neon legible on the light surface. */
-.gauge-edge {
-  stroke: var(--ink);
-  stroke-width: 16;
+  stroke: var(--fill-tertiary);
+  stroke-width: 10;
 }
 .gauge-fill {
   stroke: var(--accent);
-  stroke-width: 12;
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dasharray var(--dur-state) var(--ease-spring);
 }
 .gauge-center {
   position: absolute;
@@ -2814,7 +2885,7 @@ section.issue-fact .issue-description {
   border: 1px solid var(--hair);
   border-radius: var(--r-card);
   cursor: pointer;
-  animation: achievement-in var(--dur-state) var(--ease-spring);
+  animation: achievement-in var(--dur-nav) var(--ease-spring);
 }
 .achievement-toast:hover {
   background: var(--surface);
@@ -2968,7 +3039,6 @@ body.dragging-field {
     minmax(18rem, 1.4fr)
     repeat(var(--month-cols), 3.125rem)
     4.25rem;
-  border-top: 1px solid var(--hair-strong);
   min-width: min-content;
 }
 /* Rows exist for screen readers, not for layout: `display: contents` lets the
@@ -2985,7 +3055,7 @@ body.dragging-field {
   font-size: var(--fs-xs);
   text-align: right;
   padding: 5px 6px;
-  border-bottom: 1px solid var(--hair-strong);
+  border-bottom: 1px solid var(--hair);
   background: var(--surface);
 }
 .month-grid .col-issue {
@@ -3000,7 +3070,7 @@ body.dragging-field {
      alignment every other column depends on. The full text is in the title. */
   overflow: hidden;
   white-space: nowrap;
-  border-right: 1px solid var(--hair-strong);
+  border-right: 1px solid var(--hair);
 }
 .month-grid .col-issue .summary {
   overflow: hidden;
@@ -3023,7 +3093,7 @@ body.dragging-field {
   align-items: center;
   gap: 1px;
   line-height: 1.2;
-  border-bottom: 2px solid var(--ink);
+  border-bottom: 1px solid var(--hair-strong);
 }
 .day-head-cell .dow {
   font-size: var(--fs-micro);
@@ -3050,7 +3120,7 @@ body.dragging-field {
 
 .month-cell {
   border: none;
-  border-bottom: 1px solid var(--hair-strong);
+  border-bottom: 1px solid var(--hair);
   border-radius: 0;
   padding: 5px 6px;
   font: inherit;
@@ -3060,7 +3130,7 @@ body.dragging-field {
   cursor: pointer;
 }
 .month-cell:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  background: var(--accent-tint);
 }
 .month-cell:focus-visible {
   outline: 2px solid var(--accent);
@@ -3069,12 +3139,12 @@ body.dragging-field {
 /* Saturdays and Sundays only appear when something was booked on them, so the
    tint is there to explain why the column exists at all. */
 .month-grid .wknd {
-  background: color-mix(in srgb, var(--ink) 5%, var(--surface));
+  background: var(--surface-sunken);
 }
+/* Today's column, marked by tinting it rather than by ruling both its edges.
+   This retired the last box-shadow in the file; nothing here floats. */
 .month-grid .today {
-  box-shadow:
-    inset 1px 0 0 var(--accent),
-    inset -1px 0 0 var(--accent);
+  background: var(--accent-tint);
 }
 /* Nothing can be booked in the future, which is the same rule the log form
    enforces with its date input — so the cell is not a target at all. */
@@ -3092,7 +3162,7 @@ body.dragging-field {
   margin-left: 1px;
 }
 .month-grid .col-total {
-  border-left: 2px solid var(--ink);
+  border-left: 1px solid var(--hair-strong);
   font-weight: 600;
 }
 /* The row that logs on an issue not yet in the table. Quiet until hovered —
@@ -3111,5 +3181,5 @@ body.dragging-field {
   color: var(--muted);
 }
 .quick-cell:hover:not(:disabled) {
-  color: var(--ink);
+  color: var(--accent-text);
 }

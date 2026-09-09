@@ -89,14 +89,6 @@ export default function WeekChart({
         <svg viewBox="0 0 120 120" role="img" aria-label="Week progress">
           <circle className="gauge-track" cx={60} cy={60} r={R} />
           <circle
-            className="gauge-edge"
-            cx={60}
-            cy={60}
-            r={R}
-            strokeDasharray={`${filled} ${CIRC - filled}`}
-            transform="rotate(-90 60 60)"
-          />
-          <circle
             className="gauge-fill"
             cx={60}
             cy={60}
