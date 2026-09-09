@@ -605,7 +605,21 @@ label.checkbox input:checked {
      scroll — rather than by what is comfortable for prose. */
   max-width: clamp(680px, 94vw, 1760px);
   margin: 0 auto;
-  padding: 0 20px 48px;
+  padding: 0 20px 24px;
+  /* A column the full height of the window, so panels that want the rest of
+     the space (the todo list) can ask for it instead of stopping short and
+     leaving a band of empty background under a scrolling list. */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.app > main {
+  flex: 1;
+  /* Without this a scrolling child measures against its content, not against
+     the space main actually has. */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 header {
   display: flex;
@@ -861,6 +875,25 @@ header {
   /* Use the extra vertical space of larger windows. */
   max-height: clamp(360px, 55vh, 800px);
   overflow-y: auto;
+}
+/* The todo list is the whole point of its tab, so it takes every pixel the
+   window has left rather than capping at a share of the viewport. */
+.panel.todo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.panel.todo > section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.issue-list.todo-list {
+  max-height: none;
+  flex: 1;
+  min-height: 0;
 }
 .issue-list li {
   display: flex;
@@ -2344,6 +2377,11 @@ section.issue-fact .issue-description {
   pointer-events: none;
 }
 
+/* The todo panel now fills the window, so centre the message in it rather
+   than leaving it stranded at the top. */
+.panel.todo > .all-closed {
+  margin: auto 0;
+}
 /* Thick, because the moment deserves it. */
 .all-closed {
   display: block;
