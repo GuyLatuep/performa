@@ -1005,7 +1005,8 @@ label.checkbox input:checked::after {
    sections inside carry their own, and a surface inside a surface of the same
    colour reads as neither. It goes back to being a plain container. */
 .panel.start,
-.panel.todo {
+.panel.todo,
+.panel.issue-view {
   background: none;
   padding: 0;
 }
@@ -1800,17 +1801,18 @@ label.checkbox input:checked::after {
   text-overflow: ellipsis;
   font-size: var(--fs-micro);
   white-space: nowrap;
-  border: 1px solid var(--hair-strong);
-  padding: 1px 6px;
+  background: var(--fill-tertiary);
+  border-radius: var(--r-capsule);
+  padding: 2px var(--sp-2);
 }
 .priority-badge.urgent {
-  color: var(--danger);
-  border-color: var(--danger);
+  color: var(--danger-text);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
   font-weight: 600;
 }
 .priority-badge.high {
   color: var(--ink);
-  border-color: var(--ink);
+  font-weight: 500;
 }
 /* Quieter than the other markers, but the text stays at full strength — it is
    the border that softens, not the word. */
@@ -1954,7 +1956,8 @@ label.checkbox input:checked::after {
 .template-chip {
   display: flex;
   align-items: center;
-  border: 1px solid var(--hair-strong);
+  background: var(--surface);
+  border-radius: var(--r-control);
 }
 .template-use {
   display: flex;
@@ -1990,20 +1993,33 @@ label.checkbox input:checked::after {
   }
 }
 
-/* ---------- Issue view (todo tab) ---------- */
+/* ---------- Issue view (todo tab) ----------
+   A stack of grouped sections rather than one large card: the facts, the
+   description, the links, the attachments and the timeline each get their own
+   rounded surface on the grouped background, which is how a detail screen is
+   built in this language. */
 .issue-view .back-row {
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: var(--sp-3);
 }
 
+.issue-view > .issue-facts,
+.issue-view > section.issue-fact,
 .issue-section {
-  margin-top: 28px;
+  background: var(--surface);
+  border-radius: var(--r-card);
+  padding: var(--sp-4) var(--sp-5);
+}
+.issue-section {
+  margin-top: var(--sp-5);
 }
 .issue-section h3 {
-  font-size: var(--fs-xs);
-  padding-bottom: 8px;
-  margin: 0 0 12px;
-  border-bottom: 1px solid var(--hair);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--ink);
+  padding: 0;
+  margin: 0 0 var(--sp-3);
+  border-bottom: none;
 }
 
 /* Wraps to as many columns as fit; a long value (a remote-access note, say)
@@ -2033,7 +2049,7 @@ section.issue-fact .issue-description {
   margin-top: 0;
 }
 .issue-view > section.issue-fact + .issue-facts {
-  margin-top: 22px;
+  margin-top: var(--sp-5);
 }
 section.issue-fact .field-editor {
   min-width: min(100%, 420px);
@@ -2052,11 +2068,12 @@ section.issue-fact .field-editor {
    otherwise, and a link on every row was the clutter this replaced. */
 .issue-fact dd.editable {
   cursor: pointer;
-  text-decoration: underline dotted var(--hair);
+  text-decoration: underline dotted var(--hair-strong);
   text-underline-offset: 3px;
 }
 .issue-fact dd.editable:hover {
-  text-decoration-color: var(--ink);
+  text-decoration-color: var(--accent-text);
+  color: var(--accent-text);
 }
 
 /* The backend flattens ADF to text and keeps the line breaks; honour them. */
@@ -2081,14 +2098,22 @@ section.issue-fact .field-editor {
   overflow-y: auto;
 }
 .timeline-entry {
-  padding: 10px 0 10px 12px;
-  border-left: 2px solid var(--hair);
-  margin-bottom: 4px;
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--hair);
+}
+.issue-timeline .timeline-entry:last-child {
+  border-bottom: none;
 }
 /* Only comments carry what somebody actually wrote; the other two are the
-   record of something happening, and read as secondary. */
+   record of something happening, and read as secondary. Said with weight and
+   a tinted surface rather than with a rule down the side. */
 .timeline-entry.comment {
-  border-left-color: var(--ink);
+  background: var(--fill-quaternary);
+  border-radius: var(--r-control);
+  padding-left: var(--sp-3);
+  padding-right: var(--sp-3);
+  margin: 0 calc(var(--sp-3) * -1);
+  border-bottom-color: transparent;
 }
 .timeline-head {
   display: flex;
@@ -2108,8 +2133,9 @@ section.issue-fact .field-editor {
 }
 .timeline-tag {
   font-size: var(--fs-micro);
-  padding: 1px 5px;
-  border: 1px solid var(--hair-strong);
+  padding: 2px var(--sp-2);
+  background: var(--fill-tertiary);
+  border-radius: var(--r-capsule);
 }
 .timeline-text {
   white-space: pre-wrap;
@@ -2142,8 +2168,8 @@ section.issue-fact .field-editor {
 .panel-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
 }
 .panel-actions + .hint {
   margin-top: 10px;
@@ -2216,12 +2242,15 @@ section.issue-fact .field-editor {
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
   color: var(--muted);
-  padding: 6px 8px;
-  border: 1px dashed var(--hair-strong);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--hair);
+  border-radius: var(--r-control);
 }
 .transition-screen {
-  border: 1px solid var(--hair);
-  padding: 14px;
+  background: var(--surface);
+  border: none;
+  border-radius: var(--r-card);
+  padding: var(--sp-4);
 }
 .transition-more {
   color: var(--muted);
@@ -2230,14 +2259,16 @@ section.issue-fact .field-editor {
 /* ---------- Attachments ---------- */
 .attachments {
   border: 2px dashed transparent;
+  border-radius: var(--r-card);
   margin: -6px;
   padding: 6px;
-  transition: border-color 0.12s ease;
+  transition: border-color var(--dur-micro) var(--ease-spring);
 }
 /* Only while something is actually over the window — a permanent drop target
    would be noise on every issue. */
 .attachments.dropping {
-  border-color: var(--ink);
+  border-color: var(--accent);
+  background: var(--accent-tint);
 }
 /* Five rows, then scroll. An issue with twenty files would otherwise push
    everything below it — the comment box included — off the screen.
@@ -2253,10 +2284,14 @@ section.issue-fact .field-editor {
 .attachment-list li {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
-  padding: 6px 0;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) 0;
   border-bottom: 1px solid var(--hair);
+}
+.attachment-list li:last-child {
+  border-bottom: none;
 }
 .attachment-name {
   text-transform: none;
@@ -2300,16 +2335,22 @@ section.issue-fact .field-editor {
 .link-group li {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
-  padding: 6px 0;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) 0;
   border-bottom: 1px solid var(--hair);
+}
+.link-group li:last-child {
+  border-bottom: none;
 }
 .linked-key {
   text-transform: none;
-  letter-spacing: normal;
+  letter-spacing: var(--track-tight);
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent-text);
   white-space: nowrap;
 }
 /* Takes the free space so the status and the cross stay on the right edge,
@@ -2331,9 +2372,8 @@ section.issue-fact .field-editor {
 .linked-summary:hover {
   background: none;
   border: none;
-  color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--accent-text);
+  text-decoration: none;
 }
 .linked-status {
   font-variant-numeric: tabular-nums;
@@ -2345,7 +2385,7 @@ section.issue-fact .field-editor {
   color: var(--muted);
 }
 .link-remove:hover:not(:disabled) {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 /* The relationship and the issue read as one sentence about this issue, so
@@ -2354,9 +2394,11 @@ section.issue-fact .field-editor {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
-  border: 1px solid var(--hair);
-  padding: 12px;
+  gap: var(--sp-2) var(--sp-3);
+  background: var(--fill-quaternary);
+  border: none;
+  border-radius: var(--r-card);
+  padding: var(--sp-3);
 }
 .link-form > label {
   font-size: var(--fs-micro);
@@ -2394,8 +2436,8 @@ section.issue-fact .field-editor {
      heights — which is the part the eye actually reads as crooked. */
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
-  margin: 6px 0 22px;
+  gap: var(--sp-3);
+  margin: var(--sp-2) 0 var(--sp-5);
 }
 .issue-head .issue-chip {
   flex: 1 1 260px;
@@ -2424,7 +2466,7 @@ section.issue-fact .field-editor {
   color: var(--muted);
 }
 .attachment-remove:hover:not(:disabled) {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 .attachment-actions {
   display: flex;
@@ -2434,8 +2476,8 @@ section.issue-fact .field-editor {
 .attachment-actions .confirm-text {
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
-  color: var(--danger);
-  margin-right: 4px;
+  color: var(--danger-text);
+  margin-right: var(--sp-1);
 }
 
 /* ---------- Issue description (clamped until opened) ---------- */
@@ -2464,12 +2506,14 @@ section.issue-fact .issue-description {
 /* The chosen action's fields hang off the row, so they read as belonging to
    it rather than as another section of the page. */
 .action-panel {
-  border: 1px solid var(--hair);
-  border-top: none;
-  padding: 14px;
+  background: var(--fill-quaternary);
+  border: none;
+  border-radius: var(--r-card);
+  margin-top: var(--sp-2);
+  padding: var(--sp-4);
 }
 .action-panel .panel-actions {
-  margin-top: 12px;
+  margin-top: var(--sp-3);
   align-items: baseline;
 }
 
@@ -2611,8 +2655,9 @@ section.issue-fact .issue-description {
   font-size: var(--fs-base);
   font-weight: 400;
   text-transform: none;
-  letter-spacing: normal;
+  letter-spacing: var(--track-tight);
   padding: 0;
+  min-height: 0;
 }
 
 /* ---------- Arranging the issue layout ---------- */
@@ -2760,7 +2805,7 @@ section.issue-fact .issue-description {
   border-color: var(--ink);
 }
 .achievement-mark {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: var(--fs-lg);
 }
 .achievement-title {
@@ -2859,8 +2904,8 @@ body.dragging-field {
 .arrange-reset .confirm-text {
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
-  color: var(--danger);
-  margin-right: 4px;
+  color: var(--danger-text);
+  margin-right: var(--sp-1);
 }
 
 /* The buttons on the right of a section head. Grouped so the head keeps its
