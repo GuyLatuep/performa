@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { listSentence, OfferedTransition } from "../transitions";
 import {
@@ -44,7 +45,8 @@ export default function TransitionScreen({
     <div className="transition-screen">
       <div className="back-row">
         <button className="link" onClick={onCancel} disabled={busy}>
-          ← Cancel this move
+          <ArrowLeft size={15} strokeWidth={2} aria-hidden />
+          Cancel this move
         </button>
       </div>
       <p className="hint">

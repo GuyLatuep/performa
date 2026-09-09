@@ -1,3 +1,4 @@
+import { Check, ExternalLink, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -160,7 +161,7 @@ export default function IssueAttachments({
                     disabled={removing !== null}
                     onClick={() => setConfirming(null)}
                   >
-                    ✕
+                    <X size={16} strokeWidth={1.75} aria-hidden />
                   </button>
                   <button
                     className="icon danger-icon"
@@ -168,7 +169,7 @@ export default function IssueAttachments({
                     disabled={removing !== null}
                     onClick={() => remove(item)}
                   >
-                    ✓
+                    <Check size={16} strokeWidth={1.75} aria-hidden />
                   </button>
                 </>
               ) : (
@@ -178,7 +179,7 @@ export default function IssueAttachments({
                   disabled={removing !== null || busy}
                   onClick={() => setConfirming(item.id)}
                 >
-                  ✕
+                  <X size={16} strokeWidth={1.75} aria-hidden />
                 </button>
               )}
             </span>
@@ -197,7 +198,8 @@ export default function IssueAttachments({
         </button>
         {attachments.length > 0 && (
           <button className="link" onClick={() => api.openAttachmentFolder()}>
-            Open download folder ↗
+            Open download folder
+            <ExternalLink size={13} strokeWidth={2} aria-hidden />
           </button>
         )}
       </div>

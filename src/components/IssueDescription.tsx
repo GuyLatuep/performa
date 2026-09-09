@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 
 /** The issue's description, clamped to a few lines with a way to open it.
@@ -37,7 +38,12 @@ export default function IssueDescription({ text }: { text: string }) {
       </p>
       {(overflows || expanded) && (
         <button className="link" onClick={() => setExpanded((e) => !e)}>
-          {expanded ? "Show less ▲" : "Show more ▼"}
+          {expanded ? "Show less" : "Show more"}
+          {expanded ? (
+            <ChevronUp size={14} strokeWidth={2} aria-hidden />
+          ) : (
+            <ChevronDown size={14} strokeWidth={2} aria-hidden />
+          )}
         </button>
       )}
     </>

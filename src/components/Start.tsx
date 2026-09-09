@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, IssueSummary, MissingWorklog, WorklogEntry } from "../api";
 import { formatDuration, weekRange } from "../time";
@@ -173,7 +174,7 @@ function TemplatesSection({
               title="Remove template"
               onClick={() => removeTemplate(t.id)}
             >
-              ✕
+              <X size={16} strokeWidth={1.75} aria-hidden />
             </button>
           </div>
         ))}

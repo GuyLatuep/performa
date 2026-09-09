@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { check, Update } from "@tauri-apps/plugin-updater";
@@ -99,7 +100,7 @@ export default function UpdateNotice() {
             setUpdate(null);
           }}
         >
-          ✕
+          <X size={16} strokeWidth={1.75} aria-hidden />
         </button>
       )}
     </div>

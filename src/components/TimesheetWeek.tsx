@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, WorklogEntry } from "../api";
 import { formatDayLabel, formatDuration, weekRange } from "../time";
@@ -76,8 +77,13 @@ export default function TimesheetWeek({ site, refreshKey }: Props) {
   return (
     <div className="panel">
       <div className="week-nav">
-        <button className="secondary" onClick={() => setOffset(offset - 1)}>
-          ←
+        <button
+          className="secondary"
+          aria-label="Previous week"
+          title="Previous week"
+          onClick={() => setOffset(offset - 1)}
+        >
+          <ChevronLeft size={18} strokeWidth={1.75} aria-hidden />
         </button>
         <div className="week-label">
           <strong>{label}</strong>
@@ -87,10 +93,12 @@ export default function TimesheetWeek({ site, refreshKey }: Props) {
         </div>
         <button
           className="secondary"
+          aria-label="Next week"
+          title="Next week"
           onClick={() => setOffset(offset + 1)}
           disabled={offset >= 0}
         >
-          →
+          <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
         </button>
       </div>
 

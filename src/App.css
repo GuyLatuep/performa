@@ -362,6 +362,23 @@ button.icon.danger-icon:hover {
   color: var(--danger-text);
 }
 
+/* ---------- Icons ---------- */
+/* Lucide, at stroke 1.5-2. SF Symbols are licensed for Apple's own platforms
+   and may not be redrawn or shipped, so this is the substitute; the weight and
+   geometry are the closest match available. Icons never carry the accessible
+   name on their own — every icon-only control has a title or an aria-label,
+   and the glyph itself is aria-hidden. */
+button svg,
+.nav-icon {
+  flex: none;
+}
+/* An icon sitting beside a word wants the word's optical centre, not the
+   line's baseline. */
+.col-sort svg,
+.timeline-tag svg {
+  align-self: center;
+}
+
 /* ---------- Micro-labels ---------- */
 
 /* One recipe, worn by every small label in the app: form and field names,
@@ -1897,7 +1914,7 @@ label.checkbox input:checked::after {
    control parked in the row. */
 .todo-columns .col-sort {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 3px;
   min-width: 0;
   padding: 0;
@@ -2806,7 +2823,7 @@ section.issue-fact .issue-description {
 }
 .achievement-mark {
   color: var(--accent-text);
-  font-size: var(--fs-lg);
+  flex: none;
 }
 .achievement-title {
   font-size: var(--fs-md);

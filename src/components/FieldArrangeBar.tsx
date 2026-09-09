@@ -1,3 +1,4 @@
+import { Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { addDetailField, restoreDefaultFields } from "../issueFieldNames";
@@ -56,7 +57,7 @@ export default function FieldArrangeBar({
             title="Doch nicht"
             onClick={() => setConfirmReset(false)}
           >
-            ✕
+            <X size={16} strokeWidth={1.75} aria-hidden />
           </button>
           <button
             className="icon danger-icon"
@@ -66,7 +67,7 @@ export default function FieldArrangeBar({
               setConfirmReset(false);
             }}
           >
-            ✓
+            <Check size={16} strokeWidth={1.75} aria-hidden />
           </button>
         </span>
       ) : (

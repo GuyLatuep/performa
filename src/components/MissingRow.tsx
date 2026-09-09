@@ -1,3 +1,4 @@
+import { CornerDownRight, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { MissingWorklog } from "../api";
 import { timeAgo } from "../time";
@@ -51,7 +52,8 @@ export default function MissingRow({
           )}
           {showLogTarget && item.logKey !== item.issueKey && (
             <span className="comment">
-              → logs on {item.logKey} · {item.logSummary}
+              <CornerDownRight size={13} strokeWidth={2} aria-hidden />
+              logs on {item.logKey} · {item.logSummary}
             </span>
           )}
         </button>
@@ -66,7 +68,7 @@ export default function MissingRow({
           title="Ignore until this issue sees newer activity"
           onClick={onIgnore}
         >
-          ✕
+          <X size={16} strokeWidth={1.75} aria-hidden />
         </button>
       )}
     </div>

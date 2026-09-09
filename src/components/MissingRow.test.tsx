@@ -99,15 +99,13 @@ describe("the log target", () => {
       item: item({ logKey: "DEV-9", logSummary: "The source issue" }),
     });
 
-    expect(
-      screen.getByText(/→ logs on DEV-9 · The source issue/),
-    ).toBeDefined();
+    expect(screen.getByText(/logs on DEV-9 · The source issue/)).toBeDefined();
   });
 
   it("stays quiet when the time goes on the flagged issue itself", () => {
     renderRow({ showLogTarget: true });
 
-    expect(screen.queryByText(/→ logs on/)).toBeNull();
+    expect(screen.queryByText(/logs on/)).toBeNull();
   });
 
   it("stays quiet on the overview, which is a summary", () => {
@@ -116,7 +114,7 @@ describe("the log target", () => {
       item: item({ logKey: "DEV-9", logSummary: "The source issue" }),
     });
 
-    expect(screen.queryByText(/→ logs on/)).toBeNull();
+    expect(screen.queryByText(/logs on/)).toBeNull();
   });
 });
 

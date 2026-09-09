@@ -1,3 +1,4 @@
+import { Circle, Play, Star } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { IssueSummary } from "../api";
 import { priorityClass, shortStatus } from "../issueLabels";
@@ -31,7 +32,12 @@ export default function IssueRow({
         title={pinned ? `Unpin ${issue.key}` : `Pin ${issue.key} to top`}
         onClick={() => togglePin(issue)}
       >
-        {pinned ? "★" : "☆"}
+        <Star
+          size={16}
+          strokeWidth={1.75}
+          fill={pinned ? "currentColor" : "none"}
+          aria-hidden
+        />
       </button>
       <TypeIcon type={issue.issueType} url={issue.issueTypeIcon} />
       <button
@@ -77,7 +83,17 @@ export default function IssueRow({
         }
         onClick={() => startTimer(issue.key, issue.summary)}
       >
-        {isRunning ? "● timing" : "▶ start"}
+        {isRunning ? (
+          <>
+            <Circle size={11} strokeWidth={0} fill="currentColor" aria-hidden />
+            timing
+          </>
+        ) : (
+          <>
+            <Play size={11} strokeWidth={0} fill="currentColor" aria-hidden />
+            start
+          </>
+        )}
       </button>
     </li>
   );

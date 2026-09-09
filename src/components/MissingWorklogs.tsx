@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, MissingWorklog } from "../api";
 import { timeAgo, toDateInput, toTimeInput } from "../time";
@@ -159,7 +160,8 @@ function LogForm({
   return (
     <div className="panel">
       <button className="link" onClick={onCancel}>
-        ← Back to the list
+        <ArrowLeft size={15} strokeWidth={2} aria-hidden />
+        Back to the list
       </button>
       <div className="issue-chip">
         <span className="key">{item.logKey}</span>

@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, IssueSummary, WorklogEntry } from "../api";
 import { logInfo } from "../log";
@@ -78,11 +79,13 @@ export default function LogWork({
               the user came from. */}
           {onBack && selected === initialIssue && (
             <button className="link" onClick={onBack}>
-              ← Back to {backLabel}
+              <ArrowLeft size={15} strokeWidth={2} aria-hidden />
+              Back to {backLabel}
             </button>
           )}
           <button className="link" onClick={() => setSelected(null)}>
-            ← Choose a different issue
+            <ArrowLeft size={15} strokeWidth={2} aria-hidden />
+            Choose a different issue
           </button>
         </div>
         <div className="issue-chip">

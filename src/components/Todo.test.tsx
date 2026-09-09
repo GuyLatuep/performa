@@ -173,11 +173,14 @@ describe("sorting", () => {
     // says which way it is sorted, so query by that.
     const header = () => screen.getByTitle(/issue key/);
 
-    await userEvent.click(header());
-    expect(header().textContent).toContain("▲");
+    // The direction is an icon now; lucide stamps its name onto the svg class.
+    const arrow = () => header().querySelector("svg")?.getAttribute("class");
 
     await userEvent.click(header());
-    expect(header().textContent).toContain("▼");
+    expect(arrow()).toContain("chevron-up");
+
+    await userEvent.click(header());
+    expect(arrow()).toContain("chevron-down");
   });
 
   it("offers a way back to Jira's order only once sorted", async () => {
