@@ -220,6 +220,38 @@ describe("the tab badges", () => {
   });
 });
 
+describe("the app badge", () => {
+  // The badge on the app icon is the only indication that survives the window
+  // being behind something else, so it counts what is waiting across both
+  // inboxes rather than reporting on one tab.
+  it("counts both inboxes together", async () => {
+    badges.missing = [{}, {}];
+    badges.unseen = 2;
+    mentionBadge.unread = 3;
+
+    await renderSignedIn();
+
+    expect(apiMock.setBadge).toHaveBeenCalledWith(5);
+  });
+
+  it("counts what is unseen, not what is merely listed", async () => {
+    // Six findings the user has already looked at are not six things waiting.
+    badges.missing = [{}, {}, {}, {}, {}, {}];
+    badges.unseen = 0;
+    mentionBadge.unread = 1;
+
+    await renderSignedIn();
+
+    expect(apiMock.setBadge).toHaveBeenCalledWith(1);
+  });
+
+  it("clears rather than showing a zero when nothing is waiting", async () => {
+    await renderSignedIn();
+
+    expect(apiMock.setBadge).toHaveBeenCalledWith(null);
+  });
+});
+
 describe("the account row", () => {
   it("names who is signed in", async () => {
     await renderSignedIn();

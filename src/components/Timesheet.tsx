@@ -23,7 +23,9 @@ export default function Timesheet({ site, refreshKey }: Props) {
   const view = useTimesheetView();
 
   return (
-    <>
+    /* A named wrapper, not a fragment: the month grid fills the height it is
+       given, and that needs a box in the chain to hand it one. */
+    <div className={`timesheet timesheet-${view}`}>
       <div className="theme-toggle timesheet-view">
         <button
           type="button"
@@ -45,6 +47,6 @@ export default function Timesheet({ site, refreshKey }: Props) {
       ) : (
         <TimesheetMonth site={site} refreshKey={refreshKey} />
       )}
-    </>
+    </div>
   );
 }

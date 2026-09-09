@@ -190,6 +190,7 @@ const METHOD_NAMES = [
   "mentions",
   "setLogLevel",
   "openLogFolder",
+  "setBadge",
 ] as const;
 
 type MethodName = (typeof METHOD_NAMES)[number];

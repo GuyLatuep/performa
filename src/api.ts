@@ -731,4 +731,9 @@ export const api = {
   openLogFolder(): Promise<void> {
     return invoke("open_log_folder");
   },
+  /** Put `count` on the app's badge, or clear it with null. Deliberately not
+   *  logged: it runs on every change to the unread counts. */
+  setBadge(count: number | null): Promise<void> {
+    return invoke("set_badge", { count });
+  },
 };

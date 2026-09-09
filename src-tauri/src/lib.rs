@@ -894,6 +894,23 @@ fn frontend_log(level: String, message: String) {
     }
 }
 
+/// Show `count` on the app's badge, or clear it with `None`.
+///
+/// The dock badge is the indication that survives the window being behind
+/// something else, which is the whole point: an in-window badge only helps
+/// somebody already looking at the window.
+///
+/// Platform support is uneven — macOS puts it on the dock icon, and the other
+/// platforms either ignore it or want an overlay icon instead — so a failure
+/// here is logged and swallowed. A badge that cannot be drawn is not a reason
+/// to fail the call that asked for it.
+#[tauri::command]
+fn set_badge(window: tauri::Window, count: Option<i64>) {
+    if let Err(err) = window.set_badge_count(count) {
+        log::debug!("set_badge_count({count:?}) failed: {err}");
+    }
+}
+
 /// Normalize a user-entered site into `https://host` with no trailing slash.
 ///
 /// Plain `http` is refused: the API token rides along as a Basic-auth header
@@ -1020,6 +1037,7 @@ pub fn run() {
             set_log_level,
             open_log_folder,
             frontend_log,
+            set_badge,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

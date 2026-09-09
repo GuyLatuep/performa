@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   AtSign,
@@ -106,6 +106,16 @@ export default function App() {
   const missingUnseen = useMissingUnseenCount();
   const mentionsUnread = useMentionsUnreadCount();
   const funMode = useFunMode();
+  const mentionsArrived = useArrival(mentionsUnread);
+  const missingArrived = useArrival(missingUnseen);
+
+  // The badge on the app icon, which is the only indication that survives the
+  // window being behind something else. Both inboxes feed it: it counts what
+  // is waiting, not which tab it is waiting in.
+  const waiting = mentionsUnread + missingUnseen;
+  useEffect(() => {
+    api.setBadge(waiting > 0 ? waiting : null);
+  }, [waiting]);
 
   async function refreshStatus() {
     try {
@@ -241,12 +251,20 @@ export default function App() {
   /** One row of the source list. `count`, when there is one, rides in the
    *  accessible name as well as the badge — a screen reader gets "Mentions ·
    *  2" the way the eye does. */
-  function navRow(t: Tab, count: number, alert: boolean, onSelect: () => void) {
+  function navRow(
+    t: Tab,
+    count: number,
+    alert: boolean,
+    onSelect: () => void,
+    arrived = false,
+  ) {
     const Icon = TAB_ICONS[t];
     const label = TAB_LABELS[t];
     return (
       <button
-        className={`nav-row${tab === t ? " active" : ""}${alert ? " alert" : ""}`}
+        className={`nav-row${tab === t ? " active" : ""}${alert ? " alert" : ""}${
+          arrived && tab !== t ? " arrived" : ""
+        }`}
         aria-label={count > 0 ? `${label} · ${count}` : label}
         aria-current={tab === t ? "page" : undefined}
         onClick={onSelect}
@@ -273,11 +291,19 @@ export default function App() {
               when the tab is already open. */}
           {navRow("log", 0, false, () => openLogTab(null))}
           {navRow("timesheet", 0, false, () => setTab("timesheet"))}
-          {navRow("missing", missingItems.length, missingUnseen > 0, () =>
-            setTab("missing"),
+          {navRow(
+            "missing",
+            missingItems.length,
+            missingUnseen > 0,
+            () => setTab("missing"),
+            missingArrived,
           )}
-          {navRow("mentions", mentionsUnread, mentionsUnread > 0, () =>
-            setTab("mentions"),
+          {navRow(
+            "mentions",
+            mentionsUnread,
+            mentionsUnread > 0,
+            () => setTab("mentions"),
+            mentionsArrived,
           )}
         </nav>
 
@@ -372,6 +398,35 @@ export default function App() {
     </div>
   );
 }
+
+/**
+ * True for a moment after `count` rises.
+ *
+ * Lets a row call attention to itself once when something lands, rather than
+ * blinking until the tab is opened — the old behaviour, which was impossible
+ * to ignore and equally impossible to live with. Only an *increase* counts:
+ * reading a mention lowers the number, and that is not news.
+ */
+function useArrival(count: number): boolean {
+  const [arrived, setArrived] = useState(false);
+  const previous = useRef(count);
+
+  useEffect(() => {
+    const rose = count > previous.current;
+    previous.current = count;
+    if (!rose) return;
+    setArrived(true);
+    const timer = setTimeout(() => setArrived(false), ARRIVAL_MS);
+    return () => clearTimeout(timer);
+  }, [count]);
+
+  return arrived;
+}
+
+/** How long a row stays marked after something lands in it. Long enough to
+ *  catch the eye on the way back to the window, short enough that it is over
+ *  before it becomes the blinking tab again. */
+const ARRIVAL_MS = 6000;
 
 /**
  * How much confetti a worklog is worth.

@@ -302,6 +302,41 @@ button:hover {
   background: color-mix(in srgb, var(--accent) 88%, var(--ink));
 }
 
+/* Buttons that are really a row of text or a table cell rather than a control.
+
+   The base rule above centres a button's contents, which is right for a
+   standalone button and wrong for every one of these: a list row reads from
+   the left, a numeric cell from the right. Browsers default a button to
+   centred text, so anything wanting otherwise had to say `text-align` — which
+   makes that declaration the reliable signal for what belongs here. Both
+   properties are needed, because these are flex containers: `text-align`
+   alone does not place a flex item. */
+.nav-row,
+.issue-select,
+.issue-open,
+.key-link,
+.mention-summary,
+.mention-option,
+.linked-summary,
+.template-use,
+.mention-body,
+.mention-summary,
+.todo-columns .col-sort {
+  justify-content: flex-start;
+  /* Not capsules. A 999px radius on a block of text clips the corners, and
+     with `overflow: hidden` for line-clamping it eats the first and last
+     lines' opening characters outright. */
+  border-radius: var(--r-control);
+}
+/* Numbers line up with the column they sit under. */
+.month-cell {
+  justify-content: flex-end;
+}
+/* Except the quick-log row, whose cells hold a mark rather than a number. */
+.quick-cell {
+  justify-content: center;
+}
+
 /* The dense tier: controls inside a grid cell or a table header, which take
    --tap-dense instead of --tap. See the token for why the two tiers exist. */
 .month-cell,
@@ -899,7 +934,11 @@ label.checkbox input:checked::after {
 .app {
   display: grid;
   grid-template-columns: 15rem minmax(0, 1fr);
-  min-height: 100vh;
+  /* The window is the frame; the content column is what scrolls. Letting the
+     body scroll too is what put a second scrollbar behind every view that had
+     an inner scroll region of its own. */
+  height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -909,10 +948,9 @@ label.checkbox input:checked::after {
   padding: var(--sp-4) var(--sp-3);
   background: var(--surface-sunken);
   border-right: 1px solid var(--hair);
-  /* The list stays put while the view scrolls, the way a source list does. */
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  /* The list stays put while the view scrolls, the way a source list does —
+     the grid gives it the window's full height, so it needs no stickiness. */
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -991,15 +1029,42 @@ label.checkbox input:checked::after {
   background: color-mix(in srgb, var(--accent-ink) 22%, transparent);
   color: var(--accent-ink);
 }
-/* Something unseen. It used to blink; a blinking tab is not something Apple's
-   language has, and the count already carries the news. systemRed is the one
-   colour allowed to step outside the accent. */
+/* Something unseen. systemRed is the one colour allowed to step outside the
+   accent, and it carries the row's icon as well as its count — a count alone
+   is a very small thing to notice in the corner of a sidebar. */
 .nav-row.alert .nav-count {
   background: var(--danger);
   color: var(--danger-ink);
 }
-.nav-row.alert:not(.active) .nav-icon {
+.nav-row.alert:not(.active) .nav-icon,
+.nav-row.alert:not(.active) .nav-label {
   color: var(--danger-text);
+}
+
+/* Just arrived. The row pulses for a few seconds and then settles, rather
+   than blinking until the tab is opened: enough to catch the eye on the way
+   back to the window, and over before it becomes something to endure. The
+   global reduced-motion rule turns the animation off, and the row is still
+   red underneath — the news does not depend on the movement. */
+.nav-row.arrived {
+  animation: row-arrived 1.4s var(--ease-spring) 3;
+}
+@keyframes row-arrived {
+  0%,
+  100% {
+    background: none;
+  }
+  35% {
+    background: color-mix(in srgb, var(--danger) 26%, transparent);
+  }
+}
+.nav-row.arrived .nav-count {
+  animation: count-arrived 1.4s var(--ease-spring) 3;
+}
+@keyframes count-arrived {
+  35% {
+    transform: scale(1.18);
+  }
 }
 
 /* ---------- Account, at the foot of the source list ---------- */
@@ -1035,12 +1100,24 @@ label.checkbox input:checked::after {
 }
 
 /* ---------- Content column ---------- */
+/* The view area is the scroll region, so the title above it stays put the way
+   a toolbar does. Its height is bounded by the column, which is what lets a
+   view that wants to fill the window — the month grid — ask for it. */
+main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: var(--sp-8);
+}
 .content {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   /* The cap is set by the widest thing the app shows — the month matrix,
      which wants around 1300px before it has to scroll. */
   max-width: 1760px;
-  padding: 0 var(--sp-5) var(--sp-8);
+  padding: 0 var(--sp-5);
 }
 .content > header {
   display: flex;
@@ -1278,9 +1355,6 @@ label.checkbox input:checked::after {
   padding: 0;
   background: var(--surface);
   border-radius: var(--r-card);
-  /* Use the extra vertical space of larger windows. */
-  max-height: clamp(360px, 55vh, 800px);
-  overflow-y: auto;
 }
 .issue-list li {
   position: relative;
@@ -1601,9 +1675,9 @@ label.checkbox input:checked::after {
   align-items: baseline;
   justify-content: flex-end;
   gap: 10px;
-  margin: 12px 0 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid var(--ink);
+  margin: var(--sp-3) 0 var(--sp-5);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--hair);
   font-size: var(--fs-xs);
 }
 .week-total strong {
@@ -1716,6 +1790,13 @@ label.checkbox input:checked::after {
   overflow: hidden;
   background: none;
   border: none;
+  /* Square, because the text starts hard at the edge: any corner radius here
+     is carved out of the words themselves once overflow is hidden. */
+  border-radius: 0;
+  /* A paragraph in a row, not a control of its own — the row carries the
+     44pt target, and a minimum here would double the height of every
+     single-line mention. */
+  min-height: 0;
   padding: 0;
   margin-top: 3px;
   text-align: left;
@@ -1737,9 +1818,10 @@ label.checkbox input:checked::after {
   font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--muted);
-  border-left: 3px solid var(--muted);
-  padding: 6px 0 6px 9px;
-  margin: 0 0 10px;
+  background: var(--fill-quaternary);
+  border-radius: var(--r-control);
+  padding: var(--sp-2) var(--sp-3);
+  margin: 0 0 var(--sp-3);
 }
 /* Unread mentions carry the accent down their left edge for the visit in which
    they were opened — after that the row reads as an ordinary entry. */
@@ -1879,10 +1961,13 @@ label.checkbox input:checked::after {
 .start-section:last-child {
   margin-bottom: 0;
 }
-/* The dashboard scrolls as a whole; keep the due list short enough that the
-   sections below stay in reach. */
+/* The dashboard is the exception: several sections share the view, so the due
+   list is capped to keep the ones below it in reach. Every other list is the
+   whole of its view and flows to its natural length inside the content
+   column's scroll. */
 .start-section .issue-list {
   max-height: clamp(200px, 32vh, 420px);
+  overflow-y: auto;
 }
 /* Due-date marker on issue rows, in the .nb-tag idiom. */
 .due-badge {
@@ -2002,13 +2087,22 @@ label.checkbox input:checked::after {
 .todo-list li > .timer-start {
   grid-column: -2;
 }
-.todo-columns {
+/* `.issue-list li` sets `position: relative` so the row can carry its
+   separator as a pseudo-element, and that selector outranks a bare
+   `.todo-columns` — which silently turned this header from sticky into
+   relative. It needs the row in the selector to win. */
+.issue-list li.todo-columns {
   position: sticky;
   top: 0;
   z-index: 1;
   background: var(--surface);
   font-size: var(--fs-micro);
   padding: 7px 0;
+}
+/* The header is not a row of data, so it carries a full-width rule under it
+   rather than one inset to the text. */
+.issue-list li.todo-columns::after {
+  left: 0;
 }
 /* The key and summary cells carry the row's own padding; align the headers
    with the text inside them rather than with the cell edge. Named rather than
@@ -2710,7 +2804,7 @@ section.issue-fact .issue-description {
   font-size: var(--fs-base);
   line-height: 1.5;
   padding: 10px 12px;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   width: 100%;
@@ -2718,12 +2812,16 @@ section.issue-fact .issue-description {
 .comment-compose .comment-box {
   position: relative;
   z-index: 1;
-  border-color: var(--ink);
+  border-color: var(--hair);
+  border-radius: var(--r-control);
   background: transparent;
   /* The mirror behind supplies every visible glyph; only the caret and any
      selection come from the textarea itself. */
   color: transparent;
   caret-color: var(--ink);
+}
+.comment-compose .comment-box:focus {
+  border-color: var(--accent);
 }
 .comment-compose .comment-box::selection {
   background: var(--accent);
@@ -2926,7 +3024,7 @@ section.issue-fact .issue-description {
 .achievement-toast:hover {
   background: var(--surface);
   color: var(--ink);
-  border-color: var(--ink);
+  border-color: var(--hair-strong);
 }
 .achievement-mark {
   color: var(--accent-text);
@@ -3050,12 +3148,37 @@ body.dragging-field {
 
 /* Twenty-odd day columns do not fit any window worth having, so the grid
    scrolls sideways inside the panel while the issue column and the day header
-   stay put. */
+   stay put.
+
+   It keeps a vertical scroll too, because CSS cannot scroll one axis and let
+   the other overflow — asking for `overflow-x: auto` makes the other axis
+   scroll as well. So rather than fight it, the grid is given the rest of the
+   column's height: it becomes the view's only scroll region instead of a
+   short pane with the page scrolling behind it. That is also how a frozen
+   header and first column are supposed to behave. */
 .month-scroll {
-  overflow-x: auto;
+  overflow: auto;
   overscroll-behavior-x: contain;
-  max-height: 62vh;
-  overflow-y: auto;
+  flex: 1;
+  min-height: 22rem;
+}
+
+/* The chain that hands the grid a height to fill. `main` is bounded by the
+   column, so a percentage height here resolves to something definite, and the
+   flex items below divide it up. Without a bounded height the grid grows to
+   its content, and a sticky header with nothing to scroll inside stops
+   sticking — the frozen day row would simply scroll away. */
+.timesheet-month {
+  height: 100%;
+}
+.timesheet-month,
+.timesheet-month > .panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.timesheet-month > .panel {
+  flex: 1;
 }
 .month-grid {
   display: grid;
