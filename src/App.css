@@ -962,10 +962,10 @@ label.checkbox input:checked::after {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding-bottom: 14px;
-  margin-bottom: 8px;
-  border-bottom: 2px solid var(--ink);
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--hair);
 }
 .missing-head .hint {
   max-width: 48ch;
@@ -994,10 +994,20 @@ label.checkbox input:checked::after {
 }
 
 /* ---------- Panels ---------- */
+/* A panel is a single grouped surface: one rounded card holding a form or a
+   block of content. */
 .panel {
   background: var(--surface);
   border-radius: var(--r-card);
   padding: var(--sp-5);
+}
+/* A panel that only *hosts* grouped sections is not itself a surface — the
+   sections inside carry their own, and a surface inside a surface of the same
+   colour reads as neither. It goes back to being a plain container. */
+.panel.start,
+.panel.todo {
+  background: none;
+  padding: 0;
 }
 .panel > button:not(.link):not(.icon) {
   width: 100%;
@@ -1132,44 +1142,64 @@ label.checkbox input:checked::after {
 }
 
 /* ---------- Issue list ---------- */
+/* The grouped-inset list, which is this design language's default layout
+   primitive: a rounded section filled with --surface, sitting on the grouped
+   background, with hairline separators between rows that are inset to line up
+   with the row's text rather than running the full width of the section.
+   Every other list in the app should end up wearing this. */
 .issue-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  background: var(--surface);
+  border-radius: var(--r-card);
   /* Use the extra vertical space of larger windows. */
   max-height: clamp(360px, 55vh, 800px);
   overflow-y: auto;
 }
 .issue-list li {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-1);
+  min-height: var(--tap);
+  padding-right: var(--sp-3);
 }
-.issue-list li:not(.empty) {
-  border-bottom: 1px solid var(--hair-strong);
+/* The separator is a pseudo-element rather than a border so it can start at
+   the text and still stop at the section's edge. --row-inset is the width of
+   whatever leads the row; the pin star sets it here. */
+.issue-list li:not(.empty)::after {
+  content: "";
+  position: absolute;
+  left: var(--row-inset, var(--tap));
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--hair);
 }
-.issue-list li:not(.empty):last-child {
-  border-bottom: none;
+.issue-list li:not(.empty):last-child::after {
+  display: none;
 }
 .issue-select {
   display: flex;
-  gap: 12px;
+  gap: var(--sp-3);
   align-items: baseline;
   flex: 1;
   min-width: 0;
   text-align: left;
   background: none;
   border: none;
+  border-radius: 0;
   color: var(--ink);
-  padding: 11px 8px;
+  padding: var(--sp-2) var(--sp-1);
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: var(--fs-md);
-  letter-spacing: normal;
+  font-size: var(--fs-base);
+  letter-spacing: var(--track-tight);
   text-transform: none;
 }
 .issue-select:hover {
-  background: var(--bg);
+  background: var(--fill-quaternary);
   color: var(--ink);
 }
 /* Issue key opens the issue in the browser; fixed width keeps summaries aligned. */
@@ -1178,27 +1208,35 @@ label.checkbox input:checked::after {
   min-width: 10ch;
   background: none;
   border: none;
-  padding: 11px 0 11px 8px;
-  letter-spacing: normal;
+  border-radius: var(--r-control);
+  padding: var(--sp-2) var(--sp-1);
+  letter-spacing: var(--track-tight);
   text-transform: none;
   text-align: left;
 }
 .issue-open:hover {
-  background: var(--bg);
-  text-decoration: underline;
-  color: var(--ink);
+  background: var(--fill-quaternary);
+  color: var(--accent-text);
 }
-/* Pin toggle: star buttons in the issue list. */
+/* Pin toggle: star buttons in the issue list. It is the row's leading element,
+   so its width is what the separator inset is measured from. */
 .pin-toggle {
   flex: 0 0 auto;
-  font-size: var(--fs-md);
+  font-size: var(--fs-base);
+  color: var(--faint);
 }
 .pin-toggle.pinned {
-  color: var(--ink);
+  color: var(--accent-text);
 }
-/* Heavier rule after the pinned block to set it apart from the results. */
+/* The pinned block ends with a gap rather than a heavy rule: in a grouped list
+   a break between groups is space, not a thicker line. */
 .issue-list li.pinned-last:not(.empty) {
-  border-bottom: 2px solid var(--ink);
+  margin-bottom: var(--sp-2);
+}
+.issue-list li.pinned-last:not(.empty)::after {
+  left: 0;
+  background: var(--hair-strong);
+  opacity: 0.5;
 }
 /* Inline issue-key button (timesheet / missing worklog rows). */
 .key-link {
@@ -1206,15 +1244,13 @@ label.checkbox input:checked::after {
   border: none;
   padding: 0;
   align-self: flex-start;
-  letter-spacing: normal;
+  letter-spacing: var(--track-tight);
   text-transform: none;
   text-align: left;
 }
 .key-link:hover {
   background: none;
-  color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--accent-text);
 }
 /* Summary button in missing-worklog rows: stacked under the key. */
 .missing-select {
@@ -1229,11 +1265,13 @@ label.checkbox input:checked::after {
 .worklog-main > .issue-select {
   flex: 0 0 auto;
 }
+/* The key is an identifier and a link at once. Mono used to say the first
+   part; semibold plus the accent says both, in the app's one typeface. */
 .key {
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--ink);
+  color: var(--accent-text);
   white-space: nowrap;
 }
 .summary {
@@ -1243,39 +1281,42 @@ label.checkbox input:checked::after {
 }
 .timer-start {
   background: none;
-  border: 2px solid transparent;
+  border: none;
+  border-radius: var(--r-capsule);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: var(--track-tight);
-  padding: 5px 11px;
+  padding: 0 var(--sp-3);
+  min-height: 30px;
   white-space: nowrap;
 }
 .timer-start:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--ink);
-  color: var(--accent-ink);
+  background: var(--fill-tertiary);
+  color: var(--accent-text);
 }
 .timer-start:disabled {
   cursor: default;
   background: none;
-  border-color: transparent;
-  color: var(--muted);
+  color: var(--faint);
 }
 .timer-start.running {
-  color: var(--ink);
+  color: var(--accent-text);
+  background: var(--accent-tint);
   opacity: 1;
 }
 
+/* The issue a form is about, shown as a single grouped row above it. */
 .issue-chip {
   display: flex;
-  gap: 12px;
+  gap: var(--sp-3);
   align-items: baseline;
-  padding: 14px;
-  background: var(--bg);
-  border: 1px solid var(--hair);
-  margin: 6px 0 22px;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: none;
+  border-radius: var(--r-card);
+  margin: var(--sp-2) 0 var(--sp-5);
 }
 
 /* ---------- Issue history (log-work screen) ---------- */
@@ -1449,24 +1490,41 @@ label.checkbox input:checked::after {
 .day-group {
   margin-bottom: 22px;
 }
+/* The header of a grouped section. It sits on the background above the
+   rounded section rather than being ruled off from it — the section's own
+   edge is what separates them. */
 .day-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: var(--fs-xs);
-  padding-bottom: 8px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--hair-strong);
-}
-.day-head .muted {
-  color: var(--ink);
+  gap: var(--sp-3);
+  font-size: var(--fs-base);
   font-weight: 600;
+  color: var(--ink);
+  padding: 0 var(--sp-1);
+  margin-bottom: var(--sp-2);
 }
+/* The trailing half of the header is the section's running total or scope —
+   secondary to the name, and sized to match. */
+.day-head .muted {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+}
+/* Shared by the two inboxes and by the timesheet's day groups. Same anatomy
+   as an issue-list row — 44pt floor, hairline separator inset to the text —
+   drawn here with a border because these rows are siblings in a plain
+   container rather than list items. */
 .worklog-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 9px 0;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--hair);
+}
+.worklog-row:last-child {
+  border-bottom: none;
 }
 .worklog-main {
   display: flex;
@@ -1476,7 +1534,7 @@ label.checkbox input:checked::after {
   min-width: 0;
 }
 .worklog-main .summary {
-  font-size: var(--fs-base);
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 .comment {
@@ -1560,8 +1618,11 @@ label.checkbox input:checked::after {
 /* Unread mentions carry the accent down their left edge for the visit in which
    they were opened — after that the row reads as an ordinary entry. */
 .mention-row.unread {
-  border-left: 3px solid var(--accent);
+  background: var(--accent-tint);
+  border-radius: var(--r-control);
   padding-left: var(--sp-3);
+  padding-right: var(--sp-3);
+  margin: 0 calc(var(--sp-3) * -1);
 }
 .mention-row.unread .summary {
   color: var(--ink);
@@ -1687,7 +1748,7 @@ label.checkbox input:checked::after {
 
 /* ---------- Start tab ---------- */
 .start-section {
-  margin-bottom: 32px;
+  margin-bottom: var(--sp-section);
 }
 .start-section:last-child {
   margin-bottom: 0;
@@ -1760,19 +1821,32 @@ label.checkbox input:checked::after {
    status line up in their own columns instead of floating after summaries of
    different lengths. The header is a row like any other, so it shares the
    grid automatically. */
+/* The todo list is a sortable data grid rather than a plain list — one of the
+   few places the grouped-inset row anatomy legitimately does not apply, since
+   the columns are the point. It keeps the section's surface and separators and
+   swaps the row for a grid.
+
+   The key column went 6rem -> 7rem: the key sits at Subheadline now, which is
+   two points larger than the size these widths were originally tuned for. */
 .todo-list li {
   display: grid;
-  grid-template-columns: 1.375rem 1rem 6rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
+  grid-template-columns: 1.375rem 1rem 7rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
   gap: 6px;
   align-items: center;
+  /* Line the separator up with the key, past the pin and type-icon cells. */
+  --row-inset: 3.25rem;
 }
 /* Issue type icons turned off in Appearance: one column fewer, and the cells
    after it follow because they are placed from the end of the row. */
 .todo-list.no-type-icons li {
-  grid-template-columns: 1.375rem 6rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
+  grid-template-columns: 1.375rem 7rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
+  --row-inset: 2rem;
 }
-.todo-list {
-  border-top: 1px solid var(--hair);
+/* The pin is a 1.375rem grid cell here, so it cannot carry the 44pt minimum
+   the same control carries in the issue list — more tap-target debt for that
+   pass, listed with the rest. */
+.todo-list .pin-toggle {
+  min-width: 0;
 }
 /* Pin each cell to its column by hand: not every issue carries a priority or
    a status, and auto-placement would let the cells after a missing one slide
