@@ -769,77 +769,192 @@ label.checkbox input:checked::after {
 }
 
 /* ---------- App shell ---------- */
+/* Two columns: a macOS source list on the left, the view on the right. The
+   sidebar is a fixed track and the content is what grows; the window's own
+   640px minimum keeps both usable. */
 .app {
-  /* Comfortable column in the default window, growing fluidly when the window
-     is maximized or fullscreen. The cap is set by the widest thing the app
-     shows — the month matrix, which wants around 1300px before it has to
-     scroll — rather than by what is comfortable for prose. */
-  max-width: clamp(680px, 94vw, 1760px);
-  margin: 0 auto;
-  padding: 0 20px 48px;
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  min-height: 100vh;
 }
-header {
+
+.sidebar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-4);
-  padding: var(--sp-4) 0 var(--sp-3);
-  border-bottom: 1px solid var(--hair);
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-4) var(--sp-3);
+  background: var(--surface-sunken);
+  border-right: 1px solid var(--hair);
+  /* The list stays put while the view scrolls, the way a source list does. */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
+
 .brand {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
+  padding: 0 var(--sp-2);
   font-weight: 600;
-  font-size: var(--fs-xl);
+  font-size: var(--fs-lg);
   line-height: 1;
   letter-spacing: var(--track-tight);
 }
-.account {
+
+/* ---------- Source list ---------- */
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: 34px;
+  padding: 0 var(--sp-2);
+  border: none;
+  border-radius: var(--r-control);
+  background: none;
+  color: var(--ink);
+  font-size: var(--fs-base);
+  font-weight: 400;
+  text-align: left;
+}
+.nav-row:hover {
+  background: var(--fill-quaternary);
+}
+.nav-icon {
+  flex: none;
+  color: var(--muted);
+}
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The selected row is the one place besides the primary button where the
+   accent is a fill rather than a tint. */
+.nav-row.active,
+.nav-row.active:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 500;
+}
+.nav-row.active .nav-icon {
+  color: var(--accent-ink);
+}
+
+/* Count of what is waiting, right-aligned. */
+.nav-count {
+  flex: none;
+  min-width: 20px;
+  padding: 1px var(--sp-2);
+  border-radius: var(--r-capsule);
+  background: var(--fill-secondary);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.nav-row.active .nav-count {
+  background: color-mix(in srgb, var(--accent-ink) 22%, transparent);
+  color: var(--accent-ink);
+}
+/* Something unseen. It used to blink; a blinking tab is not something Apple's
+   language has, and the count already carries the news. systemRed is the one
+   colour allowed to step outside the accent. */
+.nav-row.alert .nav-count {
+  background: var(--danger);
+  color: var(--danger-ink);
+}
+.nav-row.alert:not(.active) .nav-icon {
+  color: var(--danger-text);
+}
+
+/* ---------- Account, at the foot of the source list ---------- */
+.account {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: auto;
+  padding: var(--sp-3) var(--sp-2) 0;
+  border-top: 1px solid var(--hair);
   font-size: var(--fs-sm);
 }
 .account .muted {
-  font-size: var(--fs-base);
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
-.tabs {
+.account-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-1);
-  padding: var(--sp-3) 0;
-  margin-bottom: var(--sp-4);
+  align-items: center;
+  gap: 0 var(--sp-1);
+  margin-left: calc(var(--sp-2) * -1);
 }
-.tabs button {
-  background: none;
-  border: none;
-  color: var(--muted);
-  border-radius: var(--r-control);
-  padding: 0 var(--sp-3);
-  font-size: var(--fs-base);
-  font-weight: 500;
-  white-space: nowrap;
+/* These sit in a tight column, so they carry a smaller target than a button
+   in the body of a view — listed with the other tap-target debt above. */
+.account-actions button.link {
+  min-height: 30px;
+  font-size: var(--fs-sm);
 }
-.tabs button:hover {
-  background: var(--fill-quaternary);
-  color: var(--ink);
-}
-.tabs button.active,
-.tabs button.active:hover {
-  color: var(--accent-text);
-  background: var(--accent-tint);
+.account .confirm-text {
+  margin: 0 var(--sp-1) 0 var(--sp-2);
 }
 
-/* Missing-worklog tab with unseen findings. It used to blink; a blinking tab
-   is not something Apple's language has, and the count already carries the
-   news. It reads in systemRed instead, which is the one colour allowed to
-   step outside the accent. */
-.tabs button.alert,
-.tabs button.alert:hover {
-  color: var(--danger-text);
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
+/* ---------- Content column ---------- */
+.content {
+  min-width: 0;
+  /* The cap is set by the widest thing the app shows — the month matrix,
+     which wants around 1300px before it has to scroll. */
+  max-width: 1760px;
+  padding: 0 var(--sp-5) var(--sp-8);
+}
+.content > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-5) 0 var(--sp-4);
+}
+.content > header h1 {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  letter-spacing: var(--track-tight);
+}
+
+/* Narrow windows: the labels go, the icons stay. */
+@media (max-width: 880px) {
+  .app {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+  }
+  .brand,
+  .nav-label,
+  .account .muted,
+  .account-actions {
+    display: none;
+  }
+  .nav-row {
+    justify-content: center;
+  }
+  .nav-count {
+    position: absolute;
+    margin: -18px 0 0 18px;
+    min-width: 16px;
+    padding: 0 4px;
+  }
+  .account {
+    border: none;
+  }
 }
 
 /* ---------- Missing worklog list ---------- */

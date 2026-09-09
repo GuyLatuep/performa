@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import {
+  AtSign,
+  CalendarRange,
+  LayoutDashboard,
+  ListChecks,
+  Timer,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { api, CredentialsMeta, IssueSummary } from "./api";
 import { logInfo } from "./log";
 import Settings from "./components/Settings";
@@ -47,6 +56,18 @@ const TAB_LABELS: Record<Tab, string> = {
   timesheet: "Timesheet",
   missing: "Missing worklog",
   mentions: "Mentions",
+};
+
+/* Lucide rather than SF Symbols, which are licensed for Apple's own platforms
+   and may not be redrawn or shipped here. Lucide sits closest to them in
+   weight and geometry. */
+const TAB_ICONS: Record<Tab, LucideIcon> = {
+  start: LayoutDashboard,
+  todo: ListChecks,
+  log: Timer,
+  timesheet: CalendarRange,
+  missing: TriangleAlert,
+  mentions: AtSign,
 };
 
 // The English manual links to the German one via its language switcher.
@@ -217,137 +238,137 @@ export default function App() {
     refreshMissing("post-log");
   }
 
+  /** One row of the source list. `count`, when there is one, rides in the
+   *  accessible name as well as the badge — a screen reader gets "Mentions ·
+   *  2" the way the eye does. */
+  function navRow(t: Tab, count: number, alert: boolean, onSelect: () => void) {
+    const Icon = TAB_ICONS[t];
+    const label = TAB_LABELS[t];
+    return (
+      <button
+        className={`nav-row${tab === t ? " active" : ""}${alert ? " alert" : ""}`}
+        aria-label={count > 0 ? `${label} · ${count}` : label}
+        aria-current={tab === t ? "page" : undefined}
+        onClick={onSelect}
+      >
+        <Icon className="nav-icon" size={18} strokeWidth={1.75} aria-hidden />
+        <span className="nav-label">{label}</span>
+        {count > 0 && <span className="nav-count">{count}</span>}
+      </button>
+    );
+  }
+
   return (
     <div className="app">
-      <header>
+      <aside className="sidebar">
         <div className="brand">
           <Blockmark />
           performa
         </div>
+
+        <nav className="nav">
+          {navRow("start", 0, false, () => setTab("start"))}
+          {navRow("todo", 0, false, () => setTab("todo"))}
+          {/* A manual visit starts fresh, without a preselected issue — also
+              when the tab is already open. */}
+          {navRow("log", 0, false, () => openLogTab(null))}
+          {navRow("timesheet", 0, false, () => setTab("timesheet"))}
+          {navRow("missing", missingItems.length, missingUnseen > 0, () =>
+            setTab("missing"),
+          )}
+          {navRow("mentions", mentionsUnread, mentionsUnread > 0, () =>
+            setTab("mentions"),
+          )}
+        </nav>
+
         <div className="account">
           <span className="muted">{creds.email}</span>
-          <button className="link" onClick={() => setEditingCreds(true)}>
-            Settings
-          </button>
-          <button
-            className="link"
-            title="Open the user manual on GitHub"
-            onClick={() => openUrl(HANDBOOK_URL)}
-          >
-            Handbook
-          </button>
-          <button className="link" onClick={() => setShowAbout(true)}>
-            About
-          </button>
-          {confirmSignOut ? (
-            <>
-              <span className="confirm-text">Sign out?</span>
-              <button className="link" onClick={doSignOut}>
-                Yes
-              </button>
-              <button className="link" onClick={() => setConfirmSignOut(false)}>
-                No
-              </button>
-            </>
-          ) : (
-            <button className="link" onClick={() => setConfirmSignOut(true)}>
-              Sign out
+          <div className="account-actions">
+            <button className="link" onClick={() => setEditingCreds(true)}>
+              Settings
             </button>
-          )}
+            <button
+              className="link"
+              title="Open the user manual on GitHub"
+              onClick={() => openUrl(HANDBOOK_URL)}
+            >
+              Handbook
+            </button>
+            <button className="link" onClick={() => setShowAbout(true)}>
+              About
+            </button>
+            {confirmSignOut ? (
+              <>
+                <span className="confirm-text">Sign out?</span>
+                <button className="link" onClick={doSignOut}>
+                  Yes
+                </button>
+                <button
+                  className="link"
+                  onClick={() => setConfirmSignOut(false)}
+                >
+                  No
+                </button>
+              </>
+            ) : (
+              <button className="link" onClick={() => setConfirmSignOut(true)}>
+                Sign out
+              </button>
+            )}
+          </div>
         </div>
-      </header>
+      </aside>
 
-      <WhatsNew
-        onOpenSettings={() => {
-          setSettingsTab("todo");
-          setEditingCreds(true);
-        }}
-      />
+      <div className="content">
+        <header>
+          <h1>{TAB_LABELS[tab]}</h1>
+        </header>
 
-      <UpdateNotice />
+        <WhatsNew
+          onOpenSettings={() => {
+            setSettingsTab("todo");
+            setEditingCreds(true);
+          }}
+        />
 
-      <Confetti trigger={confetti} pieces={confettiPieces} />
-      <AchievementToast queue={awards} />
-      <TimerBar onLogged={onLogged} />
+        <UpdateNotice />
 
-      <nav className="tabs">
-        <button
-          className={tab === "start" ? "active" : ""}
-          onClick={() => setTab("start")}
-        >
-          Start
-        </button>
-        <button
-          className={tab === "todo" ? "active" : ""}
-          onClick={() => setTab("todo")}
-        >
-          Todo
-        </button>
-        <button
-          className={tab === "log" ? "active" : ""}
-          // A manual visit starts fresh, without a preselected issue — also
-          // when the tab is already open.
-          onClick={() => openLogTab(null)}
-        >
-          Log work
-        </button>
-        <button
-          className={tab === "timesheet" ? "active" : ""}
-          onClick={() => setTab("timesheet")}
-        >
-          Timesheet
-        </button>
-        <button
-          className={`${tab === "missing" ? "active" : ""}${
-            missingUnseen > 0 ? " alert" : ""
-          }`}
-          onClick={() => setTab("missing")}
-        >
-          Missing worklog
-          {missingItems.length > 0 && ` · ${missingItems.length}`}
-        </button>
-        <button
-          className={`${tab === "mentions" ? "active" : ""}${
-            mentionsUnread > 0 ? " alert" : ""
-          }`}
-          onClick={() => setTab("mentions")}
-        >
-          Mentions
-          {mentionsUnread > 0 && ` · ${mentionsUnread}`}
-        </button>
-      </nav>
+        <Confetti trigger={confetti} pieces={confettiPieces} />
+        <AchievementToast queue={awards} />
+        <TimerBar onLogged={onLogged} />
 
-      <main>
-        {tab === "start" && (
-          <Start
-            site={creds.site}
-            refreshKey={refreshKey}
-            onSelectIssue={openLogTab}
-            onOpenMissing={() => setTab("missing")}
-            onLogged={onLogged}
-          />
-        )}
-        {tab === "todo" && <Todo site={creds.site} onLogged={onLogged} />}
-        {tab === "log" && (
-          <LogWork
-            key={logVisit}
-            site={creds.site}
-            onLogged={onLogged}
-            initialIssue={logIssue}
-            backLabel={logOrigin ? TAB_LABELS[logOrigin] : undefined}
-            onBack={logOrigin ? () => setTab(logOrigin) : undefined}
-          />
-        )}
-        {tab === "timesheet" && (
-          <Timesheet site={creds.site} refreshKey={refreshKey} />
-        )}
-        {tab === "missing" && (
-          <MissingWorklogs site={creds.site} onLogged={onLogged} />
-        )}
-        {tab === "mentions" && (
-          <Mentions site={creds.site} onLogged={onLogged} />
-        )}
-      </main>
+        <main>
+          {tab === "start" && (
+            <Start
+              site={creds.site}
+              refreshKey={refreshKey}
+              onSelectIssue={openLogTab}
+              onOpenMissing={() => setTab("missing")}
+              onLogged={onLogged}
+            />
+          )}
+          {tab === "todo" && <Todo site={creds.site} onLogged={onLogged} />}
+          {tab === "log" && (
+            <LogWork
+              key={logVisit}
+              site={creds.site}
+              onLogged={onLogged}
+              initialIssue={logIssue}
+              backLabel={logOrigin ? TAB_LABELS[logOrigin] : undefined}
+              onBack={logOrigin ? () => setTab(logOrigin) : undefined}
+            />
+          )}
+          {tab === "timesheet" && (
+            <Timesheet site={creds.site} refreshKey={refreshKey} />
+          )}
+          {tab === "missing" && (
+            <MissingWorklogs site={creds.site} onLogged={onLogged} />
+          )}
+          {tab === "mentions" && (
+            <Mentions site={creds.site} onLogged={onLogged} />
+          )}
+        </main>
+      </div>
     </div>
   );
 }
