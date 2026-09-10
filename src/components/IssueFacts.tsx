@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowUp, X } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, IssueDetail } from "../api";
@@ -155,7 +156,7 @@ export default function IssueFacts({
           disabled={at <= 0}
           onClick={() => moveDetailField(fact.jiraName, -1)}
         >
-          ↑
+          <ArrowUp size={16} strokeWidth={1.75} aria-hidden />
         </button>
         <button
           className="icon"
@@ -163,14 +164,14 @@ export default function IssueFacts({
           disabled={at < 0 || at >= visible.length - 1}
           onClick={() => moveDetailField(fact.jiraName, 1)}
         >
-          ↓
+          <ArrowDown size={16} strokeWidth={1.75} aria-hidden />
         </button>
         <button
           className="icon"
           title={`Remove ${fact.label} from the layout`}
           onClick={() => removeDetailField(fact.jiraName)}
         >
-          ✕
+          <X size={16} strokeWidth={1.75} aria-hidden />
         </button>
       </span>
     );

@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, invalidateCachedReads, IssueSummary } from "../api";
 import { usePinnedIssues } from "../pins";
@@ -248,12 +249,20 @@ function SortHeader({
           naming a column doesn't shift as it is sorted and unsorted. */}
       {!compact && (
         <span className="sort-marker" aria-hidden="true">
-          {active === "asc" ? "▲" : active === "desc" ? "▼" : ""}
+          {active === "asc" ? (
+            <ChevronUp size={12} strokeWidth={2.5} aria-hidden />
+          ) : active === "desc" ? (
+            <ChevronDown size={12} strokeWidth={2.5} aria-hidden />
+          ) : null}
         </span>
       )}
       {compact && active && (
         <span className="sort-marker" aria-hidden="true">
-          {active === "asc" ? "▲" : "▼"}
+          {active === "asc" ? (
+            <ChevronUp size={12} strokeWidth={2.5} aria-hidden />
+          ) : (
+            <ChevronDown size={12} strokeWidth={2.5} aria-hidden />
+          )}
         </span>
       )}
     </button>

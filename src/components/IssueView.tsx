@@ -1,3 +1,4 @@
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -151,14 +152,16 @@ export default function IssueView({
             cameFrom ? setTrail((t) => t.slice(0, -1)) : onBack()
           }
         >
-          ← Back to {cameFrom ? cameFrom.key : backLabel}
+          <ArrowLeft size={15} strokeWidth={2} aria-hidden />
+          Back to {cameFrom ? cameFrom.key : backLabel}
         </button>
         <button
           className="link"
           title={`Open ${open.key} in browser`}
           onClick={() => openUrl(`${site}/browse/${open.key}`)}
         >
-          Open in Jira ↗
+          Open in Jira
+          <ExternalLink size={13} strokeWidth={2} aria-hidden />
         </button>
       </div>
 

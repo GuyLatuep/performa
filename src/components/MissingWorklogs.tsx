@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, MissingWorklog } from "../api";
 import { timeAgo, toDateInput, toTimeInput } from "../time";
@@ -17,6 +18,7 @@ import {
   useWorklogDraft,
   WorklogFields,
 } from "./WorklogFields";
+import IssueHistory from "./IssueHistory";
 import MissingRow, { missingRowKey } from "./MissingRow";
 import { recordEvent } from "../achievements";
 import AchievementToast from "./AchievementToast";
@@ -159,7 +161,8 @@ function LogForm({
   return (
     <div className="panel">
       <button className="link" onClick={onCancel}>
-        ← Back to the list
+        <ArrowLeft size={15} strokeWidth={2} aria-hidden />
+        Back to the list
       </button>
       <div className="issue-chip">
         <span className="key">{item.logKey}</span>
@@ -186,6 +189,8 @@ function LogForm({
       <button onClick={save} disabled={busy}>
         {busy ? "Logging…" : "Log work"}
       </button>
+
+      <IssueHistory issueKey={item.logKey} />
     </div>
   );
 }

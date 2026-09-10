@@ -1,3 +1,4 @@
+import { Star } from "lucide-react";
 import { useEffect, useState } from "react";
 
 /** How long one stays up before making way for the next. */
@@ -31,7 +32,13 @@ export default function AchievementToast({ queue }: { queue: string[] }) {
       title="Wegklicken"
       onClick={() => setShown((s) => s.slice(1))}
     >
-      <span className="achievement-mark">★</span>
+      <Star
+        className="achievement-mark"
+        size={18}
+        strokeWidth={2}
+        fill="currentColor"
+        aria-hidden
+      />
       <span className="achievement-title">{shown[0]}</span>
       {shown.length > 1 && (
         <span className="achievement-more">+{shown.length - 1}</span>

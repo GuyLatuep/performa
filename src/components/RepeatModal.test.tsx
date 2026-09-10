@@ -12,7 +12,7 @@ vi.mock("../api", async () => {
 const addTemplate = vi.hoisted(() => vi.fn());
 vi.mock("../templates", () => ({ addTemplate }));
 
-import { apiMock, resetApiMock } from "../test-support/api";
+import { apiMock, resetApiMock, worklogEntry } from "../test-support/api";
 import RepeatModal from "./RepeatModal";
 
 function renderModal(props: Partial<Parameters<typeof RepeatModal>[0]> = {}) {
@@ -49,6 +49,20 @@ describe("what the modal shows", () => {
 
     expect(screen.getByText("Log work — 16 March")).toBeDefined();
     expect(screen.queryByText("Log again — ABC-1")).toBeNull();
+  });
+
+  it("lists the time already logged on the issue", async () => {
+    // The form repeats a booking, so what is already booked is exactly the
+    // context needed to decide whether to repeat it again.
+    apiMock.issueWorklogs.mockResolvedValue([
+      worklogEntry({ id: "w1", timeSpentSeconds: 1800, comment: "first pass" }),
+    ]);
+    renderModal();
+
+    expect(await screen.findByText("first pass")).toBeDefined();
+    // Twice over: the entry's own duration and the issue's running total.
+    expect(screen.getAllByText("30m")).toHaveLength(2);
+    expect(apiMock.issueWorklogs).toHaveBeenCalledWith("ABC-1");
   });
 
   it("prefills the duration it was given", () => {

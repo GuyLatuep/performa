@@ -40,7 +40,12 @@ vi.mock("../achievements", () => ({ recordEvent }));
 const openUrl = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl }));
 
-import { apiMock, missingWorklog, resetApiMock } from "../test-support/api";
+import {
+  apiMock,
+  missingWorklog,
+  resetApiMock,
+  worklogEntry,
+} from "../test-support/api";
 import MissingWorklogs from "./MissingWorklogs";
 
 function renderTab() {
@@ -258,6 +263,23 @@ describe("logging from a finding", () => {
     await userEvent.click(screen.getByRole("button", { name: /Log work/ }));
 
     expect(await screen.findByText(/Jira returned 400/)).toBeDefined();
+  });
+
+  it("shows what is already logged on the target issue", async () => {
+    // The whole point of the reminder is that time may be missing — but the
+    // form has to say when some of it is already there, or the same work gets
+    // booked twice. It asks about the *log* target, not the flagged issue.
+    apiMock.issueWorklogs.mockResolvedValue([
+      worklogEntry({ id: "w1", timeSpentSeconds: 1800, comment: "first pass" }),
+    ]);
+    renderTab();
+
+    await userEvent.click(screen.getByTitle("Log work on ABC-1"));
+
+    expect(await screen.findByText("first pass")).toBeDefined();
+    // Twice over: the entry's own duration and the issue's running total.
+    expect(screen.getAllByText("30m")).toHaveLength(2);
+    expect(apiMock.issueWorklogs).toHaveBeenCalledWith("ABC-1");
   });
 
   it("goes back to the list on cancel", async () => {

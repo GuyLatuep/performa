@@ -1,5 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import {
+  AtSign,
+  CalendarRange,
+  LayoutDashboard,
+  ListChecks,
+  Timer,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { api, CredentialsMeta, IssueSummary } from "./api";
 import { logInfo } from "./log";
 import Settings from "./components/Settings";
@@ -49,6 +58,18 @@ const TAB_LABELS: Record<Tab, string> = {
   mentions: "Mentions",
 };
 
+/* Lucide rather than SF Symbols, which are licensed for Apple's own platforms
+   and may not be redrawn or shipped here. Lucide sits closest to them in
+   weight and geometry. */
+const TAB_ICONS: Record<Tab, LucideIcon> = {
+  start: LayoutDashboard,
+  todo: ListChecks,
+  log: Timer,
+  timesheet: CalendarRange,
+  missing: TriangleAlert,
+  mentions: AtSign,
+};
+
 // The English manual links to the German one via its language switcher.
 const HANDBOOK_URL =
   "https://github.com/GuyLatuep/performa/blob/main/docs/user-manual.en.md";
@@ -85,6 +106,16 @@ export default function App() {
   const missingUnseen = useMissingUnseenCount();
   const mentionsUnread = useMentionsUnreadCount();
   const funMode = useFunMode();
+  const mentionsArrived = useArrival(mentionsUnread);
+  const missingArrived = useArrival(missingUnseen);
+
+  // The badge on the app icon, which is the only indication that survives the
+  // window being behind something else. Both inboxes feed it: it counts what
+  // is waiting, not which tab it is waiting in.
+  const waiting = mentionsUnread + missingUnseen;
+  useEffect(() => {
+    api.setBadge(waiting > 0 ? waiting : null);
+  }, [waiting]);
 
   async function refreshStatus() {
     try {
@@ -217,140 +248,185 @@ export default function App() {
     refreshMissing("post-log");
   }
 
+  /** One row of the source list. `count`, when there is one, rides in the
+   *  accessible name as well as the badge — a screen reader gets "Mentions ·
+   *  2" the way the eye does. */
+  function navRow(
+    t: Tab,
+    count: number,
+    alert: boolean,
+    onSelect: () => void,
+    arrived = false,
+  ) {
+    const Icon = TAB_ICONS[t];
+    const label = TAB_LABELS[t];
+    return (
+      <button
+        className={`nav-row${tab === t ? " active" : ""}${alert ? " alert" : ""}${
+          arrived && tab !== t ? " arrived" : ""
+        }`}
+        aria-label={count > 0 ? `${label} · ${count}` : label}
+        aria-current={tab === t ? "page" : undefined}
+        onClick={onSelect}
+      >
+        <Icon className="nav-icon" size={18} strokeWidth={1.75} aria-hidden />
+        <span className="nav-label">{label}</span>
+        {count > 0 && <span className="nav-count">{count}</span>}
+      </button>
+    );
+  }
+
   return (
     <div className="app">
-      <header>
+      <aside className="sidebar">
         <div className="brand">
           <Blockmark />
           performa
         </div>
+
+        <nav className="nav">
+          {navRow("start", 0, false, () => setTab("start"))}
+          {navRow("todo", 0, false, () => setTab("todo"))}
+          {/* A manual visit starts fresh, without a preselected issue — also
+              when the tab is already open. */}
+          {navRow("log", 0, false, () => openLogTab(null))}
+          {navRow("timesheet", 0, false, () => setTab("timesheet"))}
+          {navRow(
+            "missing",
+            missingItems.length,
+            missingUnseen > 0,
+            () => setTab("missing"),
+            missingArrived,
+          )}
+          {navRow(
+            "mentions",
+            mentionsUnread,
+            mentionsUnread > 0,
+            () => setTab("mentions"),
+            mentionsArrived,
+          )}
+        </nav>
+
         <div className="account">
           <span className="muted">{creds.email}</span>
-          <button className="link" onClick={() => setEditingCreds(true)}>
-            Settings
-          </button>
-          <button
-            className="link"
-            title="Open the user manual on GitHub"
-            onClick={() => openUrl(HANDBOOK_URL)}
-          >
-            Handbook
-          </button>
-          <button className="link" onClick={() => setShowAbout(true)}>
-            About
-          </button>
-          {confirmSignOut ? (
-            <>
-              <span className="confirm-text">Sign out?</span>
-              <button className="link" onClick={doSignOut}>
-                Yes
-              </button>
-              <button className="link" onClick={() => setConfirmSignOut(false)}>
-                No
-              </button>
-            </>
-          ) : (
-            <button className="link" onClick={() => setConfirmSignOut(true)}>
-              Sign out
+          <div className="account-actions">
+            <button className="link" onClick={() => setEditingCreds(true)}>
+              Settings
             </button>
-          )}
+            <button
+              className="link"
+              title="Open the user manual on GitHub"
+              onClick={() => openUrl(HANDBOOK_URL)}
+            >
+              Handbook
+            </button>
+            <button className="link" onClick={() => setShowAbout(true)}>
+              About
+            </button>
+            {confirmSignOut ? (
+              <>
+                <span className="confirm-text">Sign out?</span>
+                <button className="link" onClick={doSignOut}>
+                  Yes
+                </button>
+                <button
+                  className="link"
+                  onClick={() => setConfirmSignOut(false)}
+                >
+                  No
+                </button>
+              </>
+            ) : (
+              <button className="link" onClick={() => setConfirmSignOut(true)}>
+                Sign out
+              </button>
+            )}
+          </div>
         </div>
-      </header>
+      </aside>
 
-      <WhatsNew
-        onOpenSettings={() => {
-          setSettingsTab("todo");
-          setEditingCreds(true);
-        }}
-      />
+      <div className="content">
+        <header>
+          <h1>{TAB_LABELS[tab]}</h1>
+        </header>
 
-      <UpdateNotice />
+        <WhatsNew
+          onOpenSettings={() => {
+            setSettingsTab("todo");
+            setEditingCreds(true);
+          }}
+        />
 
-      <Confetti trigger={confetti} pieces={confettiPieces} />
-      <AchievementToast queue={awards} />
-      <TimerBar onLogged={onLogged} />
+        <UpdateNotice />
 
-      <nav className="tabs">
-        <button
-          className={tab === "start" ? "active" : ""}
-          onClick={() => setTab("start")}
-        >
-          Start
-        </button>
-        <button
-          className={tab === "todo" ? "active" : ""}
-          onClick={() => setTab("todo")}
-        >
-          Todo
-        </button>
-        <button
-          className={tab === "log" ? "active" : ""}
-          // A manual visit starts fresh, without a preselected issue — also
-          // when the tab is already open.
-          onClick={() => openLogTab(null)}
-        >
-          Log work
-        </button>
-        <button
-          className={tab === "timesheet" ? "active" : ""}
-          onClick={() => setTab("timesheet")}
-        >
-          Timesheet
-        </button>
-        <button
-          className={`${tab === "missing" ? "active" : ""}${
-            missingUnseen > 0 ? " alert" : ""
-          }`}
-          onClick={() => setTab("missing")}
-        >
-          Missing worklog
-          {missingItems.length > 0 && ` · ${missingItems.length}`}
-        </button>
-        <button
-          className={`${tab === "mentions" ? "active" : ""}${
-            mentionsUnread > 0 ? " alert" : ""
-          }`}
-          onClick={() => setTab("mentions")}
-        >
-          Mentions
-          {mentionsUnread > 0 && ` · ${mentionsUnread}`}
-        </button>
-      </nav>
+        <Confetti trigger={confetti} pieces={confettiPieces} />
+        <AchievementToast queue={awards} />
+        <TimerBar onLogged={onLogged} />
 
-      <main>
-        {tab === "start" && (
-          <Start
-            site={creds.site}
-            refreshKey={refreshKey}
-            onSelectIssue={openLogTab}
-            onOpenMissing={() => setTab("missing")}
-            onLogged={onLogged}
-          />
-        )}
-        {tab === "todo" && <Todo site={creds.site} onLogged={onLogged} />}
-        {tab === "log" && (
-          <LogWork
-            key={logVisit}
-            site={creds.site}
-            onLogged={onLogged}
-            initialIssue={logIssue}
-            backLabel={logOrigin ? TAB_LABELS[logOrigin] : undefined}
-            onBack={logOrigin ? () => setTab(logOrigin) : undefined}
-          />
-        )}
-        {tab === "timesheet" && (
-          <Timesheet site={creds.site} refreshKey={refreshKey} />
-        )}
-        {tab === "missing" && (
-          <MissingWorklogs site={creds.site} onLogged={onLogged} />
-        )}
-        {tab === "mentions" && (
-          <Mentions site={creds.site} onLogged={onLogged} />
-        )}
-      </main>
+        <main>
+          {tab === "start" && (
+            <Start
+              site={creds.site}
+              refreshKey={refreshKey}
+              onSelectIssue={openLogTab}
+              onOpenMissing={() => setTab("missing")}
+              onLogged={onLogged}
+            />
+          )}
+          {tab === "todo" && <Todo site={creds.site} onLogged={onLogged} />}
+          {tab === "log" && (
+            <LogWork
+              key={logVisit}
+              site={creds.site}
+              onLogged={onLogged}
+              initialIssue={logIssue}
+              backLabel={logOrigin ? TAB_LABELS[logOrigin] : undefined}
+              onBack={logOrigin ? () => setTab(logOrigin) : undefined}
+            />
+          )}
+          {tab === "timesheet" && (
+            <Timesheet site={creds.site} refreshKey={refreshKey} />
+          )}
+          {tab === "missing" && (
+            <MissingWorklogs site={creds.site} onLogged={onLogged} />
+          )}
+          {tab === "mentions" && (
+            <Mentions site={creds.site} onLogged={onLogged} />
+          )}
+        </main>
+      </div>
     </div>
   );
 }
+
+/**
+ * True for a moment after `count` rises.
+ *
+ * Lets a row call attention to itself once when something lands, rather than
+ * blinking until the tab is opened — the old behaviour, which was impossible
+ * to ignore and equally impossible to live with. Only an *increase* counts:
+ * reading a mention lowers the number, and that is not news.
+ */
+function useArrival(count: number): boolean {
+  const [arrived, setArrived] = useState(false);
+  const previous = useRef(count);
+
+  useEffect(() => {
+    const rose = count > previous.current;
+    previous.current = count;
+    if (!rose) return;
+    setArrived(true);
+    const timer = setTimeout(() => setArrived(false), ARRIVAL_MS);
+    return () => clearTimeout(timer);
+  }, [count]);
+
+  return arrived;
+}
+
+/** How long a row stays marked after something lands in it. Long enough to
+ *  catch the eye on the way back to the window, short enough that it is over
+ *  before it becomes the blinking tab again. */
+const ARRIVAL_MS = 6000;
 
 /**
  * How much confetti a worklog is worth.

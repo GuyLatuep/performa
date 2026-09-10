@@ -67,14 +67,17 @@ describe("the pin toggle", () => {
         onSelect={vi.fn()}
       />,
     );
-    expect(screen.getByTitle("Pin ABC-1 to top")).toHaveProperty(
-      "textContent",
-      "☆",
-    );
+    // The star is an icon now, so its state is the fill rather than which
+    // character was rendered.
+    expect(
+      screen.getByTitle("Pin ABC-1 to top").querySelector("svg"),
+    ).toHaveProperty("attributes.fill.value", "none");
     unmount();
 
     renderRow(issue(), true);
-    expect(screen.getByTitle("Unpin ABC-1")).toHaveProperty("textContent", "★");
+    expect(
+      screen.getByTitle("Unpin ABC-1").querySelector("svg"),
+    ).toHaveProperty("attributes.fill.value", "currentColor");
   });
 
   it("toggles the pin for its own issue", async () => {
@@ -268,7 +271,7 @@ describe("the timer button", () => {
     renderRow();
 
     expect(screen.getByTitle("Timer running")).toBeDefined();
-    expect(screen.getByText("● timing")).toBeDefined();
+    expect(screen.getByText("timing")).toBeDefined();
   });
 
   it("is disabled for other issues while a timer runs elsewhere", () => {

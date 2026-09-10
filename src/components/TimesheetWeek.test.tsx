@@ -111,7 +111,9 @@ describe("moving between weeks", () => {
     renderWeek();
     await waitFor(() => expect(apiMock.listWorklogs).toHaveBeenCalledTimes(1));
 
-    await userEvent.click(screen.getByRole("button", { name: "←" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Previous week" }),
+    );
 
     expect(await screen.findByText("Last week")).toBeDefined();
     await waitFor(() =>
@@ -124,7 +126,7 @@ describe("moving between weeks", () => {
 
   it("shows the plain range for anything further back", async () => {
     renderWeek();
-    const back = screen.getByRole("button", { name: "←" });
+    const back = screen.getByRole("button", { name: "Previous week" });
 
     await userEvent.click(back);
     await userEvent.click(back);
@@ -142,7 +144,7 @@ describe("moving between weeks", () => {
     // Time cannot be logged before it is worked.
     renderWeek();
 
-    expect(screen.getByRole("button", { name: "→" })).toHaveProperty(
+    expect(screen.getByRole("button", { name: "Next week" })).toHaveProperty(
       "disabled",
       true,
     );
@@ -150,10 +152,12 @@ describe("moving between weeks", () => {
 
   it("comes forward again once it is behind", async () => {
     renderWeek();
-    await userEvent.click(screen.getByRole("button", { name: "←" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Previous week" }),
+    );
     await screen.findByText("Last week");
 
-    await userEvent.click(screen.getByRole("button", { name: "→" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next week" }));
 
     expect(await screen.findByText("This week")).toBeDefined();
   });

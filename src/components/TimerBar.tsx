@@ -12,6 +12,7 @@ import {
   useElapsedSeconds,
   useTimer,
 } from "../timer";
+import IssueHistory from "./IssueHistory";
 import {
   DURATION_ERROR,
   toWorklogInput,
@@ -140,6 +141,8 @@ function StopModal({
         />
 
         {error && <p className="error">{error}</p>}
+
+        <IssueHistory issueKey={data.timer.issueKey} />
 
         <div className="row">
           {confirmDiscard ? (

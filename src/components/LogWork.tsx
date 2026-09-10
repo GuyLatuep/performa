@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
-import { api, IssueSummary, WorklogEntry } from "../api";
+import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
+import { api, IssueSummary } from "../api";
 import { logInfo } from "../log";
-import { formatDayLabel, formatDuration } from "../time";
+import { formatDuration } from "../time";
+import IssueHistory from "./IssueHistory";
 import IssuePicker from "./IssuePicker";
 import {
   DURATION_ERROR,
@@ -78,11 +80,13 @@ export default function LogWork({
               the user came from. */}
           {onBack && selected === initialIssue && (
             <button className="link" onClick={onBack}>
-              ← Back to {backLabel}
+              <ArrowLeft size={15} strokeWidth={2} aria-hidden />
+              Back to {backLabel}
             </button>
           )}
           <button className="link" onClick={() => setSelected(null)}>
-            ← Choose a different issue
+            <ArrowLeft size={15} strokeWidth={2} aria-hidden />
+            Choose a different issue
           </button>
         </div>
         <div className="issue-chip">
@@ -112,81 +116,6 @@ export default function LogWork({
   return (
     <div className="panel log-pick">
       <IssuePicker site={site} onSelect={selectIssue} />
-    </div>
-  );
-}
-
-const HISTORY_LIMIT = 10;
-
-// History reaches back arbitrarily far, so the year has to be spelled out.
-const ENTRY_DATE_FORMAT: Intl.DateTimeFormatOptions = {
-  weekday: "short",
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-};
-
-/** The user's previous worklogs on the selected issue. */
-function IssueHistory({
-  issueKey,
-  refreshKey,
-}: {
-  issueKey: string;
-  refreshKey: number;
-}) {
-  const [history, setHistory] = useState<WorklogEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setError(null);
-    api.issueWorklogs(issueKey).then(
-      (list) => {
-        if (!cancelled) setHistory(list);
-      },
-      (err) => {
-        if (!cancelled) {
-          setHistory([]);
-          setError(String(err));
-        }
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [issueKey, refreshKey]);
-
-  const total = (history ?? []).reduce((s, e) => s + e.timeSpentSeconds, 0);
-
-  return (
-    <div className="issue-history">
-      <div className="day-head">
-        <span>My logged time</span>
-        {history !== null && history.length > 0 && (
-          <span className="muted">{formatDuration(total)}</span>
-        )}
-      </div>
-      {history === null && <p className="muted">Loading…</p>}
-      {error && <p className="error">{error}</p>}
-      {history?.length === 0 && !error && (
-        <p className="muted empty">No time logged on this issue yet.</p>
-      )}
-      {history?.slice(0, HISTORY_LIMIT).map((e) => (
-        <div key={e.id} className="worklog-row">
-          <div className="worklog-main">
-            <span>{formatDayLabel(e.date, ENTRY_DATE_FORMAT)}</span>
-            {e.comment && <span className="comment">{e.comment}</span>}
-          </div>
-          {e.time && <span className="wl-time">{e.time}</span>}
-          <span className="duration">{formatDuration(e.timeSpentSeconds)}</span>
-        </div>
-      ))}
-      {history !== null && history.length > HISTORY_LIMIT && (
-        <p className="muted history-more">
-          + {history.length - HISTORY_LIMIT} older{" "}
-          {history.length - HISTORY_LIMIT === 1 ? "entry" : "entries"}
-        </p>
-      )}
     </div>
   );
 }

@@ -1,55 +1,142 @@
 /* ==========================================================================
-   performa — "Neo-Grid Bold"
-   Hard edges (zero radius), bold ink borders, flat (no shadows), UPPERCASE
-   display type, one reserved neon-yellow accent used only as a FILL (never as
-   text on light). Space Grotesk display + JetBrains Mono for data/time.
+   performa — Apple design language
 
-   Text colours are chosen against WCAG 2.2: everything carrying words clears
-   AA (4.5:1) on the surface it sits on, and --muted clears 7:1 because nearly
-   all of it renders at label size. --hair is decorative and deliberately below
-   that; borders that carry structure use --hair-strong, which clears the 3:1
-   non-text threshold.
+   Content-first and quiet: hairline separators instead of borders, filled
+   surfaces instead of outlined cards, continuous-curvature corners, one
+   accent, no shadows anywhere. Body text is 17/22. The system font resolves
+   to SF Pro on macOS — which is the only licensed way to use it, and why no
+   SF file is bundled — and to Inter elsewhere. No SF Symbols: the icons are
+   drawn from Lucide.
+
+   Colours are Apple's semantic tokens, with two deliberate departures. Apple's
+   secondaryLabel is rgba(60,60,67,0.60), which measures 3.44:1 on white and
+   3.29:1 on the grouped background — under WCAG AA. This file has always
+   promised that everything carrying words clears AA on the surface it sits on,
+   and that promise outranks matching Apple's exact alpha, so --muted keeps
+   Apple's grey but at a higher one (5.30:1 and 4.96:1). Dark mode needs no
+   such adjustment: Apple's own value already clears it. The same reasoning
+   produces --accent-text, derived in accent.ts — see the note there.
+
+   Dark mode is authored, not inverted.
    ========================================================================== */
 
 :root {
-  --bg: #ecece8;
-  --surface: #f5f4ef;
-  --ink: #0a0a0a;
-  --muted: #4f4f4a; /* 7.48:1 on --surface — it is mostly label-sized */
-  --hair: rgba(10, 10, 10, 0.16); /* separators; decorative only */
-  --hair-strong: rgba(10, 10, 10, 0.45); /* 3.10:1 — borders that structure */
-  --disabled-fill: #dcdcd6; /* --muted on it is 5.98:1 */
-  --accent: #e6ff3d; /* neon yellow — fill only */
-  --accent-ink: #0a0a0a; /* text on accent */
-  --danger: #c62a30; /* destructive actions only */
-  --danger-ink: #ffffff; /* text on --danger — 5.56:1 */
-  /* How full a day is. Text colours, so they are chosen to stay readable on
+  /* ---- Surfaces (systemGroupedBackground family) ---- */
+  --bg: #f2f2f7;
+  --surface: #ffffff;
+  --surface-sunken: #f2f2f7;
+
+  /* ---- Fills, for controls that sit on a surface rather than outline it ---- */
+  --fill-secondary: rgba(120, 120, 128, 0.16);
+  --fill-tertiary: rgba(118, 118, 128, 0.12);
+  --fill-quaternary: rgba(116, 116, 128, 0.08);
+
+  /* ---- Text ---- */
+  --ink: #000000; /* label */
+  --muted: rgba(60, 60, 67, 0.76); /* secondaryLabel, raised to clear AA */
+  --faint: rgba(60, 60, 67, 0.3); /* tertiaryLabel — placeholders, disabled */
+
+  /* ---- Lines ---- */
+  --hair: rgba(60, 60, 67, 0.29); /* separator; decorative */
+  --hair-strong: #8e8e93; /* systemGray — 3.5:1, structural boundaries */
+
+  --disabled-fill: rgba(120, 120, 128, 0.16);
+
+  /* ---- Accent. Set inline on <html> by accent.ts; these are first-paint
+         fallbacks and must stay in step with DEFAULT_ACCENT. ---- */
+  --accent: #007aff; /* systemBlue — a FILL */
+  --accent-ink: #000000; /* text on that fill */
+  --accent-text: #006be0; /* the accent as TEXT — AA on --bg and --surface */
+  --accent-tint: rgba(0, 122, 255, 0.12); /* selection / hover wash */
+
+  /* systemRed, darkened for use as a fill: white on Apple's #ff3b30 is
+     3.55:1, under AA. #d70015 is Apple's own increased-contrast red and takes
+     white at 5.38:1. Destructive stays red whatever the accent is. */
+  --danger: #d70015;
+  --danger-ink: #ffffff;
+  --danger-text: #d70015; /* 5.38:1 on --surface, 4.83:1 on --bg */
+
+  /* How full a day is. Text colours, so they are picked to stay readable on
      --surface rather than to be bright. */
-  --tone-thin: #c2372c;
-  --tone-part: #805400;
+  --tone-thin: #c62a30;
+  --tone-part: #8a5a00;
   --tone-full: #1a7f37;
 
-  --font-display: "Space Grotesk", -apple-system, system-ui, sans-serif;
-  --font-sans: "Space Grotesk", -apple-system, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* ---- Type ---- */
+  --font-sans:
+    system-ui, "Inter Variable", -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-sans); /* no second display face, by design */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* One scale, in rem off a 16px root, so a single root font-size scales the
-     whole app. --fs-micro is the floor: labels, badges and grid headers all
-     sit there, and nothing ships smaller. */
-  --fs-micro: 0.6875rem; /* 11px */
-  --fs-xs: 0.75rem; /* 12px */
-  --fs-sm: 0.8125rem; /* 13px */
-  --fs-base: 0.875rem; /* 14px */
-  --fs-md: 0.9375rem; /* 15px — body */
-  --fs-lg: 1.125rem; /* 18px */
-  --fs-xl: 1.375rem; /* 22px */
-  --fs-2xl: 1.75rem; /* 28px */
-  --fs-display: 4rem; /* 64px */
+  /* Apple's Dynamic Type scale, in rem off a 16px root so one root font-size
+     scales the whole app. Body is 17 — the single value that does most of the
+     work in making this feel like an Apple app. */
+  --fs-micro: 0.6875rem; /* 11 — Caption 2 */
+  --fs-xs: 0.75rem; /* 12 — Caption 1 */
+  --fs-sm: 0.9375rem; /* 15 — Subheadline */
+  /* --fs-base and --fs-md are both Body, deliberately. The app's reading
+     surfaces — .issue-description, .timeline-text, .issue-fact dd, .comment-box
+     — all sit on --fs-base, while --fs-md is barely used outside the body
+     default. Sizing --fs-base at anything but 17 would mean nothing in the app
+     renders at Body, which is the one measurement this design language is
+     least willing to give up. --fs-xs stays at 12: the month matrix is built
+     on it and its column widths are hand-tuned. */
+  --fs-base: 1.0625rem; /* 17 — Body */
+  --fs-md: 1.0625rem; /* 17 — Body */
+  --fs-lg: 1.25rem; /* 20 — Title 3 */
+  --fs-xl: 1.375rem; /* 22 — Title 2 */
+  --fs-2xl: 1.75rem; /* 28 — Title 1 */
+  --fs-display: 2.125rem; /* 34 — Large Title */
 
-  /* Tracking for the small uppercase mono labels. The design used 0.06–0.09em;
-     at label size that much air pulls the letters apart faster than the caps
-     help, so it is one slightly tighter value now. */
-  --track-label: 0.05em;
+  /* Tracking. Apple tightens between 15 and 22 and leaves small text alone;
+     --track-label used to letter-space the uppercase micro-labels and is kept
+     at zero so the 23 selectors wearing that recipe need no individual edit. */
+  --track-tight: -0.024em;
+  --track-label: 0;
+
+  /* ---- Corners. Continuous curvature where the engine has it. ---- */
+  --r-control: 8px; /* chips, small inputs */
+  --r-card: 12px; /* grouped sections, cards, panels */
+  --r-sheet: 20px; /* modals */
+  --r-capsule: 999px; /* prominent buttons */
+
+  /* ---- Spacing, on an 8pt grid (4 for optical fine-tuning only) ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-section: 35px; /* between grouped sections — the real iOS value */
+
+  /* ---- Motion. Springs, not duration curves. ---- */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-micro: 120ms;
+  --dur-state: 350ms;
+  --dur-nav: 450ms;
+
+  /* Pointer targets, in two tiers.
+
+     --tap is the 44pt minimum, and every standalone control carries it:
+     buttons, inputs, selects, list rows.
+
+     --tap-compact is for the controls a desktop app draws small on purpose:
+     source-list rows, segmented-control segments, chips, inline text buttons.
+
+     --tap-dense is for controls inside a dense grid or a table header, where
+     44 would mean redesigning the data rather than the control — a month
+     matrix on 44pt rows is a different view, not a bigger one.
+
+     The two smaller tiers are a deliberate departure from the flat 44. That
+     figure is iOS's *touch* minimum, and this app is driven by a pointer on
+     macOS and Windows, where the system's own source lists, segmented
+     controls and grid cells all sit well below it. Sizing every one of them
+     at 44 would read as an iPad app stretched onto a desktop, which is the
+     opposite of the goal. Nothing goes below 28. */
+  --tap: 44px;
+  --tap-compact: 32px;
+  --tap-dense: 28px;
 
   color-scheme: light;
   font-family: var(--font-sans);
@@ -57,22 +144,51 @@
 }
 
 :root[data-theme="dark"] {
-  --bg: #0e0e0e;
-  --surface: #181818;
-  --ink: #f5f4ef;
-  --muted: #a5a59f;
-  --hair: rgba(245, 244, 239, 0.18);
-  --hair-strong: rgba(245, 244, 239, 0.38);
-  --disabled-fill: #2a2a29; /* --muted on it is 5.80:1 */
-  --accent: #e6ff3d;
-  --accent-ink: #0a0a0a;
-  --danger: #ff5a5f;
-  --danger-ink: #0a0a0a; /* 6.49:1 — white on this red is only 3.05:1 */
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --surface-sunken: #000000;
+
+  --fill-secondary: rgba(120, 120, 128, 0.32);
+  --fill-tertiary: rgba(118, 118, 128, 0.24);
+  --fill-quaternary: rgba(118, 118, 128, 0.18);
+
+  --ink: #ffffff;
+  --muted: rgba(235, 235, 245, 0.6); /* Apple's own value; 5.94:1 here */
+  --faint: rgba(235, 235, 245, 0.3);
+
+  --hair: rgba(84, 84, 88, 0.65);
+  --hair-strong: #8e8e93; /* systemGray is the same in both modes */
+
+  --disabled-fill: rgba(120, 120, 128, 0.32);
+
+  --accent: #0a84ff;
+  --accent-ink: #000000;
+  --accent-text: #0d81ff;
+  --accent-tint: rgba(10, 132, 255, 0.22);
+
+  --danger: #ff453a; /* black on it is 6.16:1 — no darkening needed here */
+  --danger-ink: #000000;
+  --danger-text: #ff6961; /* 6.03:1 on --surface */
+
   --tone-thin: #ff6b6b;
   --tone-part: #e3a33a;
   --tone-full: #55c46a;
 
   color-scheme: dark;
+}
+
+/* Squircles. Apple's corners are continuous, not circular arcs; below about
+   12px the difference is invisible, so this only applies where it shows. */
+@supports (corner-shape: squircle) {
+  :root {
+    --corner-shape: squircle;
+  }
+  .panel,
+  .modal,
+  .card,
+  .grouped {
+    corner-shape: squircle;
+  }
 }
 
 * {
@@ -90,16 +206,45 @@ body {
   margin: 0;
   background: var(--bg);
   font-size: var(--fs-md);
-  line-height: 1.5;
+  line-height: 1.294; /* 22 on 17 */
+  letter-spacing: var(--track-tight);
   -webkit-font-smoothing: antialiased;
+  /* Bring Inter's single-storey a/g closer to SF's construction. Ignored by
+     SF itself, which does not carry these features. */
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* Chrome that is not text should not be selectable — this is an app window,
+   not a document. Inputs and the places people copy an issue key from opt
+   back in. */
+body {
+  user-select: none;
+  cursor: default;
+}
+input,
+textarea,
+.summary,
+.key,
+.comment,
+.issue-description,
+.mention-body,
+.timeline-text {
+  user-select: text;
 }
 
 :focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--accent-text);
   outline-offset: 2px;
+  border-radius: var(--r-control);
+}
+
+::selection {
+  background: var(--accent-tint);
 }
 
 /* ---------- Blockmark signature ---------- */
+/* The mark keeps its four cells, softened: rounded quadrants on the accent
+   rather than ink blocks with a hard 2px inset border. */
 .blockmark {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -111,43 +256,125 @@ body {
 }
 .blockmark i {
   display: block;
+  border-radius: 2px;
 }
 .blockmark i:nth-child(1) {
-  background: var(--ink);
+  background: var(--accent);
 }
 .blockmark i:nth-child(2) {
   background: var(--accent);
+  opacity: 0.55;
 }
 .blockmark i:nth-child(3) {
   background: var(--accent);
+  opacity: 0.55;
 }
 .blockmark i:nth-child(4) {
-  box-shadow: inset 0 0 0 2px var(--ink);
+  background: var(--accent);
+  opacity: 0.25;
 }
 
 /* ---------- Buttons ---------- */
+/* The default button is a capsule filled with the accent. Every button clears
+   the 44pt minimum target, including the icon-only ones. */
 button {
   font: inherit;
   cursor: pointer;
-  border: 2px solid var(--accent);
-  border-radius: 0;
-  padding: 9px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  border: none;
+  border-radius: var(--r-capsule);
+  padding: 0 var(--sp-5);
   background: var(--accent);
   color: var(--accent-ink);
-  font-family: var(--font-display);
   font-weight: 600;
-  font-size: var(--fs-base);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: var(--fs-md);
+  letter-spacing: var(--track-tight);
   transition:
-    background 0.12s ease,
-    color 0.12s ease,
-    border-color 0.12s ease;
+    background var(--dur-micro) var(--ease-spring),
+    color var(--dur-micro) var(--ease-spring),
+    transform var(--dur-micro) var(--ease-spring);
 }
 button:hover {
-  background: transparent;
-  color: var(--ink);
-  border-color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
+}
+
+/* Buttons that are really a row of text or a table cell rather than a control.
+
+   The base rule above centres a button's contents, which is right for a
+   standalone button and wrong for every one of these: a list row reads from
+   the left, a numeric cell from the right. Browsers default a button to
+   centred text, so anything wanting otherwise had to say `text-align` — which
+   makes that declaration the reliable signal for what belongs here. Both
+   properties are needed, because these are flex containers: `text-align`
+   alone does not place a flex item. */
+.nav-row,
+.issue-select,
+.issue-open,
+.key-link,
+.mention-summary,
+.mention-option,
+.linked-summary,
+.template-use,
+.mention-body,
+.mention-summary,
+.todo-columns .col-sort {
+  justify-content: flex-start;
+  /* Not capsules. A 999px radius on a block of text clips the corners, and
+     with `overflow: hidden` for line-clamping it eats the first and last
+     lines' opening characters outright. */
+  border-radius: var(--r-control);
+}
+/* Numbers line up with the column they sit under. */
+.month-cell {
+  justify-content: flex-end;
+}
+/* Except the quick-log row, whose cells hold a mark rather than a number. */
+.quick-cell {
+  justify-content: center;
+}
+
+/* The dense tier: controls inside a grid cell or a table header, which take
+   --tap-dense instead of --tap. See the token for why the two tiers exist. */
+.month-cell,
+.quick-cell,
+.col-sort,
+.arrange-grip {
+  min-height: var(--tap-dense);
+}
+
+/* A drag handle is a span, so it needs the box drawn on it explicitly. */
+.arrange-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-dense);
+}
+
+/* The exceptions, none of which is a target in its own right:
+
+   .key-link and .asset-link are words inside a sentence — inline links, sized
+   by the text they sit in. The row around them carries the 44pt target.
+
+   The checkbox and the accent swatch are round, with a fixed width and height;
+   a minimum would stretch them into ellipses. Each is wrapped by something
+   that is the real target — the checkbox's label, the swatch's picker row —
+   and that is where the 44 goes. */
+.key-link,
+.asset-link,
+.accent-swatch,
+label.checkbox input {
+  min-height: 0;
+}
+label.checkbox {
+  min-height: var(--tap);
+}
+/* Apple's press: a small scale-down, released immediately. */
+button:active {
+  transform: scale(0.96);
 }
 /* Greyed out by swapping the fill, not by fading the whole button: at 40%
    opacity the label sat at 2.63:1, which is unreadable rather than quiet. */
@@ -155,74 +382,153 @@ button:disabled {
   cursor: default;
   background: var(--disabled-fill);
   color: var(--muted);
-  border-color: var(--disabled-fill);
+  transform: none;
 }
+/* Tinted: the accent at low alpha, with accent-coloured text on it. Apple's
+   standard secondary button. */
 button.secondary {
-  background: transparent;
-  color: var(--ink);
-  border-color: var(--ink);
+  background: var(--fill-tertiary);
+  color: var(--accent-text);
 }
 button.secondary:hover {
-  background: var(--ink);
-  color: var(--surface);
+  background: var(--fill-secondary);
 }
+/* A plain text button — no fill at all. */
 button.link {
   background: none;
-  border: none;
-  color: var(--ink);
-  padding: 3px 2px;
+  color: var(--accent-text);
+  padding: 0 var(--sp-2);
   width: auto;
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  font-size: var(--fs-base);
+  font-weight: 400;
+  border-radius: var(--r-control);
 }
 button.link:hover {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border: none;
+  background: var(--fill-quaternary);
+  color: var(--accent-text);
 }
 button.icon {
   background: none;
   border: none;
   color: var(--muted);
-  padding: 5px 7px;
-  font-size: var(--fs-base);
-  letter-spacing: 0;
+  min-width: var(--tap);
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-md);
+  border-radius: var(--r-control);
 }
 button.icon:hover {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--fill-quaternary);
+  color: var(--ink);
 }
 button.danger {
   background: var(--danger);
   color: var(--danger-ink);
-  border-color: var(--danger);
 }
 button.danger:hover {
-  background: transparent;
-  color: var(--danger);
-  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 88%, var(--ink));
 }
 button.icon.on {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent-text);
 }
 button.icon.danger-icon:hover {
-  background: var(--danger);
-  color: var(--danger-ink);
+  background: var(--fill-quaternary);
+  color: var(--danger-text);
+}
+
+/* ---------- Vibrancy (macOS only) ----------
+   The window itself is the material: tauri.macos.conf.json makes it
+   transparent and puts an NSVisualEffectView behind it. Refraction cannot be
+   reproduced outside Apple's renderer and this does not try — it simply lets
+   the real thing show through behind the source list, which is the one class
+   of element that gets it. Everything else stays opaque.
+
+   The mark is set by vibrancy.ts and only on macOS, so on Windows and Linux
+   none of this applies and every surface keeps its solid colour. */
+:root[data-vibrancy="on"] body {
+  background: transparent;
+}
+:root[data-vibrancy="on"] .sidebar {
+  background: color-mix(in srgb, var(--surface-sunken) 55%, transparent);
+}
+/* The content column keeps a solid ground: text is read there, and the whole
+   point of the material is that it moves. */
+:root[data-vibrancy="on"] .content {
+  background: var(--bg);
+}
+/* Asked for less transparency, the material goes away and the opaque surface
+   comes back — the same instruction the reduced-motion rule follows. */
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-vibrancy="on"] body {
+    background: var(--bg);
+  }
+  :root[data-vibrancy="on"] .sidebar {
+    background: var(--surface-sunken);
+  }
+}
+
+/* ---------- Motion ----------
+   Springs, not duration curves. --ease-spring is the cubic-bezier that comes
+   closest to Apple's sheet transition; anything with ease-in-out at 300ms
+   reads as generic. The prefers-reduced-motion rule further down the file
+   switches all of it off with !important, so nothing here needs to repeat
+   that check. */
+
+/* Switching views. Each tab's panel mounts fresh, so this runs on arrival —
+   a short rise and fade rather than a slide, because there is no spatial
+   relationship between the six views to honour. */
+main > * {
+  animation: view-in var(--dur-state) var(--ease-spring);
+}
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.nav-row {
+  transition:
+    background var(--dur-micro) var(--ease-spring),
+    color var(--dur-micro) var(--ease-spring);
+}
+input,
+textarea,
+select {
+  transition: border-color var(--dur-micro) var(--ease-spring);
+}
+.issue-select,
+.issue-open,
+.timer-start,
+.month-cell,
+.mention-option,
+.linked-summary {
+  transition: background var(--dur-micro) var(--ease-spring);
+}
+
+/* ---------- Icons ---------- */
+/* Lucide, at stroke 1.5-2. SF Symbols are licensed for Apple's own platforms
+   and may not be redrawn or shipped, so this is the substitute; the weight and
+   geometry are the closest match available. Icons never carry the accessible
+   name on their own — every icon-only control has a title or an aria-label,
+   and the glyph itself is aria-hidden. */
+button svg,
+.nav-icon {
+  flex: none;
+}
+/* An icon sitting beside a word wants the word's optical centre, not the
+   line's baseline. */
+.col-sort svg,
+.timeline-tag svg {
+  align-self: center;
 }
 
 /* ---------- Micro-labels ---------- */
 
-/* One recipe, worn by every small uppercase mono label in the app: form and
-   field names, section headings, badges, grid headers. It was written out in
-   23 rules with four different letter-spacings between them; the tracking is a
-   token now and the weight went 500 -> 600, because uppercase mono at label
-   size needs the extra stroke to hold its shape.
+/* One recipe, worn by every small label in the app: form and field names,
+   section headings, badges, grid headers. It used to be uppercase mono with
+   letter-spacing; it is now simply the system font, a little smaller and in
+   secondary ink. Weight carries the hierarchy, colour never does.
 
    Size is deliberately *not* set here. There are two tiers — inline labels and
    badges at --fs-micro, standalone form and section labels at --fs-xs — and
@@ -253,10 +559,10 @@ label,
 .about-facts dt,
 .day-head-cell .dow,
 .quick-row .col-issue {
-  font-family: var(--font-mono);
-  font-weight: 600;
+  font-family: var(--font-sans);
+  font-weight: 500;
   letter-spacing: var(--track-label);
-  text-transform: uppercase;
+  text-transform: none;
   color: var(--muted);
 }
 
@@ -280,11 +586,12 @@ textarea,
 select {
   font: inherit;
   font-weight: 400;
-  letter-spacing: normal;
+  letter-spacing: var(--track-tight);
   text-transform: none;
-  padding: 10px 12px;
-  border: 2px solid var(--ink);
-  border-radius: 0;
+  min-height: var(--tap);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-control);
   background: var(--surface);
   color: var(--ink);
   /* An explicit caret: the accent focus ring reads as "selected", and without
@@ -306,8 +613,11 @@ textarea {
 input:focus,
 textarea:focus,
 select:focus {
-  border-color: var(--ink);
-  box-shadow: inset 0 0 0 2px var(--accent);
+  border-color: var(--accent);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--faint);
 }
 textarea {
   resize: vertical;
@@ -330,19 +640,21 @@ textarea {
 }
 button.duration-add {
   width: auto;
-  padding: 4px 8px;
-  background: transparent;
-  color: var(--muted);
-  border: 1px solid var(--hair-strong);
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  letter-spacing: 0.06em;
+  min-height: var(--tap-compact);
+  padding: 0 var(--sp-3);
+  background: var(--fill-tertiary);
+  color: var(--accent-text);
+  border: none;
+  border-radius: var(--r-capsule);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: var(--track-tight);
   text-transform: none;
+  font-variant-numeric: tabular-nums;
 }
 button.duration-add:hover {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
+  background: var(--fill-secondary);
+  color: var(--accent-text);
 }
 .duration-quick .hint {
   margin-left: auto;
@@ -374,48 +686,60 @@ label.checkbox {
 }
 label.checkbox input {
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   margin: 0;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--hair-strong);
+  border-radius: 50%;
   background: var(--surface);
   cursor: pointer;
+  transition:
+    background var(--dur-micro) var(--ease-spring),
+    border-color var(--dur-micro) var(--ease-spring);
 }
 label.checkbox input:checked {
   background: var(--accent);
-  box-shadow: inset 0 0 0 2px var(--surface);
+  border-color: var(--accent);
+}
+/* The tick, drawn rather than imported — an SF Symbol may not be used. */
+label.checkbox input:checked::after {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 11px;
+  margin: 2px auto 0;
+  border: solid var(--accent-ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 .muted {
   color: var(--muted);
 }
 .error {
-  font-family: var(--font-mono);
-  color: var(--accent-ink);
-  background: var(--accent);
-  padding: 8px 10px;
-  font-size: var(--fs-sm);
+  color: var(--danger-text);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  padding: var(--sp-3);
+  border-radius: var(--r-control);
+  font-size: var(--fs-base);
 }
 .success {
-  font-family: var(--font-mono);
   color: var(--muted);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-base);
 }
 .hint {
-  font-family: var(--font-mono);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-base);
   color: var(--muted);
   font-weight: 400;
-  letter-spacing: normal;
+  letter-spacing: var(--track-tight);
   text-transform: none;
 }
 .empty {
-  padding: 22px 0;
+  padding: var(--sp-8) 0;
   text-align: center;
-  font-family: var(--font-mono);
-  font-size: var(--fs-sm);
-  letter-spacing: 0.04em;
+  font-size: var(--fs-base);
+  color: var(--muted);
 }
 
 .loading {
@@ -423,10 +747,7 @@ label.checkbox input:checked {
   place-items: center;
   height: 100vh;
   color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: var(--fs-sm);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font-size: var(--fs-base);
 }
 
 /* ---------- Setup ---------- */
@@ -464,21 +785,16 @@ label.checkbox input:checked {
 }
 .eyebrow {
   display: block;
-  font-size: var(--fs-xs);
-  /* The one label that keeps extra tracking: it is a one- or two-word display
-     flourish above a heading, not something read as a sentence. Still well
-     down from the 0.2em it used to carry. */
-  letter-spacing: 0.12em;
-  margin-bottom: 10px;
+  font-size: var(--fs-base);
+  color: var(--muted);
+  margin-bottom: var(--sp-1);
 }
 .setup h1 {
-  font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--fs-display);
-  line-height: 0.9;
-  letter-spacing: -0.02em;
-  text-transform: uppercase;
-  margin: 0 0 16px;
+  line-height: 1.2;
+  letter-spacing: 0.011em; /* Large Titles loosen slightly */
+  margin: 0 0 var(--sp-4);
 }
 .setup > .muted {
   font-size: var(--fs-md);
@@ -501,27 +817,33 @@ label.checkbox input:checked {
   font-size: var(--fs-xs);
   margin-bottom: 8px;
 }
+/* Segmented control: a sunken track with a raised pill on the active
+   segment, the way iOS draws one. */
 .theme-toggle {
   display: inline-flex;
-  border: 2px solid var(--ink);
+  gap: 2px;
+  padding: 2px;
+  background: var(--fill-tertiary);
+  border-radius: 10px;
 }
 .theme-toggle button {
-  background: var(--surface);
+  background: none;
   border: none;
-  color: var(--muted);
-  padding: 7px 16px;
-  font-size: var(--fs-sm);
-}
-.theme-toggle button + button {
-  border-left: 2px solid var(--ink);
+  color: var(--ink);
+  min-height: var(--tap-compact);
+  padding: 0 var(--sp-4);
+  border-radius: 8px;
+  font-size: var(--fs-base);
+  font-weight: 500;
 }
 .theme-toggle button:hover {
   color: var(--ink);
-  background: var(--surface);
+  background: var(--fill-quaternary);
 }
-.theme-toggle button.active {
-  background: var(--accent);
-  color: var(--accent-ink);
+.theme-toggle button.active,
+.theme-toggle button.active:hover {
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .accent-picker {
@@ -530,15 +852,23 @@ label.checkbox input:checked {
   gap: 10px;
 }
 .accent-swatch {
-  width: 32px;
-  height: 32px;
+  width: var(--tap-dense);
+  height: var(--tap-dense);
   padding: 0;
-  border: 2px solid var(--ink);
+  border: none;
+  border-radius: 50%;
   cursor: pointer;
+}
+.accent-swatch:hover {
+  transform: scale(1.08);
 }
 .accent-swatch.active {
   outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline-offset: 3px;
+}
+/* The swatches are small by design, so the row carries the 44pt target. */
+.accent-picker {
+  min-height: var(--tap);
 }
 .accent-custom::-webkit-color-swatch-wrapper {
   padding: 0;
@@ -554,19 +884,19 @@ label.checkbox input:checked {
 .settings-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0;
-  border-bottom: 2px solid var(--ink);
-  margin-bottom: 24px;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--hair);
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-6);
 }
 .settings-tabs button {
   background: none;
   border: none;
   color: var(--muted);
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
-  padding: 9px 4px;
-  margin-right: 20px;
-  font-size: var(--fs-sm);
+  border-radius: var(--r-control);
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-base);
+  font-weight: 500;
   /* Never narrower than the label. Flex items shrink by default, and once a
      button is squeezed below its text the label overflows the box while the
      underline — which tracks the box — stops short of it. */
@@ -574,12 +904,13 @@ label.checkbox input:checked {
   white-space: nowrap;
 }
 .settings-tabs button:hover {
-  background: none;
+  background: var(--fill-quaternary);
   color: var(--ink);
 }
-.settings-tabs button.active {
-  color: var(--ink);
-  border-bottom-color: var(--accent);
+.settings-tabs button.active,
+.settings-tabs button.active:hover {
+  color: var(--accent-text);
+  background: var(--accent-tint);
 }
 
 .hours-field {
@@ -588,8 +919,7 @@ label.checkbox input:checked {
   gap: 12px;
 }
 .hours-field input {
-  width: 86px;
-  font-family: var(--font-mono);
+  width: 96px;
   font-variant-numeric: tabular-nums;
 }
 .hours-field select {
@@ -598,6 +928,9 @@ label.checkbox input:checked {
 }
 
 /* ---------- App shell ---------- */
+/* Two columns: a macOS source list on the left, the view on the right. The
+   sidebar is a fixed track and the content is what grows; the window's own
+   640px minimum keeps both usable. */
 .app {
   /* Comfortable column in the default window, growing fluidly when the window
      is maximized or fullscreen. The cap is set by the widest thing the app
@@ -621,78 +954,221 @@ label.checkbox input:checked {
   display: flex;
   flex-direction: column;
 }
-header {
+
+.sidebar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 22px 0 18px;
-  border-bottom: 2px solid var(--ink);
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-4) var(--sp-3);
+  background: var(--surface-sunken);
+  border-right: 1px solid var(--hair);
+  /* The list stays put while the view scrolls, the way a source list does —
+     the grid gives it the window's full height, so it needs no stickiness. */
+  min-height: 0;
+  overflow-y: auto;
 }
+
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 11px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: var(--fs-xl);
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2);
+  font-weight: 600;
+  font-size: var(--fs-lg);
   line-height: 1;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
+  letter-spacing: var(--track-tight);
 }
-.account {
+
+/* ---------- Source list ---------- */
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: var(--tap-compact);
+  padding: 0 var(--sp-2);
+  border: none;
+  border-radius: var(--r-control);
+  background: none;
+  color: var(--ink);
+  font-size: var(--fs-base);
+  font-weight: 400;
+  text-align: left;
+}
+.nav-row:hover {
+  background: var(--fill-quaternary);
+}
+.nav-icon {
+  flex: none;
+  color: var(--muted);
+}
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The selected row is the one place besides the primary button where the
+   accent is a fill rather than a tint. */
+.nav-row.active,
+.nav-row.active:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 500;
+}
+.nav-row.active .nav-icon {
+  color: var(--accent-ink);
+}
+
+/* Count of what is waiting, right-aligned. */
+.nav-count {
+  flex: none;
+  min-width: 20px;
+  padding: 1px var(--sp-2);
+  border-radius: var(--r-capsule);
+  background: var(--fill-secondary);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.nav-row.active .nav-count {
+  background: color-mix(in srgb, var(--accent-ink) 22%, transparent);
+  color: var(--accent-ink);
+}
+/* Something unseen. systemRed is the one colour allowed to step outside the
+   accent, and it carries the row's icon as well as its count — a count alone
+   is a very small thing to notice in the corner of a sidebar. */
+.nav-row.alert .nav-count {
+  background: var(--danger);
+  color: var(--danger-ink);
+}
+.nav-row.alert:not(.active) .nav-icon,
+.nav-row.alert:not(.active) .nav-label {
+  color: var(--danger-text);
+}
+
+/* Just arrived. The row pulses for a few seconds and then settles, rather
+   than blinking until the tab is opened: enough to catch the eye on the way
+   back to the window, and over before it becomes something to endure. The
+   global reduced-motion rule turns the animation off, and the row is still
+   red underneath — the news does not depend on the movement. */
+.nav-row.arrived {
+  animation: row-arrived 1.4s var(--ease-spring) 3;
+}
+@keyframes row-arrived {
+  0%,
+  100% {
+    background: none;
+  }
+  35% {
+    background: color-mix(in srgb, var(--danger) 26%, transparent);
+  }
+}
+.nav-row.arrived .nav-count {
+  animation: count-arrived 1.4s var(--ease-spring) 3;
+}
+@keyframes count-arrived {
+  35% {
+    transform: scale(1.18);
+  }
+}
+
+/* ---------- Account, at the foot of the source list ---------- */
+.account {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: auto;
+  padding: var(--sp-3) var(--sp-2) 0;
+  border-top: 1px solid var(--hair);
   font-size: var(--fs-sm);
 }
 .account .muted {
-  font-family: var(--font-mono);
   font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
-.tabs {
+.account-actions {
   display: flex;
-  gap: 0;
-  border-bottom: 2px solid var(--ink);
-  margin-bottom: 22px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--sp-1);
+  margin-left: calc(var(--sp-2) * -1);
 }
-.tabs button {
-  background: none;
-  border: none;
-  color: var(--muted);
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
-  padding: 11px 4px;
-  margin-right: 22px;
+/* These sit in a tight column, so they carry a smaller target than a button
+   in the body of a view — listed with the other tap-target debt above. */
+.account-actions button.link {
+  min-height: var(--tap-compact);
   font-size: var(--fs-sm);
 }
-.tabs button:hover {
-  background: none;
-  color: var(--ink);
-}
-.tabs button.active {
-  color: var(--ink);
-  border-bottom-color: var(--accent);
+.account .confirm-text {
+  margin: 0 var(--sp-1) 0 var(--sp-2);
 }
 
-/* Missing-worklog tab with unseen findings: blinks in the accent fill until
-   the tab is opened. With reduced motion the accent fill stays solid. */
-.tabs button.alert,
-.tabs button.alert:hover {
-  background: var(--accent);
-  color: var(--accent-ink);
-  animation: tab-alert 1.1s steps(1, end) infinite;
+/* ---------- Content column ---------- */
+/* The view area is the scroll region, so the title above it stays put the way
+   a toolbar does. Its height is bounded by the column, which is what lets a
+   view that wants to fill the window — the month grid — ask for it. */
+main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: var(--sp-8);
 }
-@keyframes tab-alert {
-  0%,
-  55% {
-    background: var(--accent);
-    color: var(--accent-ink);
+.content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* The cap is set by the widest thing the app shows — the month matrix,
+     which wants around 1300px before it has to scroll. */
+  max-width: 1760px;
+  padding: 0 var(--sp-5);
+}
+.content > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-5) 0 var(--sp-4);
+}
+.content > header h1 {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  letter-spacing: var(--track-tight);
+}
+
+/* Narrow windows: the labels go, the icons stay. */
+@media (max-width: 880px) {
+  .app {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
   }
-  56%,
-  100% {
-    background: transparent;
-    color: var(--ink);
+  .brand,
+  .nav-label,
+  .account .muted,
+  .account-actions {
+    display: none;
+  }
+  .nav-row {
+    justify-content: center;
+  }
+  .nav-count {
+    position: absolute;
+    margin: -18px 0 0 18px;
+    min-width: 16px;
+    padding: 0 4px;
+  }
+  .account {
+    border: none;
   }
 }
 
@@ -701,10 +1177,10 @@ header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding-bottom: 14px;
-  margin-bottom: 8px;
-  border-bottom: 2px solid var(--ink);
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--hair);
 }
 .missing-head .hint {
   max-width: 48ch;
@@ -719,7 +1195,7 @@ header {
   gap: 4px;
 }
 .missing-meta {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   color: var(--muted);
   white-space: nowrap;
@@ -733,10 +1209,21 @@ header {
 }
 
 /* ---------- Panels ---------- */
+/* A panel is a single grouped surface: one rounded card holding a form or a
+   block of content. */
 .panel {
   background: var(--surface);
-  border: 2px solid var(--ink);
-  padding: 22px;
+  border-radius: var(--r-card);
+  padding: var(--sp-5);
+}
+/* A panel that only *hosts* grouped sections is not itself a surface — the
+   sections inside carry their own, and a surface inside a surface of the same
+   colour reads as neither. It goes back to being a plain container. */
+.panel.start,
+.panel.todo,
+.panel.issue-view {
+  background: none;
+  padding: 0;
 }
 .panel > button:not(.link):not(.icon) {
   width: 100%;
@@ -750,11 +1237,10 @@ header {
 
 /* ---------- Build info (settings screen) ---------- */
 .buildinfo {
-  margin: 26px 0 0;
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  letter-spacing: 0.06em;
+  margin: var(--sp-6) 0 0;
+  font-size: var(--fs-xs);
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Update notice ---------- */
@@ -762,12 +1248,12 @@ header {
   display: flex;
   align-items: center;
   gap: 12px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--hair);
   background: var(--accent);
   color: var(--accent-ink);
   padding: 10px 14px;
   margin: 18px 0;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
 }
 .update-notice span {
@@ -791,39 +1277,46 @@ header {
 .update-notice .update-progress {
   flex: 0 0 auto;
   white-space: nowrap;
-  font-weight: 700;
+  font-weight: 600;
 }
 .update-notice .update-error {
   flex: 2;
 }
 
 /* ---------- Running timer bar (signature) ---------- */
-/* A constant black instrument block framed in neon, in both themes. */
+/* Was a constant black instrument block framed in neon, in both themes — the
+   most Neo-Grid object in the app, and the only hunk in this pass that is a
+   design decision rather than a mechanical swap. A black slab on a light
+   grouped background has nowhere to sit in this language, so it becomes an
+   ordinary grouped surface and the accent survives as a tint on the running
+   dot and the clock. That also retires the three raw colours that used to
+   bypass the token system here. */
 .timer-bar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  background: #0a0a0a;
-  color: #f5f4ef;
-  border: 2px solid var(--accent);
-  padding: 15px 18px;
-  margin-bottom: 22px;
+  gap: var(--sp-4);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--r-card);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-5);
 }
 .timer-dot {
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
   background: var(--accent);
   flex-shrink: 0;
-  animation: blink 1.1s steps(1, end) infinite;
+  /* A pulse rather than a hard on/off: the step blink read as a fault light. */
+  animation: blink 2s var(--ease-spring) infinite;
 }
 @keyframes blink {
   0%,
-  60% {
+  100% {
     opacity: 1;
   }
-  61%,
-  100% {
-    opacity: 0.15;
+  50% {
+    opacity: 0.3;
   }
 }
 .timer-info {
@@ -834,19 +1327,18 @@ header {
   min-width: 0;
 }
 .timer-bar .key {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .timer-info .summary {
   font-size: var(--fs-sm);
-  color: rgba(245, 244, 239, 0.65);
+  color: var(--muted);
 }
 .timer-clock {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-2xl);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: var(--track-tight);
+  color: var(--accent-text);
 }
 /* A one-second wink when the clock hits a Schnapszahl or 13:37 — see
    isPlayfulClock in timer.ts. Glow only: the digits are already accent
@@ -857,9 +1349,7 @@ header {
 }
 @keyframes clock-wink {
   30% {
-    text-shadow:
-      0 0 12px var(--accent),
-      0 0 28px var(--accent);
+    opacity: 0.45;
   }
 }
 
@@ -868,13 +1358,17 @@ header {
 }
 
 /* ---------- Issue list ---------- */
+/* The grouped-inset list, which is this design language's default layout
+   primitive: a rounded section filled with --surface, sitting on the grouped
+   background, with hairline separators between rows that are inset to line up
+   with the row's text rather than running the full width of the section.
+   Every other list in the app should end up wearing this. */
 .issue-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  /* Use the extra vertical space of larger windows. */
-  max-height: clamp(360px, 55vh, 800px);
-  overflow-y: auto;
+  background: var(--surface);
+  border-radius: var(--r-card);
 }
 /* The todo list is the whole point of its tab, so it takes every pixel the
    window has left rather than capping at a share of the viewport. */
@@ -910,35 +1404,48 @@ header {
   min-height: 0;
 }
 .issue-list li {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-1);
+  min-height: var(--tap);
+  padding-right: var(--sp-3);
 }
-.issue-list li:not(.empty) {
-  border-bottom: 1px solid var(--hair-strong);
+/* The separator is a pseudo-element rather than a border so it can start at
+   the text and still stop at the section's edge. --row-inset is the width of
+   whatever leads the row; the pin star sets it here. */
+.issue-list li:not(.empty)::after {
+  content: "";
+  position: absolute;
+  left: var(--row-inset, var(--tap));
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--hair);
 }
-.issue-list li:not(.empty):last-child {
-  border-bottom: none;
+.issue-list li:not(.empty):last-child::after {
+  display: none;
 }
 .issue-select {
   display: flex;
-  gap: 12px;
+  gap: var(--sp-3);
   align-items: baseline;
   flex: 1;
   min-width: 0;
   text-align: left;
   background: none;
   border: none;
+  border-radius: 0;
   color: var(--ink);
-  padding: 11px 8px;
+  padding: var(--sp-2) var(--sp-1);
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: var(--fs-md);
-  letter-spacing: normal;
+  font-size: var(--fs-base);
+  letter-spacing: var(--track-tight);
   text-transform: none;
 }
 .issue-select:hover {
-  background: var(--bg);
+  background: var(--fill-quaternary);
   color: var(--ink);
 }
 /* Issue key opens the issue in the browser; fixed width keeps summaries aligned. */
@@ -947,27 +1454,35 @@ header {
   min-width: 10ch;
   background: none;
   border: none;
-  padding: 11px 0 11px 8px;
-  letter-spacing: normal;
+  border-radius: var(--r-control);
+  padding: var(--sp-2) var(--sp-1);
+  letter-spacing: var(--track-tight);
   text-transform: none;
   text-align: left;
 }
 .issue-open:hover {
-  background: var(--bg);
-  text-decoration: underline;
-  color: var(--ink);
+  background: var(--fill-quaternary);
+  color: var(--accent-text);
 }
-/* Pin toggle: star buttons in the issue list. */
+/* Pin toggle: star buttons in the issue list. It is the row's leading element,
+   so its width is what the separator inset is measured from. */
 .pin-toggle {
   flex: 0 0 auto;
-  font-size: var(--fs-md);
+  font-size: var(--fs-base);
+  color: var(--faint);
 }
 .pin-toggle.pinned {
-  color: var(--ink);
+  color: var(--accent-text);
 }
-/* Heavier rule after the pinned block to set it apart from the results. */
+/* The pinned block ends with a gap rather than a heavy rule: in a grouped list
+   a break between groups is space, not a thicker line. */
 .issue-list li.pinned-last:not(.empty) {
-  border-bottom: 2px solid var(--ink);
+  margin-bottom: var(--sp-2);
+}
+.issue-list li.pinned-last:not(.empty)::after {
+  left: 0;
+  background: var(--hair-strong);
+  opacity: 0.5;
 }
 /* Inline issue-key button (timesheet / missing worklog rows). */
 .key-link {
@@ -975,15 +1490,13 @@ header {
   border: none;
   padding: 0;
   align-self: flex-start;
-  letter-spacing: normal;
+  letter-spacing: var(--track-tight);
   text-transform: none;
   text-align: left;
 }
 .key-link:hover {
   background: none;
-  color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--accent-text);
 }
 /* Summary button in missing-worklog rows: stacked under the key. */
 .missing-select {
@@ -998,11 +1511,13 @@ header {
 .worklog-main > .issue-select {
   flex: 0 0 auto;
 }
+/* The key is an identifier and a link at once. Mono used to say the first
+   part; semibold plus the accent says both, in the app's one typeface. */
 .key {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
-  font-weight: 700;
-  color: var(--ink);
+  font-weight: 600;
+  color: var(--accent-text);
   white-space: nowrap;
 }
 .summary {
@@ -1012,49 +1527,62 @@ header {
 }
 .timer-start {
   background: none;
-  border: 2px solid transparent;
+  border: none;
+  border-radius: var(--r-capsule);
   color: var(--muted);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   font-weight: 500;
-  letter-spacing: 0.04em;
-  padding: 5px 11px;
+  letter-spacing: var(--track-tight);
+  padding: 0 var(--sp-3);
+  min-height: var(--tap-compact);
   white-space: nowrap;
 }
 .timer-start:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--ink);
-  color: var(--accent-ink);
+  background: var(--fill-tertiary);
+  color: var(--accent-text);
 }
 .timer-start:disabled {
   cursor: default;
   background: none;
-  border-color: transparent;
-  color: var(--muted);
+  color: var(--faint);
 }
 .timer-start.running {
-  color: var(--ink);
+  color: var(--accent-text);
+  background: var(--accent-tint);
   opacity: 1;
 }
 
+/* The issue a form is about, shown as a single grouped row above it. */
 .issue-chip {
   display: flex;
-  gap: 12px;
+  gap: var(--sp-3);
   align-items: baseline;
-  padding: 14px;
-  background: var(--bg);
-  border: 2px solid var(--ink);
-  margin: 6px 0 22px;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: none;
+  border-radius: var(--r-card);
+  margin: var(--sp-2) 0 var(--sp-5);
 }
 
-/* ---------- Issue history (log-work screen) ---------- */
+/* ---------- Issue history (shown under every form that logs time) ---------- */
 .issue-history {
   margin-top: 30px;
 }
 .history-more {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   margin: 8px 0 0;
+}
+/* Inside a modal the list is a reference the user glances at, not the point of
+   the sheet: pulled closer to the form and capped so the buttons below it stay
+   on screen however much time the issue already carries. */
+.modal .issue-history {
+  margin-top: var(--sp-5);
+}
+.modal .issue-history-list {
+  max-height: 8.5rem;
+  overflow-y: auto;
 }
 
 /* ---------- Timesheet (ledger) ---------- */
@@ -1072,14 +1600,12 @@ header {
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  font-family: var(--font-display);
   font-weight: 600;
   font-size: var(--fs-base);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--track-tight);
 }
 .week-label .muted {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   font-weight: 400;
   letter-spacing: 0;
@@ -1107,7 +1633,7 @@ header {
   display: flex;
   align-items: flex-end;
   height: 120px;
-  border-bottom: 2px solid var(--ink);
+  border-bottom: 1px solid var(--hair);
 }
 .day-col {
   flex: 1;
@@ -1116,27 +1642,29 @@ header {
   justify-content: center;
   height: 100%;
 }
+/* An outlined neon bar was the old idiom. A plain accent bar with a rounded
+   cap is the current one — the shape carries the value, nothing frames it. */
 .day-bar {
   width: 100%;
-  max-width: 24px;
+  max-width: 20px;
   background: var(--accent);
-  border: 2px solid var(--ink);
-  border-bottom: none;
+  border: none;
+  border-radius: var(--r-control) var(--r-control) 0 0;
 }
 .day-target {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px solid var(--muted);
+  border-top: 1px dashed var(--hair-strong);
   pointer-events: none;
 }
 .day-target span {
   position: absolute;
   right: 0;
   bottom: 1px;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-micro);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--track-tight);
   color: var(--muted);
 }
 .day-labels {
@@ -1149,7 +1677,7 @@ header {
 }
 .day-labels span.today {
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 600;
 }
 .week-gauge {
   position: relative;
@@ -1162,24 +1690,23 @@ header {
   width: 100%;
   height: auto;
 }
+/* A ring, drawn the way a progress ring is drawn here: a quiet track with the
+   accent laid over it and a round cap. The old version put an ink circle four
+   pixels wider underneath, to fake a border around the neon arc — there is no
+   neon and no border to fake now, so that circle is gone from the markup. */
 .gauge-track,
-.gauge-edge,
 .gauge-fill {
   fill: none;
 }
 .gauge-track {
-  stroke: var(--hair-strong);
-  stroke-width: 12;
-}
-/* Ink underlay 4px wider than the accent arc — reads as a 2px border,
-   keeping the neon legible on the light surface. */
-.gauge-edge {
-  stroke: var(--ink);
-  stroke-width: 16;
+  stroke: var(--fill-tertiary);
+  stroke-width: 10;
 }
 .gauge-fill {
   stroke: var(--accent);
-  stroke-width: 12;
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dasharray var(--dur-state) var(--ease-spring);
 }
 .gauge-center {
   position: absolute;
@@ -1191,9 +1718,9 @@ header {
   gap: 1px;
 }
 .gauge-center strong {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xl);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--ink);
 }
 .gauge-center span {
@@ -1205,39 +1732,56 @@ header {
   align-items: baseline;
   justify-content: flex-end;
   gap: 10px;
-  margin: 12px 0 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid var(--ink);
+  margin: var(--sp-3) 0 var(--sp-5);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--hair);
   font-size: var(--fs-xs);
 }
 .week-total strong {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xl);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0;
   color: var(--ink);
 }
 .day-group {
   margin-bottom: 22px;
 }
+/* The header of a grouped section. It sits on the background above the
+   rounded section rather than being ruled off from it — the section's own
+   edge is what separates them. */
 .day-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: var(--fs-xs);
-  padding-bottom: 8px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--hair-strong);
-}
-.day-head .muted {
+  gap: var(--sp-3);
+  font-size: var(--fs-base);
+  font-weight: 600;
   color: var(--ink);
-  font-weight: 700;
+  padding: 0 var(--sp-1);
+  margin-bottom: var(--sp-2);
 }
+/* The trailing half of the header is the section's running total or scope —
+   secondary to the name, and sized to match. */
+.day-head .muted {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+}
+/* Shared by the two inboxes and by the timesheet's day groups. Same anatomy
+   as an issue-list row — 44pt floor, hairline separator inset to the text —
+   drawn here with a border because these rows are siblings in a plain
+   container rather than list items. */
 .worklog-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 9px 0;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--hair);
+}
+.worklog-row:last-child {
+  border-bottom: none;
 }
 .worklog-main {
   display: flex;
@@ -1247,7 +1791,7 @@ header {
   min-width: 0;
 }
 .worklog-main .summary {
-  font-size: var(--fs-base);
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 .comment {
@@ -1303,6 +1847,13 @@ header {
   overflow: hidden;
   background: none;
   border: none;
+  /* Square, because the text starts hard at the edge: any corner radius here
+     is carved out of the words themselves once overflow is hidden. */
+  border-radius: 0;
+  /* A paragraph in a row, not a control of its own — the row carries the
+     44pt target, and a minimum here would double the height of every
+     single-line mention. */
+  min-height: 0;
   padding: 0;
   margin-top: 3px;
   text-align: left;
@@ -1320,19 +1871,23 @@ header {
 /* Shown when the candidate search was cut short: the list below is real but
    incomplete, and saying so beats implying the inbox is the whole picture. */
 .mention-partial {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--muted);
-  border-left: 3px solid var(--muted);
-  padding: 6px 0 6px 9px;
-  margin: 0 0 10px;
+  background: var(--fill-quaternary);
+  border-radius: var(--r-control);
+  padding: var(--sp-2) var(--sp-3);
+  margin: 0 0 var(--sp-3);
 }
 /* Unread mentions carry the accent down their left edge for the visit in which
    they were opened — after that the row reads as an ordinary entry. */
 .mention-row.unread {
-  box-shadow: inset 3px 0 0 var(--accent);
-  padding-left: 11px;
+  background: var(--accent-tint);
+  border-radius: var(--r-control);
+  padding-left: var(--sp-3);
+  padding-right: var(--sp-3);
+  margin: 0 calc(var(--sp-3) * -1);
 }
 .mention-row.unread .summary {
   color: var(--ink);
@@ -1366,24 +1921,28 @@ header {
   flex: none;
 }
 
-/* Marker on rows logged as non-billable. */
+/* Marker on rows logged as non-billable.
+   Badges are filled capsules rather than outlined boxes: an outline faint
+   enough to be quiet ends up too faint to see, and a fill says the same thing
+   without drawing a line around it. */
 .nb-tag {
   align-self: flex-start;
   font-size: var(--fs-micro);
-  border: 1px solid var(--hair-strong);
-  padding: 1px 6px;
+  background: var(--fill-tertiary);
+  border-radius: var(--r-capsule);
+  padding: 2px var(--sp-2);
   margin-top: 2px;
 }
 .wl-time {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .duration {
-  font-family: var(--font-mono);
-  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   min-width: 58px;
@@ -1398,23 +1957,32 @@ header {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(10, 10, 10, 0.6);
+  background: rgba(0, 0, 0, 0.4);
   display: grid;
   place-items: center;
   z-index: 10;
-  padding: 20px;
+  padding: var(--sp-5);
 }
 .modal {
   background: var(--surface);
-  border: 2px solid var(--ink);
-  padding: 26px;
-  width: 384px;
+  border-radius: var(--r-sheet);
+  padding: var(--sp-6);
+  /* In rem, not px: the body inside is rem and --text-scale can take it to
+     21px, which a fixed 384px box cannot hold. */
+  width: 24rem;
   max-width: 100%;
+  animation: sheet-in var(--dur-nav) var(--ease-spring);
+}
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
 }
 /* Wide enough for a list of issues to pick from, or a day's worth of worklog
    rows — both of which are unreadable at the standard width. */
 .modal.wide {
-  width: 560px;
+  width: 35rem;
 }
 /* A modal opened from inside a modal (editing one of a cell's worklogs) has to
    sit above the one that opened it. */
@@ -1422,20 +1990,17 @@ header {
   z-index: 11;
 }
 .modal h3 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: var(--fs-2xl);
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
-  margin: 0 0 4px;
+  font-weight: 600;
+  font-size: var(--fs-lg);
+  letter-spacing: var(--track-tight);
+  margin: 0 0 var(--sp-1);
 }
 .modal-sub {
   margin: 0 0 20px;
   font-size: var(--fs-base);
 }
 .clock-inline {
-  font-family: var(--font-mono);
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
@@ -1448,32 +2013,35 @@ header {
 
 /* ---------- Start tab ---------- */
 .start-section {
-  margin-bottom: 32px;
+  margin-bottom: var(--sp-section);
 }
 .start-section:last-child {
   margin-bottom: 0;
 }
-/* The dashboard scrolls as a whole; keep the due list short enough that the
-   sections below stay in reach. */
+/* The dashboard is the exception: several sections share the view, so the due
+   list is capped to keep the ones below it in reach. Every other list is the
+   whole of its view and flows to its natural length inside the content
+   column's scroll. */
 .start-section .issue-list {
   max-height: clamp(200px, 32vh, 420px);
+  overflow-y: auto;
 }
 /* Due-date marker on issue rows, in the .nb-tag idiom. */
 .due-badge {
   flex: 0 0 auto;
   font-size: var(--fs-micro);
   white-space: nowrap;
-  border: 1px solid var(--hair-strong);
-  padding: 1px 6px;
+  background: var(--fill-tertiary);
+  border-radius: var(--r-capsule);
+  padding: 2px var(--sp-2);
 }
 .due-badge.due-today {
-  color: var(--accent-ink);
-  background: var(--accent);
-  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-tint);
 }
 .due-badge.overdue {
-  color: var(--danger);
-  border-color: var(--danger);
+  color: var(--danger-text);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
 }
 /* Jira's icon for the issue type. A fixed box whether or not it holds an
    image: the icon is fetched after the row is drawn, and a cell that grows when
@@ -1500,17 +2068,18 @@ header {
   text-overflow: ellipsis;
   font-size: var(--fs-micro);
   white-space: nowrap;
-  border: 1px solid var(--hair-strong);
-  padding: 1px 6px;
+  background: var(--fill-tertiary);
+  border-radius: var(--r-capsule);
+  padding: 2px var(--sp-2);
 }
 .priority-badge.urgent {
-  color: var(--danger);
-  border-color: var(--danger);
-  font-weight: 700;
+  color: var(--danger-text);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  font-weight: 600;
 }
 .priority-badge.high {
   color: var(--ink);
-  border-color: var(--ink);
+  font-weight: 500;
 }
 /* Quieter than the other markers, but the text stays at full strength — it is
    the border that softens, not the word. */
@@ -1521,19 +2090,32 @@ header {
    status line up in their own columns instead of floating after summaries of
    different lengths. The header is a row like any other, so it shares the
    grid automatically. */
+/* The todo list is a sortable data grid rather than a plain list — one of the
+   few places the grouped-inset row anatomy legitimately does not apply, since
+   the columns are the point. It keeps the section's surface and separators and
+   swaps the row for a grid.
+
+   The key column went 6rem -> 7rem: the key sits at Subheadline now, which is
+   two points larger than the size these widths were originally tuned for. */
 .todo-list li {
   display: grid;
-  grid-template-columns: 1.375rem 1rem 6rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
+  grid-template-columns: 1.375rem 1rem 7rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
   gap: 6px;
   align-items: center;
+  /* Line the separator up with the key, past the pin and type-icon cells. */
+  --row-inset: 3.25rem;
 }
 /* Issue type icons turned off in Appearance: one column fewer, and the cells
    after it follow because they are placed from the end of the row. */
 .todo-list.no-type-icons li {
-  grid-template-columns: 1.375rem 6rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
+  grid-template-columns: 1.375rem 7rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
+  --row-inset: 2rem;
 }
-.todo-list {
-  border-top: 1px solid var(--hair);
+/* The pin is a 1.375rem grid cell here, so it cannot carry the 44pt minimum
+   the same control carries in the issue list — more tap-target debt for that
+   pass, listed with the rest. */
+.todo-list .pin-toggle {
+  min-width: 0;
 }
 /* Pin each cell to its column by hand: not every issue carries a priority or
    a status, and auto-placement would let the cells after a missing one slide
@@ -1562,13 +2144,22 @@ header {
 .todo-list li > .timer-start {
   grid-column: -2;
 }
-.todo-columns {
+/* `.issue-list li` sets `position: relative` so the row can carry its
+   separator as a pseudo-element, and that selector outranks a bare
+   `.todo-columns` — which silently turned this header from sticky into
+   relative. It needs the row in the selector to win. */
+.issue-list li.todo-columns {
   position: sticky;
   top: 0;
   z-index: 1;
   background: var(--surface);
   font-size: var(--fs-micro);
   padding: 7px 0;
+}
+/* The header is not a row of data, so it carries a full-width rule under it
+   rather than one inset to the text. */
+.issue-list li.todo-columns::after {
+  left: 0;
 }
 /* The key and summary cells carry the row's own padding; align the headers
    with the text inside them rather than with the cell edge. Named rather than
@@ -1582,7 +2173,7 @@ header {
    control parked in the row. */
 .todo-columns .col-sort {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 3px;
   min-width: 0;
   padding: 0;
@@ -1603,7 +2194,7 @@ header {
    four pixels of glyph on a row of small caps. */
 .todo-columns .col-sort.sorted {
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 600;
 }
 /* Fixed width whether or not there is an arrow in it, so naming the column
    doesn't shift as it is sorted and unsorted. */
@@ -1641,7 +2232,8 @@ header {
 .template-chip {
   display: flex;
   align-items: center;
-  border: 1px solid var(--hair-strong);
+  background: var(--surface);
+  border-radius: var(--r-control);
 }
 .template-use {
   display: flex;
@@ -1677,20 +2269,33 @@ header {
   }
 }
 
-/* ---------- Issue view (todo tab) ---------- */
+/* ---------- Issue view (todo tab) ----------
+   A stack of grouped sections rather than one large card: the facts, the
+   description, the links, the attachments and the timeline each get their own
+   rounded surface on the grouped background, which is how a detail screen is
+   built in this language. */
 .issue-view .back-row {
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: var(--sp-3);
 }
 
+.issue-view > .issue-facts,
+.issue-view > section.issue-fact,
 .issue-section {
-  margin-top: 28px;
+  background: var(--surface);
+  border-radius: var(--r-card);
+  padding: var(--sp-4) var(--sp-5);
+}
+.issue-section {
+  margin-top: var(--sp-5);
 }
 .issue-section h3 {
-  font-size: var(--fs-xs);
-  padding-bottom: 8px;
-  margin: 0 0 12px;
-  border-bottom: 1px solid var(--hair);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--ink);
+  padding: 0;
+  margin: 0 0 var(--sp-3);
+  border-bottom: none;
 }
 
 /* Wraps to as many columns as fit; a long value (a remote-access note, say)
@@ -1720,7 +2325,7 @@ section.issue-fact .issue-description {
   margin-top: 0;
 }
 .issue-view > section.issue-fact + .issue-facts {
-  margin-top: 22px;
+  margin-top: var(--sp-5);
 }
 section.issue-fact .field-editor {
   min-width: min(100%, 420px);
@@ -1739,11 +2344,12 @@ section.issue-fact .field-editor {
    otherwise, and a link on every row was the clutter this replaced. */
 .issue-fact dd.editable {
   cursor: pointer;
-  text-decoration: underline dotted var(--hair);
+  text-decoration: underline dotted var(--hair-strong);
   text-underline-offset: 3px;
 }
 .issue-fact dd.editable:hover {
-  text-decoration-color: var(--ink);
+  text-decoration-color: var(--accent-text);
+  color: var(--accent-text);
 }
 
 /* The backend flattens ADF to text and keeps the line breaks; honour them. */
@@ -1768,14 +2374,22 @@ section.issue-fact .field-editor {
   overflow-y: auto;
 }
 .timeline-entry {
-  padding: 10px 0 10px 12px;
-  border-left: 2px solid var(--hair);
-  margin-bottom: 4px;
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--hair);
+}
+.issue-timeline .timeline-entry:last-child {
+  border-bottom: none;
 }
 /* Only comments carry what somebody actually wrote; the other two are the
-   record of something happening, and read as secondary. */
+   record of something happening, and read as secondary. Said with weight and
+   a tinted surface rather than with a rule down the side. */
 .timeline-entry.comment {
-  border-left-color: var(--ink);
+  background: var(--fill-quaternary);
+  border-radius: var(--r-control);
+  padding-left: var(--sp-3);
+  padding-right: var(--sp-3);
+  margin: 0 calc(var(--sp-3) * -1);
+  border-bottom-color: transparent;
 }
 .timeline-head {
   display: flex;
@@ -1788,15 +2402,16 @@ section.issue-fact .field-editor {
   font-weight: 600;
 }
 .timeline-when {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   color: var(--muted);
   margin-left: auto;
 }
 .timeline-tag {
   font-size: var(--fs-micro);
-  padding: 1px 5px;
-  border: 1px solid var(--hair-strong);
+  padding: 2px var(--sp-2);
+  background: var(--fill-tertiary);
+  border-radius: var(--r-capsule);
 }
 .timeline-text {
   white-space: pre-wrap;
@@ -1808,7 +2423,7 @@ section.issue-fact .field-editor {
 .timeline-status,
 .timeline-worklog {
   margin: 0;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
   color: var(--muted);
 }
@@ -1829,8 +2444,8 @@ section.issue-fact .field-editor {
 .panel-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
 }
 .panel-actions + .hint {
   margin-top: 10px;
@@ -1900,15 +2515,18 @@ section.issue-fact .field-editor {
 }
 .field-unsupported {
   margin: 0;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
   color: var(--muted);
-  padding: 6px 8px;
-  border: 1px dashed var(--hair-strong);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--hair);
+  border-radius: var(--r-control);
 }
 .transition-screen {
-  border: 2px solid var(--ink);
-  padding: 14px;
+  background: var(--surface);
+  border: none;
+  border-radius: var(--r-card);
+  padding: var(--sp-4);
 }
 .transition-more {
   color: var(--muted);
@@ -1917,14 +2535,16 @@ section.issue-fact .field-editor {
 /* ---------- Attachments ---------- */
 .attachments {
   border: 2px dashed transparent;
+  border-radius: var(--r-card);
   margin: -6px;
   padding: 6px;
-  transition: border-color 0.12s ease;
+  transition: border-color var(--dur-micro) var(--ease-spring);
 }
 /* Only while something is actually over the window — a permanent drop target
    would be noise on every issue. */
 .attachments.dropping {
-  border-color: var(--ink);
+  border-color: var(--accent);
+  background: var(--accent-tint);
 }
 /* Five rows, then scroll. An issue with twenty files would otherwise push
    everything below it — the comment box included — off the screen.
@@ -1940,10 +2560,14 @@ section.issue-fact .field-editor {
 .attachment-list li {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
-  padding: 6px 0;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) 0;
   border-bottom: 1px solid var(--hair);
+}
+.attachment-list li:last-child {
+  border-bottom: none;
 }
 .attachment-name {
   text-transform: none;
@@ -1952,7 +2576,7 @@ section.issue-fact .field-editor {
   overflow-wrap: anywhere;
 }
 .attachment-meta {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   color: var(--muted);
   margin-left: auto;
@@ -1987,16 +2611,22 @@ section.issue-fact .field-editor {
 .link-group li {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
-  padding: 6px 0;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) 0;
   border-bottom: 1px solid var(--hair);
+}
+.link-group li:last-child {
+  border-bottom: none;
 }
 .linked-key {
   text-transform: none;
-  letter-spacing: normal;
-  font-family: var(--font-mono);
+  letter-spacing: var(--track-tight);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent-text);
   white-space: nowrap;
 }
 /* Takes the free space so the status and the cross stay on the right edge,
@@ -2018,12 +2648,11 @@ section.issue-fact .field-editor {
 .linked-summary:hover {
   background: none;
   border: none;
-  color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--accent-text);
+  text-decoration: none;
 }
 .linked-status {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   color: var(--muted);
   white-space: nowrap;
@@ -2032,7 +2661,7 @@ section.issue-fact .field-editor {
   color: var(--muted);
 }
 .link-remove:hover:not(:disabled) {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 /* The relationship and the issue read as one sentence about this issue, so
@@ -2041,9 +2670,11 @@ section.issue-fact .field-editor {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
-  border: 2px solid var(--ink);
-  padding: 12px;
+  gap: var(--sp-2) var(--sp-3);
+  background: var(--fill-quaternary);
+  border: none;
+  border-radius: var(--r-card);
+  padding: var(--sp-3);
 }
 .link-form > label {
   font-size: var(--fs-micro);
@@ -2081,8 +2712,8 @@ section.issue-fact .field-editor {
      heights — which is the part the eye actually reads as crooked. */
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
-  margin: 6px 0 22px;
+  gap: var(--sp-3);
+  margin: var(--sp-2) 0 var(--sp-5);
 }
 .issue-head .issue-chip {
   flex: 1 1 260px;
@@ -2111,7 +2742,7 @@ section.issue-fact .field-editor {
   color: var(--muted);
 }
 .attachment-remove:hover:not(:disabled) {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 .attachment-actions {
   display: flex;
@@ -2119,10 +2750,10 @@ section.issue-fact .field-editor {
   gap: 4px;
 }
 .attachment-actions .confirm-text {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
-  color: var(--danger);
-  margin-right: 4px;
+  color: var(--danger-text);
+  margin-right: var(--sp-1);
 }
 
 /* ---------- Issue description (clamped until opened) ---------- */
@@ -2151,12 +2782,14 @@ section.issue-fact .issue-description {
 /* The chosen action's fields hang off the row, so they read as belonging to
    it rather than as another section of the page. */
 .action-panel {
-  border: 2px solid var(--ink);
-  border-top: none;
-  padding: 14px;
+  background: var(--fill-quaternary);
+  border: none;
+  border-radius: var(--r-card);
+  margin-top: var(--sp-2);
+  padding: var(--sp-4);
 }
 .action-panel .panel-actions {
-  margin-top: 12px;
+  margin-top: var(--sp-3);
   align-items: baseline;
 }
 
@@ -2178,10 +2811,8 @@ section.issue-fact .issue-description {
   margin: 2px 0 0;
   padding: 0;
   background: var(--surface);
-  border: 2px solid var(--ink);
-  /* Same treatment as the field editor's popover — both float over the page,
-     and the shadow is what says so. */
-  box-shadow: 4px 4px 0 var(--hair);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-card);
 }
 .mention-option {
   color: var(--ink);
@@ -2192,7 +2823,7 @@ section.issue-fact .issue-description {
   width: 100%;
   background: none;
   border: none;
-  border-radius: 0;
+  border-radius: var(--r-control);
   text-align: left;
   padding: 7px 10px;
   text-transform: none;
@@ -2208,7 +2839,7 @@ section.issue-fact .issue-description {
   font-weight: 600;
 }
 .mention-sub {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-micro);
   color: var(--muted);
 }
@@ -2230,7 +2861,7 @@ section.issue-fact .issue-description {
   font-size: var(--fs-base);
   line-height: 1.5;
   padding: 10px 12px;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   width: 100%;
@@ -2238,12 +2869,16 @@ section.issue-fact .issue-description {
 .comment-compose .comment-box {
   position: relative;
   z-index: 1;
-  border-color: var(--ink);
+  border-color: var(--hair);
+  border-radius: var(--r-control);
   background: transparent;
   /* The mirror behind supplies every visible glyph; only the caret and any
      selection come from the textarea itself. */
   color: transparent;
   caret-color: var(--ink);
+}
+.comment-compose .comment-box:focus {
+  border-color: var(--accent);
 }
 .comment-compose .comment-box::selection {
   background: var(--accent);
@@ -2261,7 +2896,7 @@ section.issue-fact .issue-description {
 .mention-mark {
   background: none;
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 600;
   /* Underlined as well as bold: weight alone is easy to miss in a wall of
      text, and colour alone would not survive a colour-blind reader. */
   text-decoration: underline;
@@ -2300,7 +2935,7 @@ section.issue-fact .issue-description {
   font-size: var(--fs-base);
   font-weight: 400;
   text-transform: none;
-  letter-spacing: normal;
+  letter-spacing: var(--track-tight);
   padding: 0;
 }
 
@@ -2318,7 +2953,7 @@ section.issue-fact .issue-description {
   gap: 10px 16px;
   padding: 10px 12px;
   margin-bottom: 14px;
-  border: 2px dashed var(--ink);
+  border: 2px dashed var(--hair-strong);
 }
 .arrange-add {
   display: flex;
@@ -2403,9 +3038,8 @@ section.issue-fact .issue-description {
   background: none;
   border: none;
   padding: 64px 12px;
-  font-family: var(--font-display);
   font-size: clamp(var(--fs-2xl), 5vw, 3.25rem);
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.02em;
   text-transform: none;
@@ -2444,29 +3078,28 @@ section.issue-fact .issue-description {
      the accent — which is dark in both themes, so on this surface the toast
      read as black on black in dark mode. */
   color: var(--ink);
-  border: 2px solid var(--ink);
-  box-shadow: 4px 4px 0 var(--hair);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-card);
   cursor: pointer;
-  animation: achievement-in 0.24s ease-out;
+  animation: achievement-in var(--dur-nav) var(--ease-spring);
 }
 .achievement-toast:hover {
   background: var(--surface);
   color: var(--ink);
-  border-color: var(--ink);
+  border-color: var(--hair-strong);
 }
 .achievement-mark {
-  color: var(--accent);
-  font-size: var(--fs-lg);
+  color: var(--accent-text);
+  flex: none;
 }
 .achievement-title {
-  font-family: var(--font-display);
   font-size: var(--fs-md);
-  font-weight: 700;
+  font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
 }
 .achievement-more {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   color: var(--muted);
 }
@@ -2533,8 +3166,8 @@ section.issue-fact .issue-description {
   padding: 5px 10px;
   background: var(--accent);
   color: var(--accent-ink);
-  border: 2px solid var(--ink);
-  font-family: var(--font-mono);
+  border: 1px solid var(--hair);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   font-weight: 500;
   white-space: nowrap;
@@ -2553,10 +3186,10 @@ body.dragging-field {
   gap: 4px;
 }
 .arrange-reset .confirm-text {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
-  color: var(--danger);
-  margin-right: 4px;
+  color: var(--danger-text);
+  margin-right: var(--sp-1);
 }
 
 /* The buttons on the right of a section head. Grouped so the head keeps its
@@ -2577,12 +3210,37 @@ body.dragging-field {
 
 /* Twenty-odd day columns do not fit any window worth having, so the grid
    scrolls sideways inside the panel while the issue column and the day header
-   stay put. */
+   stay put.
+
+   It keeps a vertical scroll too, because CSS cannot scroll one axis and let
+   the other overflow — asking for `overflow-x: auto` makes the other axis
+   scroll as well. So rather than fight it, the grid is given the rest of the
+   column's height: it becomes the view's only scroll region instead of a
+   short pane with the page scrolling behind it. That is also how a frozen
+   header and first column are supposed to behave. */
 .month-scroll {
-  overflow-x: auto;
+  overflow: auto;
   overscroll-behavior-x: contain;
-  max-height: 62vh;
-  overflow-y: auto;
+  flex: 1;
+  min-height: 22rem;
+}
+
+/* The chain that hands the grid a height to fill. `main` is bounded by the
+   column, so a percentage height here resolves to something definite, and the
+   flex items below divide it up. Without a bounded height the grid grows to
+   its content, and a sticky header with nothing to scroll inside stops
+   sticking — the frozen day row would simply scroll away. */
+.timesheet-month {
+  height: 100%;
+}
+.timesheet-month,
+.timesheet-month > .panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.timesheet-month > .panel {
+  flex: 1;
 }
 .month-grid {
   display: grid;
@@ -2602,7 +3260,6 @@ body.dragging-field {
     minmax(18rem, 1.4fr)
     repeat(var(--month-cols), 3.125rem)
     4.25rem;
-  border-top: 1px solid var(--hair-strong);
   min-width: min-content;
 }
 /* Rows exist for screen readers, not for layout: `display: contents` lets the
@@ -2615,13 +3272,13 @@ body.dragging-field {
    rows out of the layout but not out of the DOM, so a child combinator on the
    grid itself would land on them and style nothing. */
 .month-row > * {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   text-align: right;
-  padding: 5px 6px;
-  border-bottom: 1px solid var(--hair-strong);
+  padding: var(--sp-1) 6px;
+  border-bottom: 1px solid var(--hair);
   background: var(--surface);
+  min-height: var(--tap-dense);
 }
 .month-grid .col-issue {
   position: sticky;
@@ -2635,7 +3292,7 @@ body.dragging-field {
      alignment every other column depends on. The full text is in the title. */
   overflow: hidden;
   white-space: nowrap;
-  border-right: 1px solid var(--hair-strong);
+  border-right: 1px solid var(--hair);
 }
 .month-grid .col-issue .summary {
   overflow: hidden;
@@ -2649,7 +3306,7 @@ body.dragging-field {
 }
 .month-grid .corner {
   z-index: 4;
-  font-weight: 700;
+  font-weight: 600;
   text-align: right;
 }
 .day-head-cell {
@@ -2658,18 +3315,18 @@ body.dragging-field {
   align-items: center;
   gap: 1px;
   line-height: 1.2;
-  border-bottom: 2px solid var(--ink);
+  border-bottom: 1px solid var(--hair-strong);
 }
 .day-head-cell .dow {
   font-size: var(--fs-micro);
 }
 .day-head-cell .dom {
-  font-weight: 700;
+  font-weight: 600;
 }
 .day-head-cell .day-sum {
   font-size: var(--fs-micro);
   color: var(--muted);
-  font-weight: 700;
+  font-weight: 600;
 }
 /* How full the day is, at a glance. Only ordinary working days are judged —
    `dayTone` leaves weekends and days still to come uncoloured. */
@@ -2685,7 +3342,7 @@ body.dragging-field {
 
 .month-cell {
   border: none;
-  border-bottom: 1px solid var(--hair-strong);
+  border-bottom: 1px solid var(--hair);
   border-radius: 0;
   padding: 5px 6px;
   font: inherit;
@@ -2695,7 +3352,7 @@ body.dragging-field {
   cursor: pointer;
 }
 .month-cell:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  background: var(--accent-tint);
 }
 .month-cell:focus-visible {
   outline: 2px solid var(--accent);
@@ -2704,12 +3361,12 @@ body.dragging-field {
 /* Saturdays and Sundays only appear when something was booked on them, so the
    tint is there to explain why the column exists at all. */
 .month-grid .wknd {
-  background: color-mix(in srgb, var(--ink) 5%, var(--surface));
+  background: var(--surface-sunken);
 }
+/* Today's column, marked by tinting it rather than by ruling both its edges.
+   This retired the last box-shadow in the file; nothing here floats. */
 .month-grid .today {
-  box-shadow:
-    inset 1px 0 0 var(--accent),
-    inset -1px 0 0 var(--accent);
+  background: var(--accent-tint);
 }
 /* Nothing can be booked in the future, which is the same rule the log form
    enforces with its date input — so the cell is not a target at all. */
@@ -2727,8 +3384,8 @@ body.dragging-field {
   margin-left: 1px;
 }
 .month-grid .col-total {
-  border-left: 2px solid var(--ink);
-  font-weight: 700;
+  border-left: 1px solid var(--hair-strong);
+  font-weight: 600;
 }
 /* The row that logs on an issue not yet in the table. Quiet until hovered —
    it is a whole row of buttons and would otherwise shout over the data. */
@@ -2740,11 +3397,11 @@ body.dragging-field {
      below it. It was set in the cells' own right-aligned, faded style and was
      next to impossible to pick out. */
   text-align: center;
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--fs-base);
   line-height: 1;
   color: var(--muted);
 }
 .quick-cell:hover:not(:disabled) {
-  color: var(--ink);
+  color: var(--accent-text);
 }

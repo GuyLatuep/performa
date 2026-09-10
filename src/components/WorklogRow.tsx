@@ -1,3 +1,4 @@
+import { Check, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { WorklogEntry } from "../api";
 import { formatDuration } from "../time";
@@ -49,26 +50,26 @@ export default function WorklogRow({
         {confirming ? (
           <>
             <button className="icon" title="Cancel" onClick={onCancelDelete}>
-              ✕
+              <X size={16} strokeWidth={1.75} aria-hidden />
             </button>
             <button
               className="icon danger-icon"
               title="Confirm delete"
               onClick={onDelete}
             >
-              ✓
+              <Check size={16} strokeWidth={1.75} aria-hidden />
             </button>
           </>
         ) : (
           <>
             <button className="icon" title="Log again today" onClick={onRepeat}>
-              ↻
+              <RotateCcw size={16} strokeWidth={1.75} aria-hidden />
             </button>
             <button className="icon" title="Edit" onClick={onEdit}>
-              ✎
+              <Pencil size={16} strokeWidth={1.75} aria-hidden />
             </button>
             <button className="icon" title="Delete" onClick={onConfirmDelete}>
-              🗑
+              <Trash2 size={16} strokeWidth={1.75} aria-hidden />
             </button>
           </>
         )}

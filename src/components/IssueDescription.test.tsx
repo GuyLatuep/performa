@@ -84,7 +84,7 @@ describe("a description that overflows", () => {
     overflowing();
     render(<IssueDescription text="A long description" />);
 
-    expect(toggle()?.textContent).toBe("Show more ▼");
+    expect(toggle()?.textContent).toBe("Show more");
   });
 
   it("opens it up", async () => {
@@ -94,7 +94,7 @@ describe("a description that overflows", () => {
     await userEvent.click(toggle()!);
 
     expect(paragraph().className).toContain("expanded");
-    expect(toggle()?.textContent).toBe("Show less ▲");
+    expect(toggle()?.textContent).toBe("Show less");
   });
 
   it("keeps the toggle once open, even though nothing overflows any more", async () => {
@@ -112,7 +112,7 @@ describe("a description that overflows", () => {
     fitting();
     await act(async () => observers.forEach((fire) => fire()));
 
-    expect(toggle()?.textContent).toBe("Show less ▲");
+    expect(toggle()?.textContent).toBe("Show less");
   });
 
   it("closes again", async () => {
@@ -123,7 +123,7 @@ describe("a description that overflows", () => {
     await userEvent.click(toggle()!);
 
     expect(paragraph().className).not.toContain("expanded");
-    expect(toggle()?.textContent).toBe("Show more ▼");
+    expect(toggle()?.textContent).toBe("Show more");
   });
 });
 
@@ -137,7 +137,7 @@ describe("when the window changes size", () => {
     overflowing();
     await act(async () => observers.forEach((fire) => fire()));
 
-    expect(toggle()?.textContent).toBe("Show more ▼");
+    expect(toggle()?.textContent).toBe("Show more");
   });
 
   it("takes it away again once it fits", async () => {
@@ -171,6 +171,6 @@ describe("new text", () => {
     rerender(<IssueDescription text="A different description" />);
 
     expect(screen.getByText("A different description")).toBeDefined();
-    expect(toggle()?.textContent).toBe("Show more ▼");
+    expect(toggle()?.textContent).toBe("Show more");
   });
 });

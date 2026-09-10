@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, IssueSummary, WorklogEntry } from "../api";
@@ -149,7 +150,8 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
     <div className="panel">
       <div className="week-nav">
         <button className="secondary" onClick={() => setOffset(offset - 1)}>
-          ← Previous
+          <ChevronLeft size={15} strokeWidth={2} aria-hidden />
+          Previous
         </button>
         <div className="week-label">
           <span>{monthLabel(start)}</span>
@@ -162,7 +164,8 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
           onClick={() => setOffset(offset + 1)}
           disabled={offset >= 0}
         >
-          Next →
+          Next
+          <ChevronRight size={15} strokeWidth={2} aria-hidden />
         </button>
       </div>
 

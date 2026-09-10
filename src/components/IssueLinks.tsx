@@ -1,3 +1,4 @@
+import { ExternalLink, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, IssueSummary, LinkedItem, LinkRelation } from "../api";
@@ -61,7 +62,8 @@ export default function IssueLinks({
                     title={`Open ${item.key} in browser`}
                     onClick={() => openUrl(`${site}/browse/${item.key}`)}
                   >
-                    {item.key} ↗
+                    {item.key}
+                    <ExternalLink size={13} strokeWidth={2} aria-hidden />
                   </button>
                   <button
                     className="linked-summary"
@@ -83,7 +85,7 @@ export default function IssueLinks({
                     disabled={removing !== null || busy || item.id === ""}
                     onClick={() => unlink(item)}
                   >
-                    ✕
+                    <X size={16} strokeWidth={1.75} aria-hidden />
                   </button>
                 </li>
               ))}

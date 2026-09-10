@@ -1,8 +1,9 @@
+import { Moon, Sun, type LucideIcon } from "lucide-react";
 import { useTheme, Theme } from "../theme";
 
-const OPTIONS: { value: Theme; label: string; icon: string }[] = [
-  { value: "light", label: "Light", icon: "☀" },
-  { value: "dark", label: "Dark", icon: "☾" },
+const OPTIONS: { value: Theme; label: string; Icon: LucideIcon }[] = [
+  { value: "light", label: "Light", Icon: Sun },
+  { value: "dark", label: "Dark", Icon: Moon },
 ];
 
 export default function ThemeToggle() {
@@ -17,7 +18,8 @@ export default function ThemeToggle() {
           aria-pressed={theme === opt.value}
           onClick={() => setTheme(opt.value)}
         >
-          <span aria-hidden="true">{opt.icon}</span> {opt.label}
+          <opt.Icon size={16} strokeWidth={1.75} aria-hidden />
+          {opt.label}
         </button>
       ))}
     </div>
