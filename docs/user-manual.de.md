@@ -197,6 +197,8 @@ Mit **Log work** speicherst du. Eine Erfolgsmeldung bestätigt den Eintrag, und 
 
 Unter dem Formular zeigt die Historie **deine** bisherigen Worklogs auf diesem Vorgang (die 10 neuesten plus deine Gesamtsumme). Sie aktualisiert sich sofort nach dem Erfassen.
 
+Dieselbe Liste erscheint unter **jedem** Formular, das Zeit erfasst — du siehst also immer, was schon gebucht ist, bevor du etwas hinzufügst: der Log-work-Tab, das Stop-Fenster des [Timers](#der-timer), das Formular der [fehlenden Worklogs](#missing-worklogs) und das „Log again"-Fenster im [Timesheet](#timesheet). In den Fenstern ist die Liste in der Höhe begrenzt und scrollt. Bei einem fehlenden Worklog zeigt sie den Vorgang, auf den die Zeit **gebucht** wird — bei einer DEV-Eskalation also den Quellvorgang, nicht den gemeldeten.
+
 ## Der Timer
 
 Starte einen Timer mit dem **▶ start**-Button in jeder Vorgangszeile (Start-Tab oder Log-work-Tab). Es kann nur ein Timer gleichzeitig laufen — die übrigen Start-Buttons sind währenddessen deaktiviert.

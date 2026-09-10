@@ -1518,7 +1518,7 @@ main {
   margin: var(--sp-2) 0 var(--sp-5);
 }
 
-/* ---------- Issue history (log-work screen) ---------- */
+/* ---------- Issue history (shown under every form that logs time) ---------- */
 .issue-history {
   margin-top: 30px;
 }
@@ -1526,6 +1526,16 @@ main {
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   margin: 8px 0 0;
+}
+/* Inside a modal the list is a reference the user glances at, not the point of
+   the sheet: pulled closer to the form and capped so the buttons below it stay
+   on screen however much time the issue already carries. */
+.modal .issue-history {
+  margin-top: var(--sp-5);
+}
+.modal .issue-history-list {
+  max-height: 8.5rem;
+  overflow-y: auto;
 }
 
 /* ---------- Timesheet (ledger) ---------- */

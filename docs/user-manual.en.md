@@ -197,6 +197,8 @@ Press **Log work** to save. A success message confirms the entry, and the form c
 
 Below the form, the issue's history shows **your** previous worklogs on that issue (the 10 most recent, plus your total). This updates immediately after logging.
 
+The same list appears under **every** form that logs time, so you always see what is already booked before adding to it: the log-work tab, the [timer](#the-timer) stop modal, the [missing worklogs](#missing-worklogs) form, and the "Log again" modal in the [timesheet](#timesheet). In the modals the list is capped in height and scrolls. On a missing-worklog finding it shows the issue the time will be **logged on** — which for a DEV escalation is the source issue, not the flagged one.
+
 ## The timer
 
 Start a timer with the **▶ start** button on any issue row (Start tab or Log work tab). Only one timer can run at a time — other start buttons are disabled while one is active.

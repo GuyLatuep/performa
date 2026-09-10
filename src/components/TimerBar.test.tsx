@@ -28,7 +28,7 @@ const events = vi.hoisted(() => {
 });
 vi.mock("@tauri-apps/api/event", () => ({ listen: events.listen }));
 
-import { apiMock, resetApiMock } from "../test-support/api";
+import { apiMock, resetApiMock, worklogEntry } from "../test-support/api";
 import { startTimer, stopTimer } from "../timer";
 import TimerBar from "./TimerBar";
 
@@ -92,6 +92,23 @@ describe("with a timer running", () => {
 
     expect(screen.getByText("Log time — ABC-1")).toBeDefined();
     expect(screen.getByLabelText(/Time spent/)).toHaveProperty("value", "15m");
+  });
+
+  it("shows the time already logged on the issue", async () => {
+    // A timer is often the second or third stint on the same issue, so the
+    // modal says what is already booked before another entry goes on top.
+    apiMock.issueWorklogs.mockResolvedValue([
+      worklogEntry({ id: "w1", timeSpentSeconds: 1800, comment: "first pass" }),
+    ]);
+    runningFor(5);
+    renderBar();
+
+    await userEvent.click(screen.getByRole("button", { name: "Stop" }));
+
+    expect(await screen.findByText("first pass")).toBeDefined();
+    // Twice over: the entry's own duration and the issue's running total.
+    expect(screen.getAllByText("30m")).toHaveLength(2);
+    expect(apiMock.issueWorklogs).toHaveBeenCalledWith("ABC-1");
   });
 
   it("stops the clock when the modal opens", async () => {

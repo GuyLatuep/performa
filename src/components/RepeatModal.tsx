@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../api";
 import { addTemplate } from "../templates";
+import IssueHistory from "./IssueHistory";
 import {
   DURATION_ERROR,
   toWorklogInput,
@@ -80,6 +81,7 @@ export default function RepeatModal({
           </label>
         )}
         {error && <p className="error">{error}</p>}
+        <IssueHistory issueKey={issueKey} />
         <div className="row">
           <button className="secondary" onClick={onClose}>
             Cancel

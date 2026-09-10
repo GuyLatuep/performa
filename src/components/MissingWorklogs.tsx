@@ -18,6 +18,7 @@ import {
   useWorklogDraft,
   WorklogFields,
 } from "./WorklogFields";
+import IssueHistory from "./IssueHistory";
 import MissingRow, { missingRowKey } from "./MissingRow";
 import { recordEvent } from "../achievements";
 import AchievementToast from "./AchievementToast";
@@ -188,6 +189,8 @@ function LogForm({
       <button onClick={save} disabled={busy}>
         {busy ? "Logging…" : "Log work"}
       </button>
+
+      <IssueHistory issueKey={item.logKey} />
     </div>
   );
 }
