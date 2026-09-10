@@ -114,7 +114,7 @@ export default function LogWork({
   }
 
   return (
-    <div className="panel">
+    <div className="panel log-pick">
       <IssuePicker site={site} onSelect={selectIssue} />
     </div>
   );

@@ -932,13 +932,27 @@ label.checkbox input:checked::after {
    sidebar is a fixed track and the content is what grows; the window's own
    640px minimum keeps both usable. */
 .app {
-  display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr);
-  /* The window is the frame; the content column is what scrolls. Letting the
-     body scroll too is what put a second scrollbar behind every view that had
-     an inner scroll region of its own. */
-  height: 100vh;
-  overflow: hidden;
+  /* Comfortable column in the default window, growing fluidly when the window
+     is maximized or fullscreen. The cap is set by the widest thing the app
+     shows — the month matrix, which wants around 1300px before it has to
+     scroll — rather than by what is comfortable for prose. */
+  max-width: clamp(680px, 94vw, 1760px);
+  margin: 0 auto;
+  padding: 0 20px 24px;
+  /* A column the full height of the window, so panels that want the rest of
+     the space (the todo list) can ask for it instead of stopping short and
+     leaving a band of empty background under a scrolling list. */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.app > main {
+  flex: 1;
+  /* Without this a scrolling child measures against its content, not against
+     the space main actually has. */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar {
@@ -1355,6 +1369,39 @@ main {
   padding: 0;
   background: var(--surface);
   border-radius: var(--r-card);
+}
+/* The todo list is the whole point of its tab, so it takes every pixel the
+   window has left rather than capping at a share of the viewport. */
+.panel.todo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.panel.todo > section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.issue-list.todo-list {
+  max-height: none;
+  flex: 1;
+  min-height: 0;
+}
+/* Same idea on the log tab: until an issue is picked the search list is the
+   whole screen, so it runs to the bottom of the window instead of stopping at
+   a share of the viewport. */
+.panel.log-pick {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.panel.log-pick > .issue-list {
+  max-height: none;
+  flex: 1;
+  min-height: 0;
 }
 .issue-list li {
   position: relative;
@@ -2979,6 +3026,11 @@ section.issue-fact .issue-description {
   pointer-events: none;
 }
 
+/* The todo panel now fills the window, so centre the message in it rather
+   than leaving it stranded at the top. */
+.panel.todo > .all-closed {
+  margin: auto 0;
+}
 /* Thick, because the moment deserves it. */
 .all-closed {
   display: block;
