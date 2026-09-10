@@ -3236,6 +3236,20 @@ body.dragging-field {
   background: var(--surface);
   min-height: var(--tap-dense);
 }
+/* A hairline between the days, in the same tone as the row separators: with
+   two dozen narrow columns the eye needs a vertical rule to keep a cell tied
+   to the day heading above it. Drawn on the left of each cell, so a column and
+   its heading share one line and the last column needs no exception. */
+.month-cell,
+.day-head-cell {
+  border-left: 1px solid var(--hair);
+}
+/* Except the first day column: the frozen issue column draws that separator
+   itself and has to — its own border is what stays put while the days scroll
+   underneath it. */
+.month-row > *:nth-child(2) {
+  border-left: none;
+}
 .month-grid .col-issue {
   position: sticky;
   left: 0;
