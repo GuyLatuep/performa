@@ -263,6 +263,8 @@ Eine Matrix: **Vorgänge untereinander, Tage nebeneinander**, Stunden in den Zel
 
 **Die ＋-Zeile** unter der Kopfzeile erfasst Zeit auf einem Vorgang, der noch keine Zeile hat: Tag anklicken, Vorgang wählen, Formular ausfüllen. Der Tag ist bereits gesetzt.
 
+**Breite:** Der Monat ist die einzige Ansicht, die das ganze Fenster nutzt. Alle anderen Ansichten hören bei einer angenehmen Lesebreite auf, hier bedeutet mehr Breite aber mehr Tage auf dem Schirm und mehr von jeder Zusammenfassung vor den Auslassungspunkten — ein breites oder maximiertes Fenster wird also ausgenutzt: Die Tagesspalten behalten ihre Größe, die Vorgangsspalte nimmt den Rest. Die Vorgangsspalte hat außerdem eine eigene Spalte für den Schlüssel, damit alle Zusammenfassungen an derselben Stelle beginnen.
+
 ## Missing Worklogs
 
 Der Tab **Missing worklog** ist ein Sicherheitsnetz gegen vergessene Zeiteinträge.

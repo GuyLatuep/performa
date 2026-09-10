@@ -1,7 +1,7 @@
 /** @vitest-environment happy-dom */
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "./test-support/dom";
 
 vi.mock("./api", async () => {
@@ -73,6 +73,7 @@ vi.mock("./fun", () => ({
 
 import App from "./App";
 import { apiMock, resetApiMock } from "./test-support/api";
+import { setTimesheetView } from "./settings";
 
 const CREDS = {
   site: "https://example.atlassian.net",
@@ -123,6 +124,42 @@ describe("before anything is known", () => {
     render(<App />);
 
     expect(await screen.findByText("connect screen")).toBeDefined();
+  });
+});
+
+describe("how wide the content column runs", () => {
+  // Every view wants a reading measure except the month matrix, where width
+  // is days on screen and summary before the ellipsis. The cap lives on the
+  // content column, so the tab alone cannot decide it.
+  afterEach(() => setTimesheetView("week"));
+
+  it("keeps the cap on the week view", async () => {
+    apiMock.credentialsStatus.mockResolvedValue(CREDS);
+    const { container } = render(<App />);
+    await screen.findByText("start panel");
+
+    await userEvent.click(screen.getByRole("button", { name: "Timesheet" }));
+
+    expect(container.querySelector(".content-wide")).toBeNull();
+  });
+
+  it("lifts it for the month matrix", async () => {
+    // Set before the render: the toggle lives inside the stubbed tab, so the
+    // store is the only way in from here.
+    setTimesheetView("month");
+    apiMock.credentialsStatus.mockResolvedValue(CREDS);
+    const { container } = render(<App />);
+    await screen.findByText("start panel");
+
+    // Not on the way there — the start tab reads like every other view.
+    expect(container.querySelector(".content-wide")).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Timesheet" }));
+    expect(container.querySelector(".content-wide")).not.toBeNull();
+
+    // And it goes again on the way out.
+    await userEvent.click(screen.getByRole("button", { name: "Todo" }));
+    expect(container.querySelector(".content-wide")).toBeNull();
   });
 });
 

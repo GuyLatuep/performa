@@ -1119,6 +1119,13 @@ main {
   max-width: 1760px;
   padding: 0 var(--sp-5);
 }
+/* The month matrix is the exception to that cap: width there is days on
+   screen and summary before the ellipsis, not line length to read across, so
+   it takes the whole window and the day columns keep their hand-tuned size
+   while the issue column absorbs the slack. */
+.content.content-wide {
+  max-width: none;
+}
 .content > header {
   display: flex;
   align-items: center;

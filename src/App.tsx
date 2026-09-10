@@ -26,7 +26,7 @@ import {
 } from "./achievements";
 import { onWorklogFiled } from "./worklogEvents";
 import AchievementToast from "./components/AchievementToast";
-import { useFunMode } from "./settings";
+import { useFunMode, useTimesheetView } from "./settings";
 import About from "./components/About";
 import Confetti from "./components/Confetti";
 import Mentions from "./components/Mentions";
@@ -106,6 +106,9 @@ export default function App() {
   const missingUnseen = useMissingUnseenCount();
   const mentionsUnread = useMentionsUnreadCount();
   const funMode = useFunMode();
+  // Read here rather than inside the tab: which view the timesheet is on
+  // decides how wide the content column may run, and the cap lives on it.
+  const timesheetView = useTimesheetView();
   const mentionsArrived = useArrival(mentionsUnread);
   const missingArrived = useArrival(missingUnseen);
 
@@ -345,7 +348,16 @@ export default function App() {
         </div>
       </aside>
 
-      <div className="content">
+      {/* The month matrix is the one view that gains from every pixel of a
+          wide window; the rest want the reading measure the cap gives them. */}
+      <div
+        className={
+          "content" +
+          (tab === "timesheet" && timesheetView === "month"
+            ? " content-wide"
+            : "")
+        }
+      >
         <header>
           <h1>{TAB_LABELS[tab]}</h1>
         </header>

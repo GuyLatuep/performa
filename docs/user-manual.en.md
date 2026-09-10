@@ -263,6 +263,8 @@ A matrix: **issues down the side, days across the top**, hours in the cells. Bui
 
 **The ＋ row** under the header logs time on an issue that has no row yet: click the day, pick the issue, fill in the form. The day is already filled in for you.
 
+**Width:** the month is the one view that uses the whole window. Every other view stops at a comfortable reading width, but here more width means more days on screen and more of each summary before the ellipsis, so a wide or maximised window is put to work — the day columns keep their size and the issue column takes the extra. The issue column also has its own key column, so the summaries all start at the same place down the table.
+
 ## Missing worklogs
 
 The **Missing worklog** tab is a safety net for forgotten time entries.
