@@ -3200,8 +3200,9 @@ body.dragging-field {
 
      The issue column's floor is what a narrow window actually gets, because
      its 1.4fr has nothing left to share once two dozen day columns are laid
-     out. The key eats about 5.5rem of it before the summary starts, so a
-     smaller floor leaves the summary a handful of characters and an ellipsis.
+     out. The key track below takes 5rem of it plus the gap before the summary
+     starts, so a smaller floor leaves the summary a handful of characters and
+     an ellipsis.
      The grid scrolls sideways, so the cost of the wider floor is days you
      scroll to rather than information you lose. */
   grid-template-columns:
@@ -3232,7 +3233,13 @@ body.dragging-field {
   position: sticky;
   left: 0;
   z-index: 2;
-  display: flex;
+  /* Two tracks rather than a flex row, so every summary starts at the same x
+     down the whole table instead of each one beginning wherever its own key
+     happened to end. The floor holds the longest key these projects produce;
+     `auto` lets an unusually long one push its own summary across rather than
+     be clipped — that row loses the alignment, never the key. */
+  display: grid;
+  grid-template-columns: minmax(5rem, auto) minmax(0, 1fr);
   align-items: baseline;
   gap: 6px;
   text-align: left;
@@ -3241,6 +3248,11 @@ body.dragging-field {
   overflow: hidden;
   white-space: nowrap;
   border-right: 1px solid var(--hair);
+}
+/* The key keeps its old hit area: a grid item would otherwise stretch across
+   the whole track, making the empty space beside a short key open Jira. */
+.month-grid .col-issue .key-link {
+  justify-self: start;
 }
 .month-grid .col-issue .summary {
   overflow: hidden;
@@ -3255,6 +3267,9 @@ body.dragging-field {
 .month-grid .corner {
   z-index: 4;
   font-weight: 600;
+  /* One value, not a key and a summary, so it takes the whole issue column
+     back off the two-track template and stays at its right edge. */
+  display: block;
   text-align: right;
 }
 .day-head-cell {
@@ -3338,6 +3353,8 @@ body.dragging-field {
 /* The row that logs on an issue not yet in the table. Quiet until hovered —
    it is a whole row of buttons and would otherwise shout over the data. */
 .quick-row .col-issue {
+  /* A label, not a key and a summary — see .corner. */
+  display: block;
   font-size: var(--fs-micro);
 }
 .quick-cell {
