@@ -3201,20 +3201,22 @@ body.dragging-field {
   display: grid;
   /* The column count is data — how many days the month shows — so it arrives
      from the component rather than being written here. */
-  /* Column widths track the type scale: a day cell budgets the four characters
-     `decimalHours` can produce ("0.25"), the total column a little more. They
-     were sized for 11px mono and grew with it.
+  /* Who gets a wide window's spare width, in order.
 
-     The issue column's floor is what a narrow window actually gets, because
-     its 1.4fr has nothing left to share once two dozen day columns are laid
-     out. The key track below takes 5rem of it plus the gap before the summary
-     starts, so a smaller floor leaves the summary a handful of characters and
-     an ellipsis.
-     The grid scrolls sideways, so the cost of the wider floor is days you
-     scroll to rather than information you lose. */
+     The issue column asks for exactly what its longest key-and-summary needs
+     and stops there: `fit-content` is content-sized, so once every summary
+     fits, further width is of no use to it. The cap is a share of the matrix
+     rather than a length, so it holds on any window — one runaway summary
+     cannot take the whole table hostage, and the days always keep the
+     majority of it.
+
+     What is left over then goes to the days, evenly, because each is `1fr`
+     above a floor that budgets the four characters `decimalHours` can produce
+     ("0.25"). That floor is also what they collapse back to on a narrow
+     window, where the grid scrolls sideways instead. */
   grid-template-columns:
-    minmax(18rem, 1.4fr)
-    repeat(var(--month-cols), 3.125rem)
+    fit-content(40%)
+    repeat(var(--month-cols), minmax(3.125rem, 1fr))
     4.25rem;
   min-width: min-content;
 }
@@ -3235,20 +3237,6 @@ body.dragging-field {
   border-bottom: 1px solid var(--hair);
   background: var(--surface);
   min-height: var(--tap-dense);
-}
-/* A hairline between the days, in the same tone as the row separators: with
-   two dozen narrow columns the eye needs a vertical rule to keep a cell tied
-   to the day heading above it. Drawn on the left of each cell, so a column and
-   its heading share one line and the last column needs no exception. */
-.month-cell,
-.day-head-cell {
-  border-left: 1px solid var(--hair);
-}
-/* Except the first day column: the frozen issue column draws that separator
-   itself and has to — its own border is what stays put while the days scroll
-   underneath it. */
-.month-row > *:nth-child(2) {
-  border-left: none;
 }
 .month-grid .col-issue {
   position: sticky;
@@ -3341,6 +3329,24 @@ body.dragging-field {
 .month-cell:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+}
+/* A hairline between the days, in the same tone as the row separators: with
+   two dozen narrow columns the eye needs a vertical rule to keep a cell tied
+   to the day heading above it. Drawn on the left of each cell, so a column and
+   its heading share one line and the last column needs no exception.
+
+   Below both cells' own rules on purpose: `.month-cell` resets `border` to
+   none to strip the base button's, and at equal specificity that reset wins
+   over anything declared above it. */
+.month-cell,
+.day-head-cell {
+  border-left: 1px solid var(--hair);
+}
+/* Except the first day column: the frozen issue column draws that separator
+   itself and has to — its own border is what stays put while the days scroll
+   underneath it. */
+.month-row > *:nth-child(2) {
+  border-left: none;
 }
 /* Saturdays and Sundays only appear when something was booked on them, so the
    tint is there to explain why the column exists at all. */
