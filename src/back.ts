@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { overlayOpen, typingIn } from "./keys";
+import { hasPrimaryModifier } from "./platform";
 
 /**
  * Where "back" leads right now.
@@ -138,19 +139,23 @@ export function isForwardButton(e: MouseEvent): boolean {
  * `[` is not a key of its own — on a German layout it costs `⌥5`, which is not
  * a shortcut anybody would find. `⌥←` is the Windows one, and harmless on a
  * Mac, where nothing else claims it outside a text box.
+ *
+ * The bracket and arrow spellings go through `hasPrimaryModifier`, so the chord
+ * is ⌘ on a Mac and Ctrl on Windows — the same rule the shortcut catalogue
+ * matches by, and the reason the badge on a Back button can be trusted on both.
+ * (`⌃⌘←` is Spaces' and is rejected there, as it was before.) `Ctrl+←` is
+ * "previous word" inside a text box on Windows, which the typing guard in the
+ * handler already stands down for.
  */
 export function isBackShortcut(e: KeyboardEvent): boolean {
-  // Ctrl is nobody's back chord, and ⌃⌘← is Spaces' — not ours to take.
-  if (e.ctrlKey) return false;
-  if (e.metaKey) return e.key === "[" || e.key === "ArrowLeft";
-  return e.altKey && e.key === "ArrowLeft";
+  if (hasPrimaryModifier(e)) return e.key === "[" || e.key === "ArrowLeft";
+  return e.altKey && !e.ctrlKey && !e.metaKey && e.key === "ArrowLeft";
 }
 
 /** The other direction, spelled the three matching ways. */
 export function isForwardShortcut(e: KeyboardEvent): boolean {
-  if (e.ctrlKey) return false;
-  if (e.metaKey) return e.key === "]" || e.key === "ArrowRight";
-  return e.altKey && e.key === "ArrowRight";
+  if (hasPrimaryModifier(e)) return e.key === "]" || e.key === "ArrowRight";
+  return e.altKey && !e.ctrlKey && !e.metaKey && e.key === "ArrowRight";
 }
 
 /** The Rust side's name for a swipe towards the right — see

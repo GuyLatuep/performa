@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, MissingWorklog } from "../api";
 import { clearForward, useBackTarget } from "../back";
+import { useShortcutBadge } from "../shortcuts";
 import { timeAgo, toDateInput, toTimeInput } from "../time";
 import {
   ignoreMissing,
@@ -171,9 +172,13 @@ function LogForm({
     }
   }
 
+  // `back.ts` answers the chord for the way out the tab registered; this says
+  // where its badge belongs.
+  const backBadge = useShortcutBadge("back");
+
   return (
     <div className="panel">
-      <button className="link" onClick={onCancel}>
+      <button className="link" {...backBadge} onClick={onCancel}>
         <ArrowLeft size={15} strokeWidth={2} aria-hidden />
         Back to the list
       </button>

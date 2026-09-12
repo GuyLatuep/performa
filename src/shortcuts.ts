@@ -33,15 +33,48 @@ export interface Shortcut {
    *  Absent means it fires wherever it is pressed, which is the common case: a
    *  shortcut unusable while typing is not much of a shortcut. */
   standsDown?: "draft" | "typing";
+  /**
+   * Somebody else's listener answers this chord.
+   *
+   * `back.ts` owns back and forward, and they are not one chord each: they are
+   * three spellings apiece, plus bare Escape, plus a fourth mouse button, plus a
+   * swipe arriving from Rust — and their availability is per *screen*, not per
+   * control, since a screen can register a way back without drawing a button for
+   * it. Re-homing that here would put a second mechanism inside the first.
+   *
+   * The entry exists so the key is visibly spoken for in one table — no future
+   * action can take it without the conflict test saying so — and so the control
+   * can carry a badge like any other.
+   */
+  external?: true;
 }
 
 export const SHORTCUTS = {
   tabStart: { key: "1", label: "Start tab", standsDown: "draft" },
   tabTodo: { key: "2", label: "Todo tab", standsDown: "draft" },
   settings: { key: ",", label: "Settings", standsDown: "draft" },
+
+  // Answered by `back.ts`. "typing" rather than "draft" because that handler
+  // stands down whenever a text box has focus, full or empty — `⌘←` means
+  // "start of line" there and that is the writer's key regardless. A badge
+  // using the draft rule would sit undimmed over an empty box where the key
+  // would in fact decline, which is the badge lying.
+  back: { key: "[", label: "Back", standsDown: "typing", external: true },
+  forward: { key: "]", label: "Forward", standsDown: "typing", external: true },
 } as const satisfies Record<string, Shortcut>;
 
 export type ShortcutId = keyof typeof SHORTCUTS;
+
+/** The ids this module's dispatcher answers for. */
+export type ActionId = {
+  [I in ShortcutId]: (typeof SHORTCUTS)[I] extends { external: true }
+    ? never
+    : I;
+}[ShortcutId];
+
+/** The ids that only want a badge. Binding one to a handler that would never run
+ *  is a type error rather than a puzzle. */
+export type BadgeId = Exclude<ShortcutId, ActionId>;
 
 /**
  * Characters that never arrive, and characters already answered.
@@ -64,9 +97,9 @@ export const RESERVED_KEYS = [
   "c",
   "v",
   "a",
-  // `back.ts` answers these as the other spellings of ⌘[ and ⌘].
-  "[",
-  "]",
+  // The other spellings of back and forward. Those two are catalogue entries in
+  // their own right, so `[` and `]` are spoken for by the table; these are the
+  // same actions under a second name, which no entry should take either.
   "arrowleft",
   "arrowright",
 ] as const;
@@ -156,7 +189,9 @@ export function standingDown(
 interface Binding {
   id: ShortcutId;
   node: HTMLElement;
-  run: () => void;
+  /** Null for the `external` entries: somebody else's listener runs those, and
+   *  this binding exists only to place their badge. */
+  run: (() => void) | null;
 }
 
 /** One binding per id. Nothing needs a stack: the three screens carrying a
@@ -188,9 +223,27 @@ export interface ShortcutProps {
  * `run` may be a fresh closure every render; only `id` and `enabled` re-bind.
  */
 export function useShortcut(
-  id: ShortcutId,
+  id: ActionId,
   run: () => void,
   enabled = true,
+): ShortcutProps {
+  return useBinding(id, run, enabled);
+}
+
+/**
+ * Give this control the badge for a chord somebody else answers.
+ *
+ * Same registration, no handler: the key already works, and what was missing was
+ * any way for the reader to find out. `back.ts` is the only such owner today.
+ */
+export function useShortcutBadge(id: BadgeId, enabled = true): ShortcutProps {
+  return useBinding(id, null, enabled);
+}
+
+function useBinding(
+  id: ShortcutId,
+  run: (() => void) | null,
+  enabled: boolean,
 ): ShortcutProps {
   // The live handler, boxed the way `back.ts` boxes its target: the closure is
   // new on every render, and re-running the ref for that would have React
@@ -203,7 +256,11 @@ export function useShortcut(
   const ref = useCallback(
     (node: HTMLElement | null) => {
       if (!node || !enabled) return;
-      bindings.set(id, { id, node, run: () => latest.current() });
+      bindings.set(id, {
+        id,
+        node,
+        run: run && (() => latest.current?.()),
+      });
       // React 19 takes a cleanup back from a ref callback, which is the only
       // moment at which *which* node went away is known.
       return () => {
@@ -213,6 +270,9 @@ export function useShortcut(
         if (bindings.get(id)?.node === node) bindings.delete(id);
       };
     },
+    // `run` is deliberately not a dependency: whether there *is* one is fixed by
+    // which hook was called, and which closure it is, is read live above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [id, enabled],
   );
 
@@ -243,10 +303,11 @@ export function useShortcutKeys(): void {
       const id = matchShortcut(e);
       if (!id) return;
       const binding = bindings.get(id);
-      // No control on screen for it: not ours to swallow. There is deliberately
-      // no blanket typing guard here — ⌘-chords are not typing, and the narrow
-      // `standingDown` below is what replaces it.
-      if (!binding) return;
+      // No control on screen for it, or a chord somebody else answers: not ours
+      // to swallow either way. There is deliberately no blanket typing guard
+      // here — ⌘-chords are not typing, and the narrow `standingDown` below is
+      // what replaces it.
+      if (!binding?.run) return;
       if (covered(binding.node)) return;
       if (standingDown(id, e.target as Element | null)) return;
       e.preventDefault();

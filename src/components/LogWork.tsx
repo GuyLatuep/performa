@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useCallback, useState } from "react";
 import { api, IssueSummary } from "../api";
 import { clearForward, useBackTarget } from "../back";
+import { useShortcutBadge } from "../shortcuts";
 import { logInfo } from "../log";
 import { formatDuration } from "../time";
 import IssueHistory from "./IssueHistory";
@@ -60,6 +61,9 @@ export default function LogWork({
     { label: cameFrom ?? "the issue picker", back, forward },
     selected !== null,
   );
+  // Two buttons could wear it, so it goes on the one the chord would actually
+  // press — which is the tab-return while that exists, and the picker otherwise.
+  const backBadge = useShortcutBadge("back", selected !== null);
 
   function selectIssue(issue: IssueSummary) {
     clearForward();
@@ -99,12 +103,16 @@ export default function LogWork({
               screen: once another issue is picked here, the log tab is where
               the user came from. */}
           {cameFrom && (
-            <button className="link" onClick={back}>
+            <button className="link" {...backBadge} onClick={back}>
               <ArrowLeft size={15} strokeWidth={2} aria-hidden />
               Back to {cameFrom}
             </button>
           )}
-          <button className="link" onClick={() => setSelected(null)}>
+          <button
+            className="link"
+            {...(cameFrom ? {} : backBadge)}
+            onClick={() => setSelected(null)}
+          >
             <ArrowLeft size={15} strokeWidth={2} aria-hidden />
             Choose a different issue
           </button>

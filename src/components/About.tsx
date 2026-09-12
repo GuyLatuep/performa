@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useBackTarget } from "../back";
+import { useShortcutBadge } from "../shortcuts";
 import Blockmark from "./Blockmark";
 
 const AUTHOR = "Malte Polzin";
@@ -15,6 +16,7 @@ export default function About({ onClose }: { onClose: () => void }) {
   }, []);
 
   useBackTarget({ label: "performa", back: onClose });
+  const backBadge = useShortcutBadge("back");
 
   return (
     <div className="setup settings-page about">
@@ -63,7 +65,7 @@ export default function About({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="row">
-        <button type="button" onClick={onClose}>
+        <button type="button" {...backBadge} onClick={onClose}>
           Zurück
         </button>
       </div>

@@ -3,9 +3,10 @@ import { fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "./test-support/dom";
 import {
+  ActionId,
   boundShortcuts,
-  ShortcutId,
   useShortcut,
+  useShortcutBadge,
   useShortcutKeys,
 } from "./shortcuts";
 
@@ -19,12 +20,12 @@ import {
 
 /** A control carrying a shortcut, with the dispatcher mounted above it. */
 function Probe({
-  id = "tabTodo" as ShortcutId,
+  id = "tabTodo" as ActionId,
   run,
   enabled = true,
   inModal = false,
 }: {
-  id?: ShortcutId;
+  id?: ActionId;
   run: () => void;
   enabled?: boolean;
   inModal?: boolean;
@@ -176,6 +177,37 @@ describe("an unbound shortcut", () => {
     press("2");
 
     expect(incoming).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a chord somebody else answers", () => {
+  /** A Back button: badged here, run by `back.ts`. */
+  function Badged() {
+    const props = useShortcutBadge("back");
+    useShortcutKeys();
+    return <button {...props}>Back</button>;
+  }
+
+  it("is registered, so its badge can be placed", () => {
+    render(<Badged />);
+
+    expect(boundShortcuts().map((b) => b.id)).toEqual(["back"]);
+  });
+
+  it("carries no handler, so this dispatcher runs nothing", () => {
+    render(<Badged />);
+
+    // Left entirely alone — `back.ts`'s own listener is what acts on it, and
+    // swallowing the press here would stop it ever getting there.
+    expect(press("[")).toBe(true);
+  });
+
+  it("still tells a screen reader its chord", () => {
+    const { getByRole } = render(<Badged />);
+
+    expect(getByRole("button").getAttribute("aria-keyshortcuts")).toBe(
+      "Meta+[",
+    );
   });
 });
 

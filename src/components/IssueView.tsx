@@ -10,6 +10,7 @@ import {
   Transition,
 } from "../api";
 import { clearForward, useBackTarget } from "../back";
+import { useShortcutBadge } from "../shortcuts";
 import { OfferedTransition } from "../transitions";
 import { useIssueFieldConfig } from "../issueFieldNames";
 import { logInfo } from "../log";
@@ -184,11 +185,13 @@ export default function IssueView({
   const backTo = screen ? open.key : (cameFrom?.key ?? backLabel);
 
   useBackTarget({ label: backTo, back, forward });
+  // `back.ts` answers the chord; this only says where its badge belongs.
+  const backBadge = useShortcutBadge("back");
 
   return (
     <div className="panel issue-view">
       <div className="back-row">
-        <button className="link" onClick={back}>
+        <button className="link" {...backBadge} onClick={back}>
           <ArrowLeft size={15} strokeWidth={2} aria-hidden />
           Back to {backTo}
         </button>

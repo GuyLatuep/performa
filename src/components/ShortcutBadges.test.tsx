@@ -3,7 +3,7 @@ import { act, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
 import { REVEAL_MS } from "../chordReveal";
-import { ShortcutId, useShortcut } from "../shortcuts";
+import { ActionId, useShortcut } from "../shortcuts";
 import ShortcutBadges from "./ShortcutBadges";
 
 // happy-dom lays nothing out, so every control here says how big it is and the
@@ -12,11 +12,11 @@ import ShortcutBadges from "./ShortcutBadges";
 
 /** One control carrying a shortcut, beside the layer that badges it. */
 function Scene({
-  id = "tabTodo" as ShortcutId,
+  id = "tabTodo" as ActionId,
   rect,
   inModal = false,
 }: {
-  id?: ShortcutId;
+  id?: ActionId;
   rect: Partial<DOMRect>;
   inModal?: boolean;
 }) {

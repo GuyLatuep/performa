@@ -88,10 +88,34 @@ describe("the catalogue", () => {
     );
   });
 
-  it("reserves the chords the navigation layer answers", () => {
+  it("reserves the second spellings of back and forward", () => {
+    // Those two are entries in their own right, so `[` and `]` are spoken for by
+    // the table above. These are the same actions under another name, which no
+    // entry should take either.
     expect(RESERVED_KEYS).toEqual(
-      expect.arrayContaining(["[", "]", "arrowleft", "arrowright"]),
+      expect.arrayContaining(["arrowleft", "arrowright"]),
     );
+  });
+
+  it("holds the chords somebody else answers, so nothing can take them", () => {
+    // The whole reason back and forward are in the table: `back.ts` runs them,
+    // and a future action reaching for ⌘[ has to be told it is taken.
+    expect(SHORTCUTS.back.key).toBe("[");
+    expect(SHORTCUTS.forward.key).toBe("]");
+    expect(SHORTCUTS.back.external).toBe(true);
+    expect(SHORTCUTS.forward.external).toBe(true);
+  });
+
+  it("stands those two down for typing rather than for a draft", () => {
+    // `back.ts` declines whenever a text box has focus, full or empty, because
+    // `⌘←` is "start of line" there. A badge on the draft rule would sit
+    // undimmed over an empty box where the key would in fact decline.
+    expect(SHORTCUTS.back.standsDown).toBe("typing");
+
+    const box = field("textarea", "");
+
+    expect(standingDown("back", box)).toBe(true);
+    expect(standingDown("tabTodo", box)).toBe(false);
   });
 });
 

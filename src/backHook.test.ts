@@ -1,6 +1,6 @@
 /** @vitest-environment happy-dom */
 import { act, fireEvent, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "./test-support/dom";
 
 // The swipe arrives from Rust rather than from the DOM, so the bridge is stood
@@ -87,6 +87,14 @@ afterEach(() => {
 async function subscribed() {
   await act(async () => {});
 }
+
+// The chord is ⌘ here. Which modifier each platform uses is platform.test.ts's
+// business; these tests are about what the chord means once it arrives.
+beforeEach(() => {
+  vi.stubGlobal("navigator", {
+    userAgent: "Macintosh; Intel Mac OS X 10_15_7",
+  });
+});
 
 describe("useBackGestures", () => {
   it("goes back on the mouse's back button", () => {

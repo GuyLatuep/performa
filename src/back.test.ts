@@ -41,6 +41,14 @@ function register(label = "Todo", active = true, forward?: () => void) {
   return { back, ...view };
 }
 
+// The chord is ⌘ here. Which modifier each platform uses is platform.test.ts's
+// business; these tests are about what the chord means once it arrives.
+beforeEach(() => {
+  vi.stubGlobal("navigator", {
+    userAgent: "Macintosh; Intel Mac OS X 10_15_7",
+  });
+});
+
 describe("isBackButton", () => {
   it("is true for the standard back button", () => {
     expect(isBackButton(press(3))).toBe(true);
@@ -109,6 +117,24 @@ describe("isBackShortcut", () => {
     ["⌥[", "[", { altKey: true }],
   ])("is false for %s", (_label, k, mods) => {
     expect(isBackShortcut(key(k, mods))).toBe(false);
+  });
+
+  it("is the Ctrl spelling on Windows, so the badge can be trusted there", () => {
+    // One chord rule for both platforms: the same `hasPrimaryModifier` the
+    // shortcut catalogue matches by. Before this, Ctrl+[ did nothing on Windows
+    // while a badge would still have offered it.
+    vi.stubGlobal("navigator", { userAgent: "Windows NT 10.0; Win64" });
+
+    expect(isBackShortcut(key("[", { ctrlKey: true }))).toBe(true);
+    expect(isBackShortcut(key("ArrowLeft", { ctrlKey: true }))).toBe(true);
+    // And ⌘ is not a Windows modifier, so the Mac spelling does not carry over.
+    expect(isBackShortcut(key("[", { metaKey: true }))).toBe(false);
+  });
+
+  it("keeps Alt+← on Windows, which is that platform's own", () => {
+    vi.stubGlobal("navigator", { userAgent: "Windows NT 10.0; Win64" });
+
+    expect(isBackShortcut(key("ArrowLeft", { altKey: true }))).toBe(true);
   });
 
   it("is false for ⌃⌘←, which belongs to Spaces", () => {
