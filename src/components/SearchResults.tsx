@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, IssueSummary } from "../api";
+import { api, SearchResults as Results } from "../api";
 import { clearForward } from "../back";
 import { requestIssue } from "../issueRequest";
 import { describeSearch, SearchRequest } from "../searchRequest";
@@ -30,13 +30,14 @@ export default function SearchResults({
   search: SearchRequest;
   site: string;
 }) {
-  const [issues, setIssues] = useState<IssueSummary[] | null>(null);
+  const [found, setFound] = useState<Results | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pinnedKeys = new Set(usePinnedIssues().map((p) => p.key));
+  const issues = found?.issues ?? null;
 
   useEffect(() => {
     let cancelled = false;
-    setIssues(null);
+    setFound(null);
     setError(null);
     const run =
       search.kind === "text"
@@ -48,12 +49,12 @@ export default function SearchResults({
             search.search.excludedProjects,
           );
     run.then(
-      (list) => {
-        if (!cancelled) setIssues(list);
+      (result) => {
+        if (!cancelled) setFound(result);
       },
       (err) => {
         if (!cancelled) {
-          setIssues([]);
+          setFound({ issues: [], hasMore: false });
           setError(String(err));
         }
       },
@@ -84,6 +85,16 @@ export default function SearchResults({
             Results for {describeSearch(search)}
             {issues && issues.length > 0 && ` · ${issues.length}`}
           </span>
+          {/* A full page is not proof there is nothing after it, and these
+              searches keep closed issues on purpose — so a plant with years of
+              history reaches the limit as a matter of course. Saying "· 100"
+              and stopping would have the reader count a hundred and conclude
+              the hundred-and-first does not exist. */}
+          {found?.hasMore && (
+            <span className="muted">
+              first {found.issues.length} · narrow the term to see the rest
+            </span>
+          )}
         </div>
         {issues === null && <p className="muted">Searching…</p>}
         {error && <p className="error">{error}</p>}

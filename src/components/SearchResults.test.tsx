@@ -25,6 +25,11 @@ import { clearSelection } from "../selection";
 import { AllKeys } from "../test-support/shortcuts";
 import SearchResults from "./SearchResults";
 
+/** What the backend answers with: the rows, plus whether there were more. */
+function page(issues: ReturnType<typeof issueSummary>[], hasMore = false) {
+  return { issues, hasMore };
+}
+
 const PLANT_SEARCH: SavedSearch = {
   id: "s1",
   name: "Plant number",
@@ -71,7 +76,7 @@ afterEach(() => {
 
 describe("running the search", () => {
   it("hands the backend the whole definition, not just the term", async () => {
-    apiMock.searchField.mockResolvedValue([]);
+    apiMock.searchField.mockResolvedValue(page([]));
 
     renderResults();
 
@@ -93,10 +98,9 @@ describe("running the search", () => {
   });
 
   it("lists what came back, with a count", async () => {
-    apiMock.searchField.mockResolvedValue([
-      issueSummary({ key: "ABC-1" }),
-      issueSummary({ key: "ABC-2" }),
-    ]);
+    apiMock.searchField.mockResolvedValue(
+      page([issueSummary({ key: "ABC-1" }), issueSummary({ key: "ABC-2" })]),
+    );
 
     renderResults();
 
@@ -107,7 +111,7 @@ describe("running the search", () => {
   });
 
   it("names the plant in its empty state, so it is clear what found nothing", async () => {
-    apiMock.searchField.mockResolvedValue([]);
+    apiMock.searchField.mockResolvedValue(page([]));
 
     renderResults();
 
@@ -117,12 +121,38 @@ describe("running the search", () => {
   });
 
   it("quotes the term for a text search instead", async () => {
-    apiMock.searchField.mockResolvedValue([]);
+    apiMock.searchField.mockResolvedValue(page([]));
 
-    apiMock.searchText.mockResolvedValue([]);
+    apiMock.searchText.mockResolvedValue(page([]));
     renderResults({ kind: "text", term: "broken pump" });
 
     expect(await screen.findByText(/“broken pump”/)).toBeDefined();
+  });
+
+  it("says so when Jira had more than it showed", async () => {
+    // A full page is not proof there is nothing after it, and these searches
+    // keep closed issues on purpose — so a plant with years of history reaches
+    // the limit as a matter of course.
+    apiMock.searchField.mockResolvedValue(
+      page([issueSummary({ key: "ABC-1" })], true),
+    );
+
+    renderResults();
+
+    expect(
+      await screen.findByText(/narrow the term to see the rest/),
+    ).toBeDefined();
+  });
+
+  it("says nothing of the sort when that was all of them", async () => {
+    apiMock.searchField.mockResolvedValue(
+      page([issueSummary({ key: "ABC-1" })]),
+    );
+
+    renderResults();
+
+    await screen.findByText("ABC-1");
+    expect(screen.queryByText(/narrow the term/)).toBeNull();
   });
 
   it("reports a refusal from Jira rather than an empty list", async () => {
@@ -141,10 +171,9 @@ describe("running the search", () => {
 
 describe("the results themselves", () => {
   it("are walked with the arrow keys, being an ordinary issue list", async () => {
-    apiMock.searchField.mockResolvedValue([
-      issueSummary({ key: "ABC-1" }),
-      issueSummary({ key: "ABC-2" }),
-    ]);
+    apiMock.searchField.mockResolvedValue(
+      page([issueSummary({ key: "ABC-1" }), issueSummary({ key: "ABC-2" })]),
+    );
     renderResults();
     await screen.findByText("ABC-1");
 
@@ -158,7 +187,9 @@ describe("the results themselves", () => {
   });
 
   it("open the issue on Enter", async () => {
-    apiMock.searchField.mockResolvedValue([issueSummary({ key: "ABC-1" })]);
+    apiMock.searchField.mockResolvedValue(
+      page([issueSummary({ key: "ABC-1" })]),
+    );
     renderResults();
     await screen.findByText("ABC-1");
     await act(async () => {
@@ -173,9 +204,9 @@ describe("the results themselves", () => {
   });
 
   it("open the issue when one is clicked", async () => {
-    apiMock.searchField.mockResolvedValue([
-      issueSummary({ key: "ABC-1", summary: "Replace the pump" }),
-    ]);
+    apiMock.searchField.mockResolvedValue(
+      page([issueSummary({ key: "ABC-1", summary: "Replace the pump" })]),
+    );
     renderResults();
 
     await userEvent.click(await screen.findByText("Replace the pump"));

@@ -64,6 +64,13 @@ const TIMER_START_STATUS: &str = "In Arbeit";
 const MAX_DETAIL_FIELDS: usize = 30;
 const MAX_FIELD_NAME_CHARS: usize = 100;
 
+// What the palette's searches will look for. Its own constant rather than the
+// field-name bound it used to borrow: the two answer different questions, and
+// tightening the issue view's request width should not quietly shrink what can
+// be searched for. Generous, because a term is somebody's sentence — Jira's own
+// comment bound is two orders larger again.
+const MAX_SEARCH_TERM_CHARS: usize = 500;
+
 // Generous enough for any genuine frontend log line (the longest are search
 // labels carrying the user's query), short enough to bound the file.
 const MAX_FRONTEND_LOG_CHARS: usize = 1000;
@@ -292,6 +299,24 @@ fn checked_comment_text(text: &str) -> Result<&str, String> {
     Ok(trimmed)
 }
 
+/// What one of the palette's searches is looking for.
+///
+/// Blank comes back as `Ok("")` rather than an error: the palette calls on every
+/// submission and an empty box is a search nobody ran, not a mistake worth a
+/// message. Too long *is* an error, and says so — returning an empty list there
+/// would draw "Nothing found", which is a claim about Jira rather than about the
+/// term, and sends the reader looking in the wrong place.
+fn checked_search_term(term: &str) -> Result<&str, String> {
+    let trimmed = term.trim();
+    if trimmed.chars().count() > MAX_SEARCH_TERM_CHARS {
+        return Err(format!(
+            "that search term is too long ({} characters; the most is {MAX_SEARCH_TERM_CHARS})",
+            trimmed.chars().count()
+        ));
+    }
+    Ok(trimmed)
+}
+
 /// The site-specific field names the issue view asks for. These are matched
 /// against the site's own field catalog rather than interpolated anywhere, so
 /// the check is about size, not shape: a very long list makes for a very wide
@@ -429,21 +454,39 @@ async fn search_issues(
         .await
 }
 
+/// What a palette search found, and whether that was all of it.
+///
+/// A struct rather than a bare pair: this crosses to the webview, where a tuple
+/// arrives as `[rows, true]` and every reader has to remember which end is
+/// which.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SearchResults {
+    issues: Vec<IssueSummary>,
+    /// Jira had more than the page we asked for. The view says so rather than
+    /// letting a full page read as a complete answer.
+    has_more: bool,
+}
+
+impl From<(Vec<IssueSummary>, bool)> for SearchResults {
+    fn from((issues, has_more): (Vec<IssueSummary>, bool)) -> Self {
+        Self { issues, has_more }
+    }
+}
+
 /// The command palette's plain text search: the term in any field Jira will
 /// search. The JQL is built here, as all of it is.
 #[tauri::command]
-async fn search_text(
-    state: State<'_, AppState>,
-    term: String,
-) -> Result<Vec<IssueSummary>, String> {
-    let term = term.trim();
-    if term.is_empty() || term.chars().count() > MAX_FIELD_NAME_CHARS {
-        return Ok(Vec::new());
+async fn search_text(state: State<'_, AppState>, term: String) -> Result<SearchResults, String> {
+    let term = checked_search_term(&term)?;
+    if term.is_empty() {
+        return Ok((Vec::new(), false).into());
     }
     let s = session(&state).await?;
-    s.client
+    Ok(s.client
         .search_issues_rows(&jira::build_text_jql(term))
-        .await
+        .await?
+        .into())
 }
 
 /// One of the user's own searches: their field, their term, their exclusions.
@@ -458,18 +501,20 @@ async fn search_field(
     term: String,
     exact: bool,
     excluded_projects: Vec<String>,
-) -> Result<Vec<IssueSummary>, String> {
-    let term = term.trim();
-    if term.is_empty() || term.chars().count() > MAX_FIELD_NAME_CHARS {
-        return Ok(Vec::new());
+) -> Result<SearchResults, String> {
+    let term = checked_search_term(&term)?;
+    if term.is_empty() {
+        return Ok((Vec::new(), false).into());
     }
-    if field.trim().is_empty() || field.chars().count() > MAX_FIELD_NAME_CHARS {
+    let field = field.trim();
+    if field.is_empty() || field.chars().count() > MAX_FIELD_NAME_CHARS {
         return Err("that search names no field to look in".into());
     }
     let s = session(&state).await?;
-    s.client
-        .field_search(field.trim(), term, exact, &excluded_projects)
-        .await
+    Ok(s.client
+        .field_search(field, term, exact, &excluded_projects)
+        .await?
+        .into())
 }
 
 /// Issues assigned to the current user with a due date between 7 days ago and

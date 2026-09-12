@@ -243,6 +243,13 @@ impl JiraClient {
     /// one character out comes back as "field does not exist" rather than as
     /// anything a reader could act on. An id cannot be spelled wrong.
     ///
+    /// Two id shapes reach here, and they are not written the same way. A custom
+    /// field is `customfield_10050` and JQL names it `cf[10050]`; a system field
+    /// is its own word — `summary`, `labels`, `description` — and JQL names it
+    /// directly. The settings picker offers the whole catalogue, so both arrive
+    /// in practice, and spelling a system field as `cf[summary]` earns a flat
+    /// "field does not exist" on a field the app itself offered.
+    ///
     /// `exact` decides the operator. Without it the term is wildcarded *and*
     /// searched plain, OR'ed, because Jira's text index splits a value like
     /// `DE_1979_03` into words: the wildcard finds it where the index kept the
@@ -257,19 +264,19 @@ impl JiraClient {
         term: &str,
         exact: bool,
         excluded_projects: &[String],
-    ) -> Result<Vec<IssueSummary>, String> {
+    ) -> Result<(Vec<IssueSummary>, bool), String> {
         let catalog = self.field_ids().await?;
         let Some(id) = catalog.get(&normalize_name(field)) else {
             return Err(format!(
                 "this Jira site has no field called '{field}' — the search has nothing to look in"
             ));
         };
-        let num = id.trim_start_matches("customfield_");
+        let named = jql_field(id);
         let esc = super::escape_jql(term.trim());
         let mut jql = if exact {
-            format!("cf[{num}] = \"{esc}\"")
+            format!("{named} = \"{esc}\"")
         } else {
-            format!("(cf[{num}] ~ \"{esc}*\" OR cf[{num}] ~ \"{esc}\")")
+            format!("({named} ~ \"{esc}*\" OR {named} ~ \"{esc}\")")
         };
         if !excluded_projects.is_empty() {
             let keys: Vec<String> = excluded_projects
@@ -280,9 +287,13 @@ impl JiraClient {
         }
         jql.push_str(" ORDER BY updated DESC");
         log::info!("field search: {field} is {id}; jql = {jql}");
-        let found = self.search_issues_rows(&jql).await?;
-        log::info!("field search: {} issue(s) for {term}", found.len());
-        Ok(found)
+        let (found, has_more) = self.search_issues_rows(&jql).await?;
+        log::info!(
+            "field search: {} issue(s) for {term}{}",
+            found.len(),
+            if has_more { ", more not shown" } else { "" }
+        );
+        Ok((found, has_more))
     }
 
     /// One issue with everything the detail view shows. `wanted` names the
@@ -659,6 +670,26 @@ pub(super) fn field_metas(fields: HashMap<String, RawTransitionField>) -> Vec<Fi
     metas
 }
 
+/// How JQL names the field this id belongs to.
+///
+/// `customfield_10050` is written `cf[10050]`; everything else is a system field
+/// whose id *is* its JQL name — `summary`, `labels`, `duedate`. Quoted, because
+/// a handful of them (`issuetype`) read as keywords otherwise, and quoting a
+/// plain name is always allowed.
+///
+/// The digits are checked rather than assumed: `customfield_` is only a prefix
+/// by convention, and `cf[]` on anything else is a parse error rather than a
+/// miss. Anything unexpected therefore falls through to the quoted form, which
+/// is the branch that can only be wrong about *which* field, never about syntax.
+fn jql_field(id: &str) -> String {
+    match id.strip_prefix("customfield_") {
+        Some(num) if !num.is_empty() && num.chars().all(|c| c.is_ascii_digit()) => {
+            format!("cf[{num}]")
+        }
+        _ => format!("\"{}\"", super::escape_jql(id)),
+    }
+}
+
 /// Field names are compared without case, spaces or punctuation, so the
 /// configured "Plant-No." still finds a field the site calls "Plant No".
 fn normalize_name(name: &str) -> String {
@@ -850,6 +881,25 @@ mod tests {
             normalize_name("analyseergebnis1stlevel")
         );
         assert_ne!(normalize_name("Remote Access"), normalize_name("Remote"));
+    }
+
+    #[test]
+    fn a_custom_field_is_named_by_its_number_and_a_system_field_by_itself() {
+        // The settings picker offers the whole catalogue, so both shapes arrive.
+        assert_eq!(jql_field("customfield_10050"), "cf[10050]");
+        assert_eq!(jql_field("summary"), "\"summary\"");
+        assert_eq!(jql_field("duedate"), "\"duedate\"");
+    }
+
+    #[test]
+    fn a_prefix_that_is_not_a_number_is_not_treated_as_one() {
+        // `customfield_` is a convention, not a guarantee, and `cf[]` around
+        // anything else is a parse error rather than a miss. The quoted form is
+        // the branch that can only be wrong about which field, never about
+        // syntax.
+        assert_eq!(jql_field("customfield_"), "\"customfield_\"");
+        assert_eq!(jql_field("customfield_abc"), "\"customfield_abc\"");
+        assert_eq!(jql_field("customfield_10a"), "\"customfield_10a\"");
     }
 
     #[test]
@@ -1500,5 +1550,163 @@ mod http_tests {
             .expect("activity");
 
         assert!(!activity.comments[0].author.is_empty());
+    }
+
+    // ----- The user's own searches -----
+
+    /// A site whose field catalogue is the standard one and whose search answers
+    /// with `body`. Returns the server so the outgoing JQL can be read back.
+    async fn site_for_search(body: serde_json::Value) -> MockServer {
+        let server = MockServer::start().await;
+        mount_get(&server, "/rest/api/3/field", field_catalog()).await;
+        mount_get_matching(&server, r"^/rest/api/3/search/jql$", body).await;
+        server
+    }
+
+    fn no_issues() -> serde_json::Value {
+        json!({ "issues": [] })
+    }
+
+    /// The `jql` parameter the search actually went out with.
+    async fn sent_jql(server: &MockServer) -> String {
+        let requests = server.received_requests().await.unwrap_or_default();
+        let search = requests
+            .iter()
+            .find(|r| r.url.path().contains("/search/jql"))
+            .expect("a search was sent");
+        search
+            .url
+            .query_pairs()
+            .find(|(k, _)| k == "jql")
+            .map(|(_, v)| v.into_owned())
+            .expect("the search carried a jql parameter")
+    }
+
+    #[tokio::test]
+    async fn a_custom_field_is_searched_by_its_number() {
+        let server = site_for_search(no_issues()).await;
+
+        client_for(&server)
+            .field_search("Plant no.", "DE_1979", false, &[])
+            .await
+            .expect("search");
+
+        // Wildcarded *and* plain, because Jira's text index may have split the
+        // value into words — see the note on `field_search`.
+        let jql = sent_jql(&server).await;
+        assert!(jql.contains(r#"cf[101] ~ "DE_1979*""#), "{jql}");
+        assert!(jql.contains(r#"cf[101] ~ "DE_1979""#), "{jql}");
+    }
+
+    #[tokio::test]
+    async fn a_system_field_is_searched_by_its_name() {
+        // The regression this pins: `summary` is not `customfield_N`, and
+        // spelling it `cf[summary]` earns a flat "field does not exist" on a
+        // field the settings picker itself offered.
+        let server = site_for_search(no_issues()).await;
+
+        client_for(&server)
+            .field_search("Summary", "pump", false, &[])
+            .await
+            .expect("search");
+
+        let jql = sent_jql(&server).await;
+        assert!(!jql.contains("cf["), "{jql}");
+        assert!(jql.contains(r#""summary" ~ "pump*""#), "{jql}");
+    }
+
+    #[tokio::test]
+    async fn an_exact_search_matches_the_whole_value() {
+        let server = site_for_search(no_issues()).await;
+
+        client_for(&server)
+            .field_search("Plant no.", "DE_1979", true, &[])
+            .await
+            .expect("search");
+
+        let jql = sent_jql(&server).await;
+        assert!(jql.contains(r#"cf[101] = "DE_1979""#), "{jql}");
+        assert!(!jql.contains('~'), "{jql}");
+    }
+
+    #[tokio::test]
+    async fn excluded_projects_are_left_out() {
+        let server = site_for_search(no_issues()).await;
+
+        client_for(&server)
+            .field_search("Plant no.", "DE_1979", false, &["O2C".into(), "DEV".into()])
+            .await
+            .expect("search");
+
+        let jql = sent_jql(&server).await;
+        assert!(jql.contains(r#"project NOT IN ("O2C", "DEV")"#), "{jql}");
+    }
+
+    #[tokio::test]
+    async fn nothing_is_subtracted_for_being_closed() {
+        // "Every issue for this" is the question these searches ask, and the
+        // past is most of the answer.
+        let server = site_for_search(no_issues()).await;
+
+        client_for(&server)
+            .field_search("Plant no.", "DE_1979", false, &[])
+            .await
+            .expect("search");
+
+        let jql = sent_jql(&server).await;
+        assert!(!jql.contains("statusCategory"), "{jql}");
+        assert!(jql.contains("ORDER BY updated DESC"), "{jql}");
+    }
+
+    #[tokio::test]
+    async fn a_field_this_site_does_not_have_is_said_so_without_asking_jira() {
+        let server = site_for_search(no_issues()).await;
+
+        // `expect_err` would need `Debug` on the success type, and nothing in
+        // `types.rs` derives it — the payload is not what this asserts anyway.
+        let Err(err) = client_for(&server)
+            .field_search("Customer reference", "ACME", false, &[])
+            .await
+        else {
+            panic!("a field the site does not have should not search");
+        };
+
+        assert!(err.contains("Customer reference"), "{err}");
+        // And no pointless round trip: the catalogue already said it was hopeless.
+        assert_eq!(requests_to(&server, "/search/jql").await, 0);
+    }
+
+    #[tokio::test]
+    async fn a_full_page_says_there_is_more() {
+        // The flag is what keeps a hundred rows from reading as a complete
+        // answer — see `search_issues_rows`.
+        let server = site_for_search(json!({
+            "issues": [{ "key": "ABC-1", "fields": { "summary": "Replace the pump" } }],
+            "nextPageToken": "more",
+        }))
+        .await;
+
+        let (found, has_more) = client_for(&server)
+            .field_search("Plant no.", "DE_1979", false, &[])
+            .await
+            .expect("search");
+
+        assert_eq!(found.len(), 1);
+        assert!(has_more);
+    }
+
+    #[tokio::test]
+    async fn a_last_page_says_there_is_not() {
+        let server = site_for_search(json!({
+            "issues": [{ "key": "ABC-1", "fields": { "summary": "Replace the pump" } }],
+        }))
+        .await;
+
+        let (_, has_more) = client_for(&server)
+            .field_search("Plant no.", "DE_1979", false, &[])
+            .await
+            .expect("search");
+
+        assert!(!has_more);
     }
 }

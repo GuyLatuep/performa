@@ -59,6 +59,14 @@ const TCP_KEEPALIVE: Duration = Duration::from_secs(60);
 /// answering 429.
 const MAX_INFLIGHT: usize = 16;
 
+/// How many rows one of the palette's searches asks Jira for.
+///
+/// Enough that the common search is answered whole, small enough that a term
+/// matching half the site does not drag the webview to a halt drawing rows
+/// nobody will scroll to. Where it is not enough, `search_issues_rows` says so
+/// rather than letting a full page read as a complete answer.
+const SEARCH_ROW_LIMIT: u32 = 100;
+
 /// Page size for `/project/search` (Jira's own maximum), and a stop so a site
 /// with an implausible number of projects can't spin the paging loop.
 const PROJECT_PAGE: u32 = 50;
@@ -401,8 +409,17 @@ impl JiraClient {
 
     /// Issues matching one of the palette's searches. The same fields a todo row
     /// draws, since that is what the results are shown as.
-    pub async fn search_issues_rows(&self, jql: &str) -> Result<Vec<IssueSummary>, String> {
-        self.search_issues_fields(jql, 100, "summary,status,priority,issuetype")
+    /// Issues matching one of the palette's searches, and whether Jira had more
+    /// to give.
+    ///
+    /// The flag is carried rather than dropped because of what these searches
+    /// promise: "every issue for this plant" is the question, closed issues are
+    /// deliberately kept, and a hundred rows of history is an ordinary result.
+    /// A full page presented as a complete answer is the one way this feature
+    /// can be confidently wrong — the reader counts a hundred, concludes the
+    /// hundred-and-first does not exist, and nothing on screen disagrees.
+    pub async fn search_issues_rows(&self, jql: &str) -> Result<(Vec<IssueSummary>, bool), String> {
+        self.search_issues_fields_page(jql, SEARCH_ROW_LIMIT, "summary,status,priority,issuetype")
             .await
     }
 

@@ -51,6 +51,16 @@ export interface AssetLink {
   objectId: string;
 }
 
+/** What one of the palette's searches found, and whether that was all of it.
+ *
+ *  `hasMore` is the difference between "these are the issues" and "these are the
+ *  first hundred" — a distinction the view has to draw, because a full page
+ *  otherwise reads as a complete answer. */
+export interface SearchResults {
+  issues: IssueSummary[];
+  hasMore: boolean;
+}
+
 /** Everything the issue view shows above the timeline. */
 export interface IssueDetail {
   key: string;
@@ -378,6 +388,8 @@ function memo<T>(key: string, call: () => Promise<T>): Promise<T> {
 }
 
 const issues = (r: IssueSummary[]) => `${r.length} issue(s)`;
+const found = (r: SearchResults) =>
+  `${r.issues.length} issue(s)${r.hasMore ? ", more not shown" : ""}`;
 const entries = (r: WorklogEntry[]) => `${r.length} entr(y/ies)`;
 
 export const api = {
@@ -416,11 +428,11 @@ export const api = {
   },
 
   /** The palette's plain text search: the term in any field Jira will search. */
-  searchText(term: string): Promise<IssueSummary[]> {
+  searchText(term: string): Promise<SearchResults> {
     return logged(
       `search_text(term=${JSON.stringify(term)})`,
       () => invoke("search_text", { term }),
-      issues,
+      found,
     );
   },
 
@@ -431,11 +443,11 @@ export const api = {
     term: string,
     exact: boolean,
     excludedProjects: string[],
-  ): Promise<IssueSummary[]> {
+  ): Promise<SearchResults> {
     return logged(
       `search_field(field=${JSON.stringify(field)}, term=${JSON.stringify(term)}, exact=${exact})`,
       () => invoke("search_field", { field, term, exact, excludedProjects }),
-      issues,
+      found,
     );
   },
   /** My issues due between 7 days ago and 14 days ahead, soonest first. */
