@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, WorklogEntry } from "../api";
+import { useShortcut } from "../shortcuts";
 import { formatDayLabel, formatDuration, weekRange } from "../time";
 import WeekChart from "./WeekChart";
 import RepeatModal from "./RepeatModal";
@@ -74,11 +75,20 @@ export default function TimesheetWeek({ site, refreshKey }: Props) {
         ? "Last week"
         : `${start} – ${end}`;
 
+  const prevKeys = useShortcut("prevPeriod", () => setOffset(offset - 1));
+  // Never past this week, the same bound the button carries.
+  const nextKeys = useShortcut(
+    "nextPeriod",
+    () => setOffset(offset + 1),
+    offset < 0,
+  );
+
   return (
     <div className="panel">
       <div className="week-nav">
         <button
           className="secondary"
+          {...prevKeys}
           aria-label="Previous week"
           title="Previous week"
           onClick={() => setOffset(offset - 1)}
@@ -93,6 +103,7 @@ export default function TimesheetWeek({ site, refreshKey }: Props) {
         </div>
         <button
           className="secondary"
+          {...nextKeys}
           aria-label="Next week"
           title="Next week"
           onClick={() => setOffset(offset + 1)}

@@ -180,6 +180,69 @@ describe("an unbound shortcut", () => {
   });
 });
 
+describe("two controls for one action", () => {
+  // A modal's Submit opens over the form's Submit underneath it, and the page's
+  // button stays mounted throughout. The innermost one answers, and the outer
+  // one must come back when it closes.
+
+  function Stacked({
+    inner,
+    outer,
+    modalOpen,
+  }: {
+    inner: () => void;
+    outer: () => void;
+    modalOpen: boolean;
+  }) {
+    return (
+      <>
+        <Probe run={outer} />
+        {modalOpen && <Probe run={inner} />}
+      </>
+    );
+  }
+
+  it("lets the innermost one answer", () => {
+    const inner = vi.fn();
+    const outer = vi.fn();
+    render(<Stacked inner={inner} outer={outer} modalOpen />);
+
+    press("2");
+
+    expect(inner).toHaveBeenCalledTimes(1);
+    expect(outer).not.toHaveBeenCalled();
+  });
+
+  it("gives the action back when the inner one closes", () => {
+    // The bug a single slot would have: the modal overwrites the page's binding
+    // and deletes it on the way out, leaving the chord bound to nothing while a
+    // perfectly good button is still on screen.
+    const inner = vi.fn();
+    const outer = vi.fn();
+    const { rerender } = render(
+      <Stacked inner={inner} outer={outer} modalOpen />,
+    );
+
+    rerender(<Stacked inner={inner} outer={outer} modalOpen={false} />);
+    press("2");
+
+    expect(outer).toHaveBeenCalledTimes(1);
+    expect(inner).toHaveBeenCalledTimes(0);
+  });
+
+  it("reports only the one that answers", () => {
+    const { rerender } = render(
+      <Stacked inner={vi.fn()} outer={vi.fn()} modalOpen />,
+    );
+
+    expect(boundShortcuts()).toHaveLength(1);
+
+    rerender(<Stacked inner={vi.fn()} outer={vi.fn()} modalOpen={false} />);
+
+    expect(boundShortcuts()).toHaveLength(1);
+  });
+});
+
 describe("a chord somebody else answers", () => {
   /** A Back button: badged here, run by `back.ts`. */
   function Badged() {

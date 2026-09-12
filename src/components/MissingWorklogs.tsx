@@ -2,7 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, MissingWorklog } from "../api";
 import { clearForward, useBackTarget } from "../back";
-import { useShortcutBadge } from "../shortcuts";
+import { useShortcut, useShortcutBadge } from "../shortcuts";
 import { timeAgo, toDateInput, toTimeInput } from "../time";
 import {
   ignoreMissing,
@@ -62,6 +62,14 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
     setBusy(false);
   }
 
+  // Not while the log form is up: the screen's refresh is behind it, and the key
+  // belongs to whatever is in front.
+  const refreshKeys = useShortcut(
+    "refresh",
+    refresh,
+    !busy && logging === null,
+  );
+
   const closeForm = useCallback(() => setLogging(null), []);
   const reopenForm = useCallback(() => {
     if (logging) setLogging(logging);
@@ -95,7 +103,12 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
           minutes isn't flagged yet.
         </span>
         <div className="missing-actions">
-          <button className="link" onClick={refresh} disabled={busy}>
+          <button
+            className="link"
+            {...refreshKeys}
+            onClick={refresh}
+            disabled={busy}
+          >
             {busy ? "Checking…" : "Check now"}
           </button>
           {lastChecked && (

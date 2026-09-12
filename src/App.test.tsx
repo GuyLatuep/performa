@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "./test-support/dom";
@@ -94,6 +100,11 @@ beforeEach(() => {
   mentionBadge.unread = 0;
   openUrl.mockClear();
   localStorage.clear();
+  // The chord is ⌘ here; which modifier a platform spells shortcuts with is
+  // platform.test.ts's business.
+  vi.stubGlobal("navigator", {
+    userAgent: "Macintosh; Intel Mac OS X 10_15_7",
+  });
 });
 
 describe("before anything is known", () => {
@@ -202,6 +213,63 @@ describe("the tab bar", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Mentions/ }));
     expect(screen.getByText("mentions panel")).toBeDefined();
+  });
+});
+
+describe("the tab shortcuts", () => {
+  /** Press a chord at the body, so it bubbles to the window listener. */
+  function chord(key: string) {
+    fireEvent.keyDown(document.body, { key, metaKey: true });
+  }
+
+  it.each([
+    ["⌘1", "1", "start panel"],
+    ["⌘2", "2", "todo panel"],
+    ["⌘3", "3", "log panel"],
+    ["⌘4", "4", "timesheet panel"],
+    ["⌘5", "5", "missing panel"],
+    ["⌘6", "6", "mentions panel"],
+  ])("%s reaches the %s", async (_label, key, panel) => {
+    await renderSignedIn();
+
+    await act(async () => chord(key));
+
+    expect(screen.getByText(panel)).toBeDefined();
+  });
+
+  it("names its key on every tab, for a screen reader as well as the badge", async () => {
+    await renderSignedIn();
+
+    expect(
+      screen
+        .getByRole("button", { name: "Todo" })
+        .getAttribute("aria-keyshortcuts"),
+    ).toBe("Meta+2");
+  });
+
+  it("opens settings on ⌘,", async () => {
+    await renderSignedIn();
+
+    await act(async () => chord(","));
+
+    expect(screen.getByText("settings screen")).toBeDefined();
+  });
+
+  it("leaves a tab switch alone while a comment is half written", async () => {
+    // The draft rule: ⌘2 would throw those words away, so it stands down and the
+    // press falls through to whoever else wants it.
+    await renderSignedIn();
+    const box = document.createElement("textarea");
+    document.body.append(box);
+    box.value = "half a comment";
+    box.focus();
+
+    await act(async () => {
+      fireEvent.keyDown(box, { key: "2", metaKey: true });
+    });
+
+    expect(screen.getByText("start panel")).toBeDefined();
+    box.remove();
   });
 });
 

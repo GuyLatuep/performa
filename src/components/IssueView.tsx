@@ -10,7 +10,7 @@ import {
   Transition,
 } from "../api";
 import { clearForward, useBackTarget } from "../back";
-import { useShortcutBadge } from "../shortcuts";
+import { useShortcut, useShortcutBadge } from "../shortcuts";
 import { OfferedTransition } from "../transitions";
 import { useIssueFieldConfig } from "../issueFieldNames";
 import { logInfo } from "../log";
@@ -187,6 +187,9 @@ export default function IssueView({
   useBackTarget({ label: backTo, back, forward });
   // `back.ts` answers the chord; this only says where its badge belongs.
   const backBadge = useShortcutBadge("back");
+  const jiraKeys = useShortcut("openInJira", () =>
+    openUrl(`${site}/browse/${open.key}`),
+  );
 
   return (
     <div className="panel issue-view">
@@ -197,6 +200,7 @@ export default function IssueView({
         </button>
         <button
           className="link"
+          {...jiraKeys}
           title={`Open ${open.key} in browser`}
           onClick={() => openUrl(`${site}/browse/${open.key}`)}
         >

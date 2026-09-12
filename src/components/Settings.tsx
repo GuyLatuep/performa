@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { CredentialsMeta } from "../api";
+import { useShortcut } from "../shortcuts";
 import {
   getDailyHours,
   getLogLevel,
@@ -93,6 +94,14 @@ export default function Settings({
     getVersion().then(setVersion);
   }, []);
 
+  // Only where there is a Save to press: the connection tab brings its own, and
+  // on first run there is no way out of this screen at all.
+  const saveKeys = useShortcut(
+    "submit",
+    () => onCancel?.(),
+    tab !== "connection" && !!onCancel,
+  );
+
   return (
     <div className={`setup${onCancel ? " settings-page" : ""}`}>
       <div className="setup-mark">
@@ -141,7 +150,7 @@ export default function Settings({
           {/* Theme/accent/hours/weekends/icons/log level are already live in the
               stores as they're changed, so "Save" is just closing without
               rolling back to the snapshot — unlike Cancel above. */}
-          <button type="button" onClick={onCancel}>
+          <button type="button" {...saveKeys} onClick={onCancel}>
             Save
           </button>
         </div>

@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, invalidateCachedReads, IssueSummary } from "../api";
 import { clearForward } from "../back";
+import { useShortcut } from "../shortcuts";
 import { usePinnedIssues } from "../pins";
 import { useIgnoredStatuses } from "../todoStatuses";
 import IssueRow from "./IssueRow";
@@ -80,6 +81,10 @@ export default function Todo({ site, onLogged }: Props) {
     setReloadKey((k) => k + 1);
   }, []);
 
+  // Unbound while the list is loading, so the key disappears along with the
+  // button rather than queueing a second read behind the first.
+  const refreshKeys = useShortcut("refresh", reload, issues !== null);
+
   if (opened) {
     return (
       <IssueView
@@ -134,6 +139,7 @@ export default function Todo({ site, onLogged }: Props) {
             )}
             <button
               className="link"
+              {...refreshKeys}
               onClick={reload}
               disabled={issues === null}
             >

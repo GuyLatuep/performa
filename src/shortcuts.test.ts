@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ariaKeyShortcuts,
+  chordOf,
   matchShortcut,
   RESERVED_KEYS,
   SHORTCUTS,
@@ -19,6 +20,11 @@ const ENTRIES = Object.entries(SHORTCUTS) as [ShortcutId, Shortcut][];
  *  itself is covered in platform.test.ts. */
 function press(key: string, mods: Partial<KeyboardEventInit> = {}) {
   return new KeyboardEvent("keydown", { key, metaKey: true, ...mods });
+}
+
+/** The chord an entry asks for, as a press. */
+function pressChord(s: Shortcut) {
+  return press(s.key, s.shift ? { shiftKey: true } : {});
 }
 
 /** A focused field in the page, since `document.activeElement` is what is read. */
@@ -45,39 +51,51 @@ afterEach(() => {
 });
 
 describe("the catalogue", () => {
-  it("gives every action a key of its own", () => {
+  it("gives every action a chord of its own", () => {
     // Global, not per screen. Two screens could in principle each spend "R" on
     // something different, since they are never mounted together — but proving
     // that needs a model of what can be on screen with what, and every such
     // model is one screen behind the app.
-    const byKey = new Map<string, ShortcutId[]>();
+    //
+    // Compared as whole chords, so `⌘K` and `⌘⇧K` are two keys rather than one
+    // clash. This is the test that keeps the catalogue honest as it grows.
+    const byChord = new Map<string, ShortcutId[]>();
     for (const [id, s] of ENTRIES) {
-      byKey.set(s.key, [...(byKey.get(s.key) ?? []), id]);
+      const chord = chordOf(s);
+      byChord.set(chord, [...(byChord.get(chord) ?? []), id]);
     }
-    const clashes = [...byKey].filter(([, ids]) => ids.length > 1);
+    const clashes = [...byChord].filter(([, ids]) => ids.length > 1);
 
     expect(clashes).toEqual([]);
   });
 
-  it.each(ENTRIES)(
-    "%s does not take a key the system already has",
-    (_id, s) => {
-      expect(RESERVED_KEYS).not.toContain(s.key.toLowerCase());
-    },
-  );
-
-  it.each(ENTRIES)("%s spells its key the way KeyboardEvent does", (_id, s) => {
-    // Lower case and one character: `matchShortcut` lower-cases what it is
-    // handed, so an entry spelled "R" or "Cmd+R" would simply never match.
-    expect(s.key).toBe(s.key.toLowerCase());
-    expect(s.key).toHaveLength(1);
+  it.each(ENTRIES)("%s does not take a chord the system has", (_id, s) => {
+    // The whole chord: `⌘←` is reserved as back's other spelling, and `⌘⇧←` is
+    // the previous period, which is a different press.
+    expect(RESERVED_KEYS).not.toContain(chordOf(s));
   });
 
-  it.each(ENTRIES)("%s can be found by its key", (id, s) => {
+  it.each(ENTRIES)("%s spells its key the way KeyboardEvent does", (_id, s) => {
+    // Lower case, because `matchShortcut` lower-cases what it is handed — an
+    // entry spelled "R" or "Cmd+R" would simply never match. Either one
+    // character, or a named key spelled the way `key` reports it.
+    expect(s.key).toBe(s.key.toLowerCase());
+    expect(s.key.length === 1 || s.key.startsWith("arrow")).toBe(true);
+  });
+
+  it.each(ENTRIES)("%s can be found by its chord", (id, s) => {
     // The reverse map is built at import, so a duplicate would be swallowed
     // there rather than above — this is what proves the promise reached the
     // dispatcher.
-    expect(matchShortcut(press(s.key))).toBe(id);
+    expect(matchShortcut(pressChord(s))).toBe(id);
+  });
+
+  it("keeps the same verb on the same key across screens", () => {
+    // The rule that makes forty actions memorable as a dozen verbs: one entry
+    // per verb, reused by whichever screen has a control for it.
+    expect(SHORTCUTS.refresh.key).toBe("r");
+    expect(SHORTCUTS.openInJira.key).toBe("j");
+    expect(SHORTCUTS.logWork.key).toBe("l");
   });
 
   it("reserves what the macOS menu bar eats", () => {
@@ -121,7 +139,24 @@ describe("the catalogue", () => {
 
 describe("matchShortcut", () => {
   it("is null for a key nothing has claimed", () => {
-    expect(matchShortcut(press("k"))).toBeNull();
+    expect(matchShortcut(press("g"))).toBeNull();
+  });
+
+  it("reads Shift only where an entry asks for it", () => {
+    // ⌘⇧K is its own action; ⌘⇧R is not the refresh, it is nothing at all.
+    expect(matchShortcut(press("k", { shiftKey: true }))).toBe(
+      "replyToCustomer",
+    );
+    expect(matchShortcut(press("k"))).toBe("comment");
+    expect(matchShortcut(press("r", { shiftKey: true }))).toBeNull();
+  });
+
+  it("tells the previous period from going back", () => {
+    // ⌘← is back's, so stepping the period takes the shifted arrows.
+    expect(matchShortcut(press("ArrowLeft", { shiftKey: true }))).toBe(
+      "prevPeriod",
+    );
+    expect(matchShortcut(press("ArrowLeft"))).toBeNull();
   });
 
   it("is null without the modifier", () => {
@@ -129,10 +164,6 @@ describe("matchShortcut", () => {
   });
 
   it.each([
-    [
-      "Shift, which is Redo's and changes what `key` reports",
-      { shiftKey: true },
-    ],
     ["Alt, which is Hide Others' and produces a dead accent", { altKey: true }],
     ["Control as well, which belongs to Spaces", { ctrlKey: true }],
   ])("is null for a chord also carrying %s", (_label, mods) => {

@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
@@ -62,6 +68,7 @@ import {
   resetApiMock,
   transition,
 } from "../test-support/api";
+import { ShortcutKeys } from "../test-support/shortcuts";
 import IssueView from "./IssueView";
 
 const ISSUE = issueSummary({ key: "ABC-1", summary: "Replace the pump" });
@@ -72,18 +79,32 @@ beforeEach(clearForward);
 function renderView(props: Partial<Parameters<typeof IssueView>[0]> = {}) {
   const handlers = { onBack: vi.fn(), onLogged: vi.fn() };
   render(
-    <IssueView
-      issue={ISSUE}
-      site="https://example.atlassian.net"
-      backLabel="Todo"
-      {...handlers}
-      {...props}
-    />,
+    <>
+      {/* The app mounts the dispatcher once, in `App`. */}
+      <ShortcutKeys />
+      <IssueView
+        issue={ISSUE}
+        site="https://example.atlassian.net"
+        backLabel="Todo"
+        {...handlers}
+        {...props}
+      />
+    </>,
   );
   return handlers;
 }
 
-beforeEach(resetApiMock);
+/** Press a chord at the body, so it bubbles to the window listener. */
+function chord(key: string, mods: Partial<KeyboardEventInit> = {}) {
+  fireEvent.keyDown(document.body, { key, metaKey: true, ...mods });
+}
+
+beforeEach(() => {
+  resetApiMock();
+  vi.stubGlobal("navigator", {
+    userAgent: "Macintosh; Intel Mac OS X 10_15_7",
+  });
+});
 
 describe("opening an issue", () => {
   it("reads the detail, the timeline and the workflow", async () => {
@@ -285,6 +306,49 @@ describe("following a link", () => {
 
     expect(await screen.findByText("facts for ABC-1")).toBeDefined();
     expect(onBack).not.toHaveBeenCalled();
+  });
+});
+
+describe("the issue view's shortcuts", () => {
+  it("opens the issue in Jira on ⌘J", async () => {
+    renderView();
+    await screen.findByText("facts for ABC-1");
+
+    await act(async () => chord("j"));
+
+    expect(openUrl).toHaveBeenCalledWith(
+      "https://example.atlassian.net/browse/ABC-1",
+    );
+  });
+
+  it("follows the trail, so ⌘J opens whichever issue is being read", async () => {
+    // One verb, one key; what it acts on is whatever is open.
+    renderView();
+    await screen.findByText("links for ABC-1");
+    await userEvent.click(
+      screen.getByRole("button", { name: "follow to ABC-2" }),
+    );
+    await screen.findByText("facts for ABC-2");
+
+    await act(async () => chord("j"));
+
+    expect(openUrl).toHaveBeenCalledWith(
+      "https://example.atlassian.net/browse/ABC-2",
+    );
+  });
+
+  it("names the back chord on the Back button", async () => {
+    // The chord itself is `back.ts`'s — covered in backHook.test.ts, and this
+    // view's `goBack()` test above. What this view owns is saying where the
+    // badge for it belongs, and telling a screen reader the same thing.
+    renderView();
+    await screen.findByText("facts for ABC-1");
+
+    expect(
+      screen
+        .getByRole("button", { name: /Back to Todo/ })
+        .getAttribute("aria-keyshortcuts"),
+    ).toBe("Meta+[");
   });
 });
 

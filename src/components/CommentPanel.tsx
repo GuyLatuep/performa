@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { api, JiraUser } from "../api";
+import { useShortcut } from "../shortcuts";
 import { CommentAction } from "../comments";
 import {
   activeMentionQuery,
@@ -145,6 +146,14 @@ export default function CommentPanel({
     });
   }
 
+  // Gone while the box is empty or the post is in flight, exactly as the button
+  // is disabled — posting nothing is not a thing the key should offer.
+  const submitKeys = useShortcut(
+    "submit",
+    () => post(),
+    !busy && text.trim() !== "",
+  );
+
   async function post() {
     setBusy(true);
     setError(null);
@@ -209,7 +218,11 @@ export default function CommentPanel({
 
       {error && <p className="error">{error}</p>}
       <div className="panel-actions">
-        <button onClick={post} disabled={busy || text.trim() === ""}>
+        <button
+          {...submitKeys}
+          onClick={post}
+          disabled={busy || text.trim() === ""}
+        >
           {busy ? "Posting…" : action.label}
         </button>
         {serviceDesk && <span className="hint">{action.title}.</span>}

@@ -20,6 +20,9 @@ export interface Shortcut {
    *  on them — and so the badge, which draws this very string, can never
    *  disagree with what the press produces. */
   key: string;
+  /** Held with Shift as well. A second variant of an action whose plain chord is
+   *  already spent: `⌘⇧←` is the previous period where `⌘←` is back. */
+  shift?: true;
   /** What it does. Read by `aria-keyshortcuts` and by the conflict test's
    *  failure message; never drawn, because the badge shows the key. */
   label: string;
@@ -50,9 +53,53 @@ export interface Shortcut {
 }
 
 export const SHORTCUTS = {
+  // The six tabs, in the order the source list draws them. Leaving a tab throws
+  // away nothing but an unsaved draft, which is what `standsDown` covers.
   tabStart: { key: "1", label: "Start tab", standsDown: "draft" },
   tabTodo: { key: "2", label: "Todo tab", standsDown: "draft" },
+  tabLog: { key: "3", label: "Log work tab", standsDown: "draft" },
+  tabTimesheet: { key: "4", label: "Timesheet tab", standsDown: "draft" },
+  tabMissing: { key: "5", label: "Missing worklog tab", standsDown: "draft" },
+  tabMentions: { key: "6", label: "Mentions tab", standsDown: "draft" },
+
   settings: { key: ",", label: "Settings", standsDown: "draft" },
+
+  // One verb, one key, wherever it appears. `⌘R` is "refresh this screen" on all
+  // four screens that have a refresh; `⌘J` is "open in Jira" on whatever is
+  // open. What each acts on is decided by which control is mounted, which is
+  // also what decides whether the key fires at all.
+  refresh: { key: "r", label: "Refresh", standsDown: "draft" },
+  openInJira: { key: "j", label: "Open in Jira" },
+  logWork: { key: "l", label: "Log work" },
+  comment: { key: "k", label: "Comment" },
+  replyToCustomer: {
+    key: "k",
+    shift: true,
+    label: "Reply to customer",
+  },
+  attach: { key: "u", label: "Attach files" },
+  linkItem: { key: "i", label: "Link work item" },
+  arrange: { key: "e", label: "Arrange fields" },
+
+  // Submitting is the one action that must work with a full text box — it is
+  // what empties it — so it stands down for nothing.
+  submit: { key: "s", label: "Submit" },
+
+  // The timer's one singular control. Starting one is per issue row, which is
+  // a different shortcut on a different thing.
+  timer: { key: "t", label: "Stop the timer" },
+
+  timesheetView: { key: "y", label: "Week or month" },
+  prevPeriod: {
+    key: "arrowleft",
+    shift: true,
+    label: "Previous period",
+  },
+  nextPeriod: {
+    key: "arrowright",
+    shift: true,
+    label: "Next period",
+  },
 
   // Answered by `back.ts`. "typing" rather than "draft" because that handler
   // stands down whenever a text box has focus, full or empty — `⌘←` means
@@ -75,6 +122,11 @@ export type ActionId = {
 /** The ids that only want a badge. Binding one to a handler that would never run
  *  is a type error rather than a puzzle. */
 export type BadgeId = Exclude<ShortcutId, ActionId>;
+
+/** The same table read as the interface rather than as its literal types, which
+ *  is what lets these accessors ask about a field only some entries carry.
+ *  `SHORTCUTS` keeps its literals for the tests, which assert against them. */
+const TABLE: Record<ShortcutId, Shortcut> = SHORTCUTS;
 
 /**
  * Characters that never arrive, and characters already answered.
@@ -104,27 +156,60 @@ export const RESERVED_KEYS = [
   "arrowright",
 ] as const;
 
-const BY_KEY = new Map<string, ShortcutId>(
-  (Object.keys(SHORTCUTS) as ShortcutId[]).map((id) => [SHORTCUTS[id].key, id]),
+/**
+ * How a chord is spelled as one string, for looking one up and for proving two
+ * do not collide. Shift is part of the spelling; the primary modifier is not,
+ * being on every chord here.
+ */
+export function chordOf(s: Shortcut): string {
+  return (s.shift ? "shift+" : "") + s.key;
+}
+
+const BY_CHORD = new Map<string, ShortcutId>(
+  (Object.keys(TABLE) as ShortcutId[]).map((id) => [chordOf(TABLE[id]), id]),
 );
+
+/** The glyphs a key is drawn as, where its name is not what it looks like. */
+const KEY_GLYPHS: Record<string, string> = {
+  arrowleft: "←",
+  arrowright: "→",
+  arrowup: "↑",
+  arrowdown: "↓",
+};
+
+/** What the badge draws. The primary modifier never appears — it is being held,
+ *  so the reader knows — but Shift does, because it is not. */
+export function keyLabel(id: ShortcutId): string {
+  const s = TABLE[id];
+  return (s.shift ? "⇧" : "") + (KEY_GLYPHS[s.key] ?? s.key);
+}
 
 /**
  * Which shortcut this press is, or null.
  *
- * Shift and Alt disqualify it outright. Both are somebody else's chord — ⇧⌘Z is
- * Redo, ⌥⌘H is Hide Others — and both change what `key` reports (⇧1 is "!", ⌥e
- * is a dead accent), so admitting them would mean every entry carrying a second
- * spelling that nothing here wants.
+ * Alt disqualifies it outright: `⌥⌘H` is Hide Others, and Alt changes what `key`
+ * reports at all (`⌥e` is a dead accent), so admitting it would mean every entry
+ * carrying a second spelling nothing here wants. Shift is read rather than
+ * rejected, because it is how the catalogue spells a second variant of an action
+ * whose plain chord is taken — but only where an entry asks for it, so `⇧⌘R`
+ * matches nothing rather than quietly refreshing.
  */
 export function matchShortcut(e: KeyboardEvent): ShortcutId | null {
-  if (e.shiftKey || !hasPrimaryModifier(e)) return null;
-  return BY_KEY.get(e.key.toLowerCase()) ?? null;
+  if (!hasPrimaryModifier(e)) return null;
+  const chord = (e.shiftKey ? "shift+" : "") + e.key.toLowerCase();
+  return BY_CHORD.get(chord) ?? null;
 }
 
 /** ARIA's spelling of the chord — "Meta+R" on a Mac, "Control+R" elsewhere.
  *  ARIA names the key, not the glyph, so this is not `primaryGlyph`. */
 export function ariaKeyShortcuts(id: ShortcutId): string {
-  return `${isMac() ? "Meta" : "Control"}+${SHORTCUTS[id].key.toUpperCase()}`;
+  const s = TABLE[id];
+  const primary = isMac() ? "Meta" : "Control";
+  // ARIA names the key: "ArrowLeft", not "←".
+  const named = s.key.startsWith("arrow")
+    ? "Arrow" + s.key.slice(5, 6).toUpperCase() + s.key.slice(6)
+    : s.key.toUpperCase();
+  return `${primary}+${s.shift ? "Shift+" : ""}${named}`;
 }
 
 /**
@@ -180,7 +265,7 @@ export function standingDown(
   id: ShortcutId,
   el: Element | null = document.activeElement,
 ): boolean {
-  const mode = SHORTCUTS[id].standsDown;
+  const mode = TABLE[id].standsDown;
   if (mode === "draft") return drafting(el);
   if (mode === "typing") return textBox(el);
   return false;
@@ -194,15 +279,29 @@ interface Binding {
   run: (() => void) | null;
 }
 
-/** One binding per id. Nothing needs a stack: the three screens carrying a
- *  Refresh are never on screen together, and a second binding for an id already
- *  taken is last-one-wins — the same rule, for the same reason, as `back.ts`'s
- *  slot of one. */
-const bindings = new Map<ShortcutId, Binding>();
+/**
+ * Every mounted control for an id, oldest first.
+ *
+ * A stack rather than a slot, because two controls for one id genuinely coexist:
+ * a modal's Submit opens over the form's Submit underneath it, and the page's
+ * button stays mounted the whole time. With a slot, the modal would overwrite
+ * the page's binding and then delete it on the way out, leaving `⌘S` bound to
+ * nothing while a perfectly good button was still on screen.
+ *
+ * The innermost control — the last to mount — is the one that answers, which is
+ * what "whatever is open" means.
+ */
+const bindings = new Map<ShortcutId, Binding[]>();
 
-/** For the badge overlay, and for the tests. */
+function active(id: ShortcutId): Binding | undefined {
+  const stack = bindings.get(id);
+  return stack?.[stack.length - 1];
+}
+
+/** The control answering for each bound id. For the badge overlay, and for the
+ *  tests. */
 export function boundShortcuts(): Binding[] {
-  return [...bindings.values()];
+  return [...bindings.keys()].map((id) => active(id)!).filter(Boolean);
 }
 
 export interface ShortcutProps {
@@ -256,18 +355,19 @@ function useBinding(
   const ref = useCallback(
     (node: HTMLElement | null) => {
       if (!node || !enabled) return;
-      bindings.set(id, {
-        id,
-        node,
-        run: run && (() => latest.current?.()),
-      });
+      const stack = bindings.get(id) ?? [];
+      stack.push({ id, node, run: run && (() => latest.current?.()) });
+      bindings.set(id, stack);
       // React 19 takes a cleanup back from a ref callback, which is the only
-      // moment at which *which* node went away is known.
+      // moment at which *which* node went away is known — and with a stack, the
+      // only way to remove the right one. React commits every cleanup before
+      // every setup, so an outgoing screen's cleanup can run after the incoming
+      // one has already pushed; removing by node rather than by position is what
+      // makes that order stop mattering.
       return () => {
-        // Guarded: React commits every cleanup before every setup, so when one
-        // screen replaces another the outgoing control's cleanup runs after the
-        // incoming one has already claimed the id.
-        if (bindings.get(id)?.node === node) bindings.delete(id);
+        const left = (bindings.get(id) ?? []).filter((b) => b.node !== node);
+        if (left.length > 0) bindings.set(id, left);
+        else bindings.delete(id);
       };
     },
     // `run` is deliberately not a dependency: whether there *is* one is fixed by
@@ -302,7 +402,7 @@ export function useShortcutKeys(): void {
       if (e.defaultPrevented) return;
       const id = matchShortcut(e);
       if (!id) return;
-      const binding = bindings.get(id);
+      const binding = active(id);
       // No control on screen for it, or a chord somebody else answers: not ours
       // to swallow either way. There is deliberately no blanket typing guard
       // here — ⌘-chords are not typing, and the narrow `standingDown` below is
@@ -336,7 +436,7 @@ const TOP_EDGE = 12;
 export function placeBadges(): BadgePlacement[] {
   const focused = document.activeElement;
   const out: BadgePlacement[] = [];
-  for (const b of bindings.values()) {
+  for (const b of boundShortcuts()) {
     const r = b.node.getBoundingClientRect();
     // Not drawn, or scrolled out of the panel it lives in. A badge floating
     // where its control is not is worse than no badge — and this is the case a
@@ -348,7 +448,7 @@ export function placeBadges(): BadgePlacement[] {
     if (covered(b.node)) continue;
     out.push({
       id: b.id,
-      key: SHORTCUTS[b.id].key,
+      key: keyLabel(b.id),
       x: r.right,
       y: Math.max(r.top, TOP_EDGE),
       standingDown: standingDown(b.id, focused),

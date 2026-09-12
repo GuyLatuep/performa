@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import { useShortcut } from "../shortcuts";
 import { formatDuration } from "../time";
 import { logInfo } from "../log";
 import {
@@ -20,6 +21,10 @@ export default function LogPanel({
   const { draft, patch, seconds } = useWorklogDraft();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Not while the request is in flight, which is the same bound the button
+  // carries.
+  const submitKeys = useShortcut("submit", () => submit(), !busy);
 
   async function submit() {
     if (seconds === null) {
@@ -47,7 +52,7 @@ export default function LogPanel({
       <WorklogFields draft={draft} patch={patch} seconds={seconds} />
       {error && <p className="error">{error}</p>}
       <div className="panel-actions">
-        <button onClick={submit} disabled={busy}>
+        <button {...submitKeys} onClick={submit} disabled={busy}>
           {busy ? "Logging…" : "Log work"}
         </button>
       </div>

@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
@@ -58,6 +64,7 @@ import { setFunMode, setShowIssueTypeIcons } from "../settings";
 import { apiMock, issueSummary, resetApiMock } from "../test-support/api";
 import { setTodoSort } from "../todoSort";
 import { setIgnoredStatuses } from "../todoStatuses";
+import { ShortcutKeys } from "../test-support/shortcuts";
 import Todo from "./Todo";
 
 const ISSUES = [
@@ -67,11 +74,21 @@ const ISSUES = [
 
 function renderTodo() {
   const onLogged = vi.fn();
-  render(<Todo site="https://example.atlassian.net" onLogged={onLogged} />);
+  render(
+    <>
+      {/* The app mounts the dispatcher once, in `App`; a screen on its own has
+          to bring it, or its keys go into a registry nobody listens over. */}
+      <ShortcutKeys />
+      <Todo site="https://example.atlassian.net" onLogged={onLogged} />
+    </>,
+  );
   return onLogged;
 }
 
 beforeEach(() => {
+  vi.stubGlobal("navigator", {
+    userAgent: "Macintosh; Intel Mac OS X 10_15_7",
+  });
   resetApiMock();
   localStorage.clear();
   // Module-level stores outlive a test.
@@ -220,6 +237,33 @@ describe("sorting", () => {
     await screen.findByRole("button", { name: "ABC-2" });
 
     expect(screen.queryByTitle(/issue type/)).toBeNull();
+  });
+});
+
+describe("the refresh shortcut", () => {
+  it("re-reads the list on ⌘R, the same as the button", async () => {
+    apiMock.todoIssues.mockResolvedValue(ISSUES);
+    renderTodo();
+    await screen.findByRole("button", { name: "ABC-1" });
+
+    await act(async () => {
+      fireEvent.keyDown(document.body, { key: "r", metaKey: true });
+    });
+
+    expect(apiMock.invalidateCachedReads).toHaveBeenCalled();
+    await waitFor(() => expect(apiMock.todoIssues).toHaveBeenCalledTimes(2));
+  });
+
+  it("is not offered while the list is still loading", async () => {
+    // The button is disabled then, and the key goes with it rather than queueing
+    // a second read behind the first.
+    renderTodo();
+
+    await act(async () => {
+      fireEvent.keyDown(document.body, { key: "r", metaKey: true });
+    });
+
+    expect(apiMock.invalidateCachedReads).not.toHaveBeenCalled();
   });
 });
 

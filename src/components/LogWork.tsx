@@ -2,7 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useCallback, useState } from "react";
 import { api, IssueSummary } from "../api";
 import { clearForward, useBackTarget } from "../back";
-import { useShortcutBadge } from "../shortcuts";
+import { useShortcut, useShortcutBadge } from "../shortcuts";
 import { logInfo } from "../log";
 import { formatDuration } from "../time";
 import IssueHistory from "./IssueHistory";
@@ -73,6 +73,10 @@ export default function LogWork({
     logInfo(`opened log-work form for ${issue.key}`);
   }
 
+  // Not while the request is in flight, which is the same bound the button
+  // carries.
+  const submitKeys = useShortcut("submit", () => submit(), !busy);
+
   async function submit() {
     if (!selected) return;
     if (seconds === null) {
@@ -132,7 +136,7 @@ export default function LogWork({
         {error && <p className="error">{error}</p>}
         {okMsg && <p className="success">{okMsg}</p>}
 
-        <button onClick={submit} disabled={busy}>
+        <button {...submitKeys} onClick={submit} disabled={busy}>
           {busy ? "Logging…" : "Log work"}
         </button>
 

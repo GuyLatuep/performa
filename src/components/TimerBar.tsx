@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../api";
+import { useShortcut } from "../shortcuts";
 import { formatDuration, toDateInput, toTimeInput } from "../time";
 import {
   ActiveTimer,
@@ -55,6 +56,11 @@ export default function TimerBar({ onLogged }: Props) {
     return () => unlisten?.();
   }, []);
 
+  // Bound only while a timer is actually running, which is also the only time
+  // the bar is on screen. Starting one is per issue row — a different shortcut
+  // on a different thing, and step 6's business.
+  const stopKeys = useShortcut("timer", onStop, !!timer && !stopping);
+
   if (!timer && !stopping) return null;
 
   return (
@@ -71,7 +77,7 @@ export default function TimerBar({ onLogged }: Props) {
           >
             {formatClock(elapsed)}
           </span>
-          <button className="timer-stop" onClick={onStop}>
+          <button className="timer-stop" {...stopKeys} onClick={onStop}>
             Stop
           </button>
         </div>

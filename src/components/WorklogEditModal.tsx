@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, WorklogEntry } from "../api";
+import { useShortcut } from "../shortcuts";
 import { formatDuration } from "../time";
 import {
   DURATION_ERROR,
@@ -28,6 +29,10 @@ export default function WorklogEditModal({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Not while the request is in flight, which is the same bound the button
+  // carries.
+  const submitKeys = useShortcut("submit", () => save(), !busy);
 
   async function save() {
     if (seconds === null) {
@@ -60,7 +65,7 @@ export default function WorklogEditModal({
           <button className="secondary" onClick={onClose}>
             Cancel
           </button>
-          <button onClick={save} disabled={busy}>
+          <button {...submitKeys} onClick={save} disabled={busy}>
             {busy ? "Saving…" : "Save"}
           </button>
         </div>

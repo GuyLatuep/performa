@@ -137,6 +137,19 @@ describe("isBackShortcut", () => {
     expect(isBackShortcut(key("ArrowLeft", { altKey: true }))).toBe(true);
   });
 
+  it.each([
+    ["⌘⇧←, which is the timesheet's previous period", "ArrowLeft"],
+    ["⌘⇧[, which is nobody's", "["],
+  ])("is false for %s", (_label, k) => {
+    // `hasPrimaryModifier` is indifferent to Shift, because the catalogue uses
+    // it to spell a second variant of an action whose plain chord is taken.
+    // Matching one here would swallow the press and preventDefault it, leaving
+    // the dispatcher standing aside from a key that was rightfully its own.
+    expect(isBackShortcut(key(k, { metaKey: true, shiftKey: true }))).toBe(
+      false,
+    );
+  });
+
   it("is false for ⌃⌘←, which belongs to Spaces", () => {
     // Taking a system chord would move the desktop and the view at once.
     expect(

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { api, Attachment } from "../api";
+import { useShortcut } from "../shortcuts";
 import { formatBytes } from "../files";
 import { timeAgo } from "../time";
 import { logInfo } from "../log";
@@ -101,6 +102,10 @@ export default function IssueAttachments({
     };
   }, [upload]);
 
+  // Unbound while a previous upload is in flight, so the key goes away with the
+  // button rather than opening a second file dialog over the first.
+  const attachKeys = useShortcut("attach", () => pick(), !busy);
+
   async function pick() {
     const picked = await openFileDialog({ multiple: true });
     if (!picked) return;
@@ -193,7 +198,12 @@ export default function IssueAttachments({
       {error && <p className="error">{error}</p>}
 
       <div className="panel-actions">
-        <button className="secondary" onClick={pick} disabled={busy}>
+        <button
+          className="secondary"
+          {...attachKeys}
+          onClick={pick}
+          disabled={busy}
+        >
           {busy ? "Attaching…" : "Attach files…"}
         </button>
         {attachments.length > 0 && (

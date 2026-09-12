@@ -31,6 +31,7 @@ import FieldArrangeBar from "./FieldArrangeBar";
 import { useFieldDrag } from "../fieldDrag";
 import FieldForm from "./FieldForm";
 import { useDismissOnOutside } from "../dismiss";
+import { useShortcut } from "../shortcuts";
 
 /**
  * The issue's fields, each editable when Jira says it can be.
@@ -55,6 +56,9 @@ export default function IssueFacts({
   const [editing, setEditing] = useState<string | null>(null);
   /** Arranging the layout rather than reading it. */
   const [arranging, setArranging] = useState(false);
+  const startArranging = () => setArranging(true);
+  // The button is only there while reading, and so is the key.
+  const arrangeKeys = useShortcut("arrange", startArranging, !arranging);
   const fieldConfig = useIssueFieldConfig();
 
   const onDrop = useCallback((dragged: string, onto: string) => {
@@ -290,7 +294,7 @@ export default function IssueFacts({
         />
       ) : (
         <div className="arrange-entry">
-          <button className="link" onClick={() => setArranging(true)}>
+          <button className="link" {...arrangeKeys} onClick={startArranging}>
             Arrange fields
           </button>
         </div>

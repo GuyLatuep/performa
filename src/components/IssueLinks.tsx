@@ -4,6 +4,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, IssueSummary, LinkedItem, LinkRelation } from "../api";
 import { useDismissOnOutside } from "../dismiss";
 import { logInfo } from "../log";
+import { useShortcut } from "../shortcuts";
 
 /** The work items this issue is linked to, and a way to link another one.
  *
@@ -27,6 +28,10 @@ export default function IssueLinks({
   onOpen: (item: LinkedItem) => void;
 }) {
   const [adding, setAdding] = useState(false);
+  const startAdding = () => setAdding(true);
+  // Only while the form is closed: once it is open the key has nothing left to
+  // do, and the badge would sit on a button that is no longer there.
+  const linkKeys = useShortcut("linkItem", startAdding, !adding);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -117,7 +122,7 @@ export default function IssueLinks({
         />
       ) : (
         <div className="panel-actions">
-          <button className="secondary" onClick={() => setAdding(true)}>
+          <button className="secondary" {...linkKeys} onClick={startAdding}>
             Link work item…
           </button>
         </div>

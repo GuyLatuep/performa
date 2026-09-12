@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { IssueSummary, Mention } from "../api";
 import { clearForward } from "../back";
+import { useShortcut } from "../shortcuts";
 import IssueView from "./IssueView";
 import { recordEvent } from "../achievements";
 import AchievementToast from "./AchievementToast";
@@ -65,6 +66,10 @@ export default function Mentions({ site, onLogged }: Props) {
     setBusy(false);
   }
 
+  // The same verb as Todo's Refresh, so the same key. What it acts on is decided
+  // by which screen has a control for it mounted.
+  const refreshKeys = useShortcut("refresh", refresh, !busy);
+
   if (opened) {
     return (
       <IssueView
@@ -89,7 +94,12 @@ export default function Mentions({ site, onLogged }: Props) {
           Rechecked every 3 minutes.
         </span>
         <div className="missing-actions">
-          <button className="link" onClick={refresh} disabled={busy}>
+          <button
+            className="link"
+            {...refreshKeys}
+            onClick={refresh}
+            disabled={busy}
+          >
             {busy ? "Checking…" : "Check now"}
           </button>
           {lastChecked && (

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import { useShortcut } from "../shortcuts";
 import { addTemplate } from "../templates";
 import IssueHistory from "./IssueHistory";
 import {
@@ -38,6 +39,10 @@ export default function RepeatModal({
   const [saveTemplate, setSaveTemplate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Not while the request is in flight, which is the same bound the button
+  // carries.
+  const submitKeys = useShortcut("submit", () => save(), !busy);
 
   async function save() {
     if (seconds === null) {
@@ -86,7 +91,7 @@ export default function RepeatModal({
           <button className="secondary" onClick={onClose}>
             Cancel
           </button>
-          <button onClick={save} disabled={busy}>
+          <button {...submitKeys} onClick={save} disabled={busy}>
             {busy ? "Logging…" : "Log work"}
           </button>
         </div>

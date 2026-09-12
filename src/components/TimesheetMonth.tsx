@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, IssueSummary, WorklogEntry } from "../api";
+import { useShortcut } from "../shortcuts";
 import {
   buildMonthGrid,
   dayTone,
@@ -146,10 +147,24 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
     ? grid.rows.find((r) => r.issueKey === openCell.issueKey)
     : undefined;
 
+  // The same pair of keys the week view uses — one verb, one key, whichever view
+  // is showing. A modal over the grid covers them, so they cannot step the month
+  // out from under an open cell.
+  const prevKeys = useShortcut("prevPeriod", () => setOffset(offset - 1));
+  const nextKeys = useShortcut(
+    "nextPeriod",
+    () => setOffset(offset + 1),
+    offset < 0,
+  );
+
   return (
     <div className="panel">
       <div className="week-nav">
-        <button className="secondary" onClick={() => setOffset(offset - 1)}>
+        <button
+          className="secondary"
+          {...prevKeys}
+          onClick={() => setOffset(offset - 1)}
+        >
           <ChevronLeft size={15} strokeWidth={2} aria-hidden />
           Previous
         </button>
@@ -161,6 +176,7 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
         </div>
         <button
           className="secondary"
+          {...nextKeys}
           onClick={() => setOffset(offset + 1)}
           disabled={offset >= 0}
         >

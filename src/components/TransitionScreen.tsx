@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { listSentence, OfferedTransition } from "../transitions";
+import { useShortcut } from "../shortcuts";
 import {
   FieldValue,
   FormValues,
@@ -32,6 +33,10 @@ export default function TransitionScreen({
   function change(id: string, value: FieldValue) {
     setValues((v) => ({ ...v, [id]: value }));
   }
+
+  // Not while the request is in flight, which is the same bound the button
+  // carries.
+  const submitKeys = useShortcut("submit", () => submit(), !busy);
 
   function submit() {
     // Checked here so an incomplete screen never becomes a request: Jira's
@@ -69,7 +74,7 @@ export default function TransitionScreen({
       )}
       {failure && <p className="error">{failure}</p>}
 
-      <button onClick={submit} disabled={busy}>
+      <button {...submitKeys} onClick={submit} disabled={busy}>
         {busy ? "Moving…" : entry.name}
       </button>
     </div>

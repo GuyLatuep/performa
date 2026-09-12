@@ -176,12 +176,17 @@ export default function App() {
   // Each shortcut is handed the very function its visible control calls, so the
   // two cannot come to mean different things. Declared up here, above the early
   // returns below, because a hook has to run on every render.
-  const goStart = () => setTab("start");
-  const goTodo = () => setTab("todo");
   const openSettings = () => setEditingCreds(true);
-  const startKeys = useShortcut("tabStart", goStart);
-  const todoKeys = useShortcut("tabTodo", goTodo);
   const settingsKeys = useShortcut("settings", openSettings);
+  // One per tab rather than a loop: a hook cannot be called from one.
+  const tabKeys: Record<Tab, ShortcutProps> = {
+    start: useShortcut("tabStart", () => setTab("start")),
+    todo: useShortcut("tabTodo", () => setTab("todo")),
+    log: useShortcut("tabLog", () => openLogTab(null)),
+    timesheet: useShortcut("tabTimesheet", () => setTab("timesheet")),
+    missing: useShortcut("tabMissing", () => setTab("missing")),
+    mentions: useShortcut("tabMentions", () => setTab("mentions")),
+  };
 
   // The celebrating, kept apart from the refreshing: this one needs to know
   // what was logged, which `api.logWork` announces.
@@ -285,13 +290,12 @@ export default function App() {
     alert: boolean,
     onSelect: () => void,
     arrived = false,
-    shortcut?: ShortcutProps,
   ) {
     const Icon = TAB_ICONS[t];
     const label = TAB_LABELS[t];
     return (
       <button
-        {...shortcut}
+        {...tabKeys[t]}
         className={`nav-row${tab === t ? " active" : ""}${alert ? " alert" : ""}${
           arrived && tab !== t ? " arrived" : ""
         }`}
@@ -315,8 +319,8 @@ export default function App() {
         </div>
 
         <nav className="nav">
-          {navRow("start", 0, false, goStart, false, startKeys)}
-          {navRow("todo", 0, false, goTodo, false, todoKeys)}
+          {navRow("start", 0, false, () => setTab("start"))}
+          {navRow("todo", 0, false, () => setTab("todo"))}
           {/* A manual visit starts fresh, without a preselected issue — also
               when the tab is already open. */}
           {navRow("log", 0, false, () => openLogTab(null))}

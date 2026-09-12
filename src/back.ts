@@ -146,14 +146,23 @@ export function isForwardButton(e: MouseEvent): boolean {
  * (`⌃⌘←` is Spaces' and is rejected there, as it was before.) `Ctrl+←` is
  * "previous word" inside a text box on Windows, which the typing guard in the
  * handler already stands down for.
+ *
+ * Shift disqualifies all three. `hasPrimaryModifier` is deliberately indifferent
+ * to it — the shortcut catalogue uses Shift to spell a second variant of an
+ * action whose plain chord is taken, and `⌘⇧←` is exactly that: the timesheet's
+ * previous period. Matching it here would have this handler swallow the press
+ * and `preventDefault` it, and the shortcut dispatcher would then stand aside
+ * from a key it was the rightful owner of.
  */
 export function isBackShortcut(e: KeyboardEvent): boolean {
+  if (e.shiftKey) return false;
   if (hasPrimaryModifier(e)) return e.key === "[" || e.key === "ArrowLeft";
   return e.altKey && !e.ctrlKey && !e.metaKey && e.key === "ArrowLeft";
 }
 
 /** The other direction, spelled the three matching ways. */
 export function isForwardShortcut(e: KeyboardEvent): boolean {
+  if (e.shiftKey) return false;
   if (hasPrimaryModifier(e)) return e.key === "]" || e.key === "ArrowRight";
   return e.altKey && !e.ctrlKey && !e.metaKey && e.key === "ArrowRight";
 }
