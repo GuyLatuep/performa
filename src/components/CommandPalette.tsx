@@ -24,6 +24,9 @@ export default function CommandPalette() {
   /** Read once per opening: the registry changes as controls mount, and a list
    *  that reshuffled under the cursor while being read would be unusable. */
   const [actions, setActions] = useState<ActionSpec[]>([]);
+  /** The action now asking for a term, if one is. While this is set the field
+   *  holds an argument rather than a filter. */
+  const [asking, setAsking] = useState<ActionSpec | null>(null);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -38,6 +41,7 @@ export default function CommandPalette() {
           setActions(allActions());
           setQuery("");
           setActive(0);
+          setAsking(null);
         }
         return !was;
       });
@@ -69,13 +73,45 @@ export default function CommandPalette() {
   }
 
   function run(action: ActionSpec) {
+    // An action that needs a term does not run yet — it asks. The field empties
+    // so that what was typed to *find* this action is not mistaken for the
+    // argument to it.
+    if (action.prompt) {
+      setAsking(action);
+      setQuery("");
+      setActive(0);
+      return;
+    }
     // Closed first: an action that opens a sheet of its own would otherwise find
     // this one still over it.
     setOpen(false);
-    action.run();
+    action.run?.();
+  }
+
+  /** The term, as the asking action reads it — null while it is not usable yet. */
+  const argument = asking?.prompt ? asking.prompt.parse(query) : null;
+
+  function submitArgument() {
+    if (!asking?.prompt || argument === null) return;
+    setOpen(false);
+    asking.prompt.submit(argument);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (asking) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submitArgument();
+      } else if (e.key === "Escape") {
+        // Back to the list rather than out of the palette: having picked the
+        // wrong one of two searches, the other is one press away.
+        e.preventDefault();
+        setAsking(null);
+        setQuery("");
+        setActive(0);
+      }
+      return;
+    }
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActive(at + 1 >= matches.length ? 0 : at + 1);
@@ -108,8 +144,12 @@ export default function CommandPalette() {
           type="text"
           autoFocus
           autoComplete="off"
-          aria-label="Find a command"
-          placeholder="What do you want to do?"
+          aria-label={asking?.prompt ? asking.prompt.title : "Find a command"}
+          placeholder={
+            asking?.prompt
+              ? asking.prompt.placeholder
+              : "What do you want to do?"
+          }
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -117,7 +157,13 @@ export default function CommandPalette() {
           }}
           onKeyDown={onKeyDown}
         />
-        {matches.length === 0 ? (
+        {asking?.prompt ? (
+          <p className="command-hint">
+            {argument === null
+              ? `${asking.prompt.title} — e.g. ${asking.prompt.placeholder}`
+              : `Press Enter to search for ${argument}`}
+          </p>
+        ) : matches.length === 0 ? (
           <p className="muted empty">Nothing matches.</p>
         ) : (
           <ul className="mention-picker command-list" role="listbox">

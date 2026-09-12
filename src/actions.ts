@@ -3,6 +3,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "./api";
 import { goBack, goForward } from "./back";
 import { parseIssueKey } from "./issueKey";
+import { getSavedSearches } from "./savedSearches";
+import { requestFieldSearch, requestTextSearch } from "./searchRequest";
 import { requestIssue } from "./issueRequest";
 import { setFunMode } from "./settings";
 import {
@@ -46,7 +48,27 @@ export interface ActionSpec {
   /** Extra words to match on that are not worth showing: "ticket" for an issue,
    *  "dark" for the theme. */
   keywords?: string;
-  run: () => void;
+  run?: () => void;
+  /**
+   * Ask for something before doing anything.
+   *
+   * An action that needs a term cannot run the moment it is chosen, so instead of
+   * a handler it carries a prompt: picking it puts the palette into a second
+   * step, where what you type is the argument rather than a filter. `parse`
+   * rejects what is not an argument at all, which is what keeps a plant search
+   * from being run on a word.
+   */
+  prompt?: {
+    /** Shown in place of the palette's own placeholder. */
+    placeholder: string;
+    /** What this step is called, above the field. */
+    title: string;
+    /** The typed text, cleaned up — or null while it is not yet usable, which is
+     *  what greys out the confirmation. */
+    parse: (text: string) => string | null;
+    /** Run with the parsed value. */
+    submit: (value: string) => void;
+  };
 }
 
 /** A screen's own actions, for the controls that carry no chord. */
@@ -81,6 +103,43 @@ const EXTERNAL_RUNNERS: Partial<Record<ShortcutId, () => void>> = {
   back: () => void goBack(),
   forward: () => void goForward(),
 };
+
+/**
+ * The searches on offer: the one every site has, and the ones this user wrote.
+ *
+ * Text search is built in because every Jira can search its text. Which *fields*
+ * are worth searching is a property of the site — one keeps a plant number,
+ * another a customer reference — so those are the user's to describe, under
+ * Settings, and each one they write shows up here.
+ */
+function searchActions(): ActionSpec[] {
+  const text: ActionSpec = {
+    id: "search.text",
+    name: "Search by text",
+    group: "Search",
+    keywords: "find words summary description comment",
+    prompt: {
+      title: "Search by text",
+      placeholder: "Words in any field",
+      // Anything at all, so long as it is something.
+      parse: (t) => (t.trim() === "" ? null : t.trim()),
+      submit: requestTextSearch,
+    },
+  };
+  const own = getSavedSearches().map((search): ActionSpec => ({
+    id: `search.${search.id}`,
+    name: `Search by ${search.name}`,
+    group: "Search",
+    keywords: `find ${search.field}`,
+    prompt: {
+      title: `Search by ${search.name}`,
+      placeholder: search.field,
+      parse: (t) => (t.trim() === "" ? null : t.trim()),
+      submit: (term) => requestFieldSearch(search, term),
+    },
+  }));
+  return [text, ...own];
+}
 
 /** The app's own verbs: no control to press, only a store to set. */
 function appActions(): ActionSpec[] {
@@ -155,7 +214,7 @@ export function allActions(): ActionSpec[] {
     ];
   });
   const fromScreens = [...screens].flatMap((s) => s.current);
-  return [...bound, ...fromScreens, ...appActions()];
+  return [...bound, ...fromScreens, ...searchActions(), ...appActions()];
 }
 
 /**

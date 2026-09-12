@@ -22,6 +22,7 @@ import SettingsConnection from "./SettingsConnection";
 import SettingsFun from "./SettingsFun";
 import SettingsAppearance from "./SettingsAppearance";
 import SettingsTimesheet from "./SettingsTimesheet";
+import SettingsSearches from "./SettingsSearches";
 import SettingsTodo from "./SettingsTodo";
 import SettingsLogging from "./SettingsLogging";
 
@@ -35,7 +36,7 @@ interface Props {
 }
 
 type SettingsTab =
-  "connection" | "appearance" | "timesheet" | "todo" | "logging";
+  "connection" | "appearance" | "timesheet" | "todo" | "searches" | "logging";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   // The tab is more than the connection now — it holds whatever is about the
@@ -45,6 +46,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: "appearance", label: "Appearance" },
   { id: "timesheet", label: "Timesheet" },
   { id: "todo", label: "Todo" },
+  { id: "searches", label: "Searches" },
   { id: "logging", label: "Logging" },
 ];
 
@@ -159,6 +161,7 @@ export default function Settings({
       {tab === "appearance" && <SettingsAppearance />}
       {tab === "timesheet" && <SettingsTimesheet />}
       {tab === "todo" && <SettingsTodo />}
+      {tab === "searches" && <SettingsSearches />}
       {tab === "logging" && <SettingsLogging />}
 
       {/* The connection tab brings its own buttons — its Save has to submit

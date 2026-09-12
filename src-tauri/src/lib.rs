@@ -429,6 +429,49 @@ async fn search_issues(
         .await
 }
 
+/// The command palette's plain text search: the term in any field Jira will
+/// search. The JQL is built here, as all of it is.
+#[tauri::command]
+async fn search_text(
+    state: State<'_, AppState>,
+    term: String,
+) -> Result<Vec<IssueSummary>, String> {
+    let term = term.trim();
+    if term.is_empty() || term.chars().count() > MAX_FIELD_NAME_CHARS {
+        return Ok(Vec::new());
+    }
+    let s = session(&state).await?;
+    s.client
+        .search_issues_rows(&jira::build_text_jql(term))
+        .await
+}
+
+/// One of the user's own searches: their field, their term, their exclusions.
+///
+/// The definition lives in the webview because it is the user's to write; this
+/// side is handed it and turns it into JQL, which is still the only place JQL is
+/// built.
+#[tauri::command]
+async fn search_field(
+    state: State<'_, AppState>,
+    field: String,
+    term: String,
+    exact: bool,
+    excluded_projects: Vec<String>,
+) -> Result<Vec<IssueSummary>, String> {
+    let term = term.trim();
+    if term.is_empty() || term.chars().count() > MAX_FIELD_NAME_CHARS {
+        return Ok(Vec::new());
+    }
+    if field.trim().is_empty() || field.chars().count() > MAX_FIELD_NAME_CHARS {
+        return Err("that search names no field to look in".into());
+    }
+    let s = session(&state).await?;
+    s.client
+        .field_search(field.trim(), term, exact, &excluded_projects)
+        .await
+}
+
 /// Issues assigned to the current user with a due date between 7 days ago and
 /// 14 days ahead (shown on the start tab).
 #[tauri::command]
@@ -1008,6 +1051,8 @@ pub fn run() {
             clear_credentials,
             current_user,
             search_issues,
+            search_text,
+            search_field,
             due_issues,
             todo_issues,
             jira_projects,

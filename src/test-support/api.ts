@@ -159,6 +159,8 @@ const METHOD_NAMES = [
   "clearCredentials",
   "currentUser",
   "searchIssues",
+  "searchText",
+  "searchField",
   "dueIssues",
   "todoIssues",
   "jiraProjects",
@@ -207,6 +209,8 @@ export type ApiMock = Record<
 function defaultAnswers(): Partial<Record<MethodName, unknown>> {
   return {
     searchIssues: [],
+    searchText: [],
+    searchField: [],
     dueIssues: [],
     todoIssues: [],
     listWorklogs: [],

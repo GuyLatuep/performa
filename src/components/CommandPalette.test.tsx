@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
 import { useScreenActions } from "../actions";
 import { clearIssueRequest, useRequestedIssue } from "../issueRequest";
+import { addSavedSearch, clearSavedSearches } from "../savedSearches";
+import { clearSearchRequest, useRequestedSearch } from "../searchRequest";
 import { clearForward, useBackTarget } from "../back";
 import { AllKeys } from "../test-support/shortcuts";
 import { useShortcut, useShortcutBadge } from "../shortcuts";
@@ -76,6 +78,8 @@ beforeEach(() => {
 afterEach(() => {
   clearForward();
   clearIssueRequest();
+  clearSearchRequest();
+  clearSavedSearches();
   vi.unstubAllGlobals();
   document.body.innerHTML = "";
 });
@@ -315,5 +319,158 @@ describe("typing an issue key", () => {
     await openWith("ABC-12");
 
     expect(options()[0].querySelector(".command-chord")).toBeNull();
+  });
+});
+
+describe("the searches", () => {
+  /** What the app would show, read from the store the palette writes. */
+  function Ran() {
+    const search = useRequestedSearch();
+    if (!search) return <p>no search</p>;
+    const what = search.kind === "text" ? "text" : search.search.name;
+    return <p>{`searching ${what} for ${search.term}`}</p>;
+  }
+
+  /** One of the user's own searches, as the Settings tab would have written it. */
+  function saveOne(name = "Plant number") {
+    addSavedSearch({
+      name,
+      field: "Plant-No.",
+      exact: false,
+      excludedProjects: [],
+    });
+  }
+
+  async function pick(query: string) {
+    render(
+      <>
+        <Screen />
+        <Ran />
+      </>,
+    );
+    await openPalette();
+    await userEvent.type(box(), query);
+    await userEvent.keyboard("{Enter}");
+  }
+
+  it("always offers a text search, every Jira being able to search its text", async () => {
+    render(<Screen />);
+
+    await openPalette();
+
+    expect(names()).toContain("Search by text");
+  });
+
+  it("offers nothing else until the user has written one", async () => {
+    // Which fields are worth searching is the site's business, so the app ships
+    // no field searches at all.
+    render(<Screen />);
+
+    await openPalette();
+
+    expect(names().filter((n) => n?.startsWith("Search by "))).toEqual([
+      "Search by text",
+    ]);
+  });
+
+  it("offers one the user wrote, under its own name", async () => {
+    saveOne();
+    render(<Screen />);
+
+    await openPalette();
+
+    expect(names()).toContain("Search by Plant number");
+  });
+
+  it("offers each of several", async () => {
+    saveOne("Plant number");
+    saveOne("Customer ref");
+    render(<Screen />);
+
+    await openPalette();
+
+    expect(names()).toContain("Search by Plant number");
+    expect(names()).toContain("Search by Customer ref");
+  });
+
+  it("asks for a term rather than running anything", async () => {
+    saveOne();
+
+    await pick("Plant number");
+
+    // Still open, now asking — and the field is empty, so what was typed to find
+    // the action is not mistaken for the argument to it.
+    expect(screen.getByLabelText("Search by Plant number")).toBeDefined();
+    expect(screen.getByText("no search")).toBeDefined();
+  });
+
+  it("will not search on nothing", async () => {
+    saveOne();
+    await pick("Plant number");
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(screen.getByText("no search")).toBeDefined();
+  });
+
+  it("searches with the term, carrying the definition along", async () => {
+    saveOne();
+    await pick("Plant number");
+
+    await userEvent.type(
+      screen.getByLabelText("Search by Plant number"),
+      "DE_1979",
+    );
+    await userEvent.keyboard("{Enter}");
+
+    expect(
+      screen.getByText("searching Plant number for DE_1979"),
+    ).toBeDefined();
+  });
+
+  it("takes any term at all, the format being the field's business", async () => {
+    // No shape is imposed: the user said which field to look in, and what goes
+    // in it is theirs to know.
+    saveOne();
+    await pick("Plant number");
+
+    await userEvent.type(
+      screen.getByLabelText("Search by Plant number"),
+      "DE_19",
+    );
+    await userEvent.keyboard("{Enter}");
+
+    expect(screen.getByText("searching Plant number for DE_19")).toBeDefined();
+  });
+
+  it("searches text with any term", async () => {
+    await pick("by text");
+
+    await userEvent.type(
+      screen.getByLabelText("Search by text"),
+      "broken pump",
+    );
+    await userEvent.keyboard("{Enter}");
+
+    expect(screen.getByText("searching text for broken pump")).toBeDefined();
+  });
+
+  it("goes back to the list on Escape, not out of the palette", async () => {
+    saveOne();
+    await pick("Plant number");
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.getByLabelText("Find a command")).toBeDefined();
+    expect(names()).toContain("Search by text");
+  });
+
+  it("closes once a search has been run", async () => {
+    await pick("by text");
+    await userEvent.type(screen.getByLabelText("Search by text"), "pump");
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(screen.queryByLabelText("Search by text")).toBeNull();
   });
 });

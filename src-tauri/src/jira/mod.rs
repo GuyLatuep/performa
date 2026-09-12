@@ -399,6 +399,13 @@ impl JiraClient {
             .await
     }
 
+    /// Issues matching one of the palette's searches. The same fields a todo row
+    /// draws, since that is what the results are shown as.
+    pub async fn search_issues_rows(&self, jql: &str) -> Result<Vec<IssueSummary>, String> {
+        self.search_issues_fields(jql, 100, "summary,status,priority,issuetype")
+            .await
+    }
+
     /// Issues waiting on the current user — see [`build_todo_jql`].
     ///
     /// Deliberately without `duedate`: due dates are the start tab's subject,
@@ -722,6 +729,16 @@ pub fn build_search_jql(query: &str) -> String {
     format!("(summary ~ \"{esc}*\" OR text ~ \"{esc}\") ORDER BY updated DESC")
 }
 
+/// A plain text search, over every text field Jira will search.
+///
+/// Unlike [`build_search_jql`], which is the issue picker's and reads an issue
+/// key as a key, this takes the term at its word: somebody who asked to search
+/// for text means the text.
+pub fn build_text_jql(term: &str) -> String {
+    let esc = escape_jql(term.trim());
+    format!("(summary ~ \"{esc}*\" OR text ~ \"{esc}\") ORDER BY updated DESC")
+}
+
 /// The todo tab's JQL: everything the current user is expected to act on.
 ///
 /// Two rules, OR'ed: issues in the escalation project that *I* raised, plus
@@ -876,7 +893,7 @@ pub fn is_issue_key(s: &str) -> bool {
         && number.chars().all(|c| c.is_ascii_digit())
 }
 
-fn escape_jql(s: &str) -> String {
+pub(super) fn escape_jql(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
@@ -1333,6 +1350,25 @@ mod tests {
         ] {
             assert!(!is_issue_key(bad), "{bad} should not be a key");
         }
+    }
+
+    #[test]
+    fn text_search_is_not_a_field_search() {
+        // A field search names its field and is built in `issue.rs`, where the
+        // catalogue is; this builder is the one that searches everything.
+        let jql = build_text_jql("pump");
+        assert!(jql.contains("summary ~"), "{jql}");
+        assert!(jql.contains("text ~"), "{jql}");
+        assert!(!jql.contains("cf["), "{jql}");
+    }
+
+    #[test]
+    fn text_jql_takes_a_key_as_text() {
+        // Unlike the picker's builder, which reads a key as a key: somebody who
+        // asked to search for text means the text.
+        let jql = build_text_jql("ABC-1");
+        assert!(jql.contains(r#"summary ~ "ABC-1*""#), "{jql}");
+        assert!(!jql.starts_with("key ="), "{jql}");
     }
 
     #[test]

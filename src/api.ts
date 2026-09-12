@@ -414,6 +414,30 @@ export const api = {
       issues,
     );
   },
+
+  /** The palette's plain text search: the term in any field Jira will search. */
+  searchText(term: string): Promise<IssueSummary[]> {
+    return logged(
+      `search_text(term=${JSON.stringify(term)})`,
+      () => invoke("search_text", { term }),
+      issues,
+    );
+  },
+
+  /** One of the user's own searches. The definition is theirs, held in settings;
+   *  this hands it over and the JQL is built on the Rust side as all of it is. */
+  searchField(
+    field: string,
+    term: string,
+    exact: boolean,
+    excludedProjects: string[],
+  ): Promise<IssueSummary[]> {
+    return logged(
+      `search_field(field=${JSON.stringify(field)}, term=${JSON.stringify(term)}, exact=${exact})`,
+      () => invoke("search_field", { field, term, exact, excludedProjects }),
+      issues,
+    );
+  },
   /** My issues due between 7 days ago and 14 days ahead, soonest first. */
   dueIssues(): Promise<IssueSummary[]> {
     return cached("due_issues", () =>

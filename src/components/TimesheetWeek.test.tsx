@@ -21,6 +21,7 @@ vi.mock("../achievements", () => ({ recordEvent: vi.fn() }));
 
 import { setDailyHours, setFunMode, setShowWeekends } from "../settings";
 import { apiMock, resetApiMock, worklogEntry } from "../test-support/api";
+import { clearSelection } from "../selection";
 import { AllKeys } from "../test-support/shortcuts";
 import TimesheetWeek from "./TimesheetWeek";
 
@@ -259,38 +260,47 @@ describe("the row actions", () => {
 });
 
 describe("walking the ledger with the arrow keys", () => {
-  function down() {
-    fireEvent.keyDown(document.body, { key: "ArrowDown" });
+  // The selection is module-level state that outlives a render, so each of these
+  // starts from nothing rather than from wherever the last one left it.
+  afterEach(clearSelection);
+
+  /** Show one worklog and put the keyboard on it.
+   *
+   *  The wait matters: a row binds its own ⌘-keys only while it is the selected
+   *  one, and that binding is attached on the render the selection causes. A test
+   *  that pressed a row key on the same tick as the arrow was racing the commit
+   *  it depends on. */
+  async function oneSelectedRow() {
+    apiMock.listWorklogs.mockResolvedValue([
+      worklogEntry({ id: "1", date: MONDAY }),
+    ]);
+    renderWeek();
+    await screen.findByText("ABC-1");
+    await act(async () => {
+      fireEvent.keyDown(document.body, { key: "ArrowDown" });
+    });
+    return waitFor(() => {
+      const row = document.querySelector('[aria-current="true"]');
+      expect(row?.textContent).toContain("ABC-1");
+      return row!;
+    });
   }
 
   it("walks the rows as the day groups lay them out", async () => {
     // Flattened: the day headings between the groups are not rows.
-    apiMock.listWorklogs.mockResolvedValue([
-      worklogEntry({ id: "1", date: MONDAY }),
-    ]);
-    renderWeek();
-    await screen.findByText("ABC-1");
-
-    await act(async () => down());
-
-    expect(
-      document.querySelector('[aria-current="true"]')?.textContent,
-    ).toContain("ABC-1");
+    expect(await oneSelectedRow()).toBeDefined();
   });
 
   it("edits the selected worklog on ⌘E", async () => {
-    apiMock.listWorklogs.mockResolvedValue([
-      worklogEntry({ id: "1", date: MONDAY }),
-    ]);
-    renderWeek();
-    await screen.findByText("ABC-1");
-    await act(async () => down());
+    await oneSelectedRow();
 
     await act(async () => {
       fireEvent.keyDown(document.body, { key: "e", metaKey: true });
     });
 
     // The edit modal is the same one the row's pencil opens.
-    expect(screen.getByRole("heading", { name: /Edit ABC-1/ })).toBeDefined();
+    expect(
+      await screen.findByRole("heading", { name: /Edit ABC-1/ }),
+    ).toBeDefined();
   });
 });

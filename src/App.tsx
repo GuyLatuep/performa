@@ -14,6 +14,8 @@ import { clearForward, useBackGestures } from "./back";
 import { useSelectionKeys } from "./selection";
 import { clearIssueRequest, useRequestedIssue } from "./issueRequest";
 import IssueView from "./components/IssueView";
+import SearchResults from "./components/SearchResults";
+import { clearSearchRequest, useRequestedSearch } from "./searchRequest";
 import { ShortcutProps, useShortcut, useShortcutKeys } from "./shortcuts";
 import { logInfo } from "./log";
 import Settings from "./components/Settings";
@@ -111,6 +113,8 @@ export default function App() {
    *  Todo and Mentions tabs each open issues off their own list — so the shell
    *  shows it, over whichever tab is underneath. */
   const typedIssue = useRequestedIssue();
+  /** A search run from the palette. Like the issue above, it belongs to no tab. */
+  const search = useRequestedSearch();
 
   const missingItems = useMissing();
   const missingUnseen = useMissingUnseenCount();
@@ -171,9 +175,10 @@ export default function App() {
     if (signedIn) logInfo(`view: ${tab}`);
     // Leaving for another tab leaves the trail the redo stack described.
     clearForward();
-    // And leaves an issue opened by key: the tab was asked for, so the tab is
-    // what should be on screen.
+    // And leaves an issue opened by key, or a search: the tab was asked for, so
+    // the tab is what should be on screen.
     clearIssueRequest();
+    clearSearchRequest();
   }, [signedIn, tab]);
 
   // The mouse's back button, for whichever screen is currently offering a way
@@ -436,10 +441,12 @@ export default function App() {
             <IssueView
               issue={typedIssue}
               site={creds.site}
-              backLabel={TAB_LABELS[tab]}
+              backLabel={search ? "the results" : TAB_LABELS[tab]}
               onBack={clearIssueRequest}
               onLogged={onLogged}
             />
+          ) : search ? (
+            <SearchResults search={search} site={creds.site} />
           ) : (
             <>
               {tab === "start" && (

@@ -234,6 +234,57 @@ impl JiraClient {
         (!links.is_empty()).then_some(links)
     }
 
+    /// Every issue whose `field` matches `term`, for one of the user's own
+    /// searches.
+    ///
+    /// The field is looked up in the catalogue and queried by id — `cf[10050]`
+    /// rather than `"Plant-No."` — because a field *name* in JQL has to match
+    /// what the site calls it exactly, punctuation and all, and a name that is
+    /// one character out comes back as "field does not exist" rather than as
+    /// anything a reader could act on. An id cannot be spelled wrong.
+    ///
+    /// `exact` decides the operator. Without it the term is wildcarded *and*
+    /// searched plain, OR'ed, because Jira's text index splits a value like
+    /// `DE_1979_03` into words: the wildcard finds it where the index kept the
+    /// value whole, and the plain term finds it where the index broke it apart.
+    /// One of the two is right on any given site and neither costs anything.
+    ///
+    /// Nothing is subtracted for being closed. "Every issue for this" is the
+    /// question a search like this asks, and the past is most of the answer.
+    pub async fn field_search(
+        &self,
+        field: &str,
+        term: &str,
+        exact: bool,
+        excluded_projects: &[String],
+    ) -> Result<Vec<IssueSummary>, String> {
+        let catalog = self.field_ids().await?;
+        let Some(id) = catalog.get(&normalize_name(field)) else {
+            return Err(format!(
+                "this Jira site has no field called '{field}' — the search has nothing to look in"
+            ));
+        };
+        let num = id.trim_start_matches("customfield_");
+        let esc = super::escape_jql(term.trim());
+        let mut jql = if exact {
+            format!("cf[{num}] = \"{esc}\"")
+        } else {
+            format!("(cf[{num}] ~ \"{esc}*\" OR cf[{num}] ~ \"{esc}\")")
+        };
+        if !excluded_projects.is_empty() {
+            let keys: Vec<String> = excluded_projects
+                .iter()
+                .map(|k| format!("\"{}\"", super::escape_jql(k)))
+                .collect();
+            jql.push_str(&format!(" AND project NOT IN ({})", keys.join(", ")));
+        }
+        jql.push_str(" ORDER BY updated DESC");
+        log::info!("field search: {field} is {id}; jql = {jql}");
+        let found = self.search_issues_rows(&jql).await?;
+        log::info!("field search: {} issue(s) for {term}", found.len());
+        Ok(found)
+    }
+
     /// One issue with everything the detail view shows. `wanted` names the
     /// site-specific fields to include, in display order.
     pub async fn issue_detail(
