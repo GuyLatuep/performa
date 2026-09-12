@@ -419,7 +419,11 @@ function FieldEditor({
   // Escape closes, which is what anything overlaying the page owes the reader.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key !== "Escape") return;
+      // Claimed, so the app-wide handler does not read the same press as a
+      // request to leave the issue behind this editor.
+      e.preventDefault();
+      onCancel();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

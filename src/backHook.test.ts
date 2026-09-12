@@ -43,6 +43,24 @@ function pressMouse(
   fireEvent.mouseDown(target, { button, buttons });
 }
 
+/** Press a key at `target`, so it bubbles to the window listener with the
+ *  target a real element — which is what the typing guard reads. */
+function pressKey(
+  key: string,
+  mods: Partial<KeyboardEventInit> = {},
+  target: Element = document.body,
+) {
+  fireEvent.keyDown(target, { key, ...mods });
+}
+
+/** An element in the page, since a detached one never reaches the window. */
+function fieldOfType(tag: string, contentEditable = false) {
+  const el = document.createElement(tag);
+  if (contentEditable) el.contentEditable = "true";
+  document.body.append(el);
+  return el;
+}
+
 /** Put an overlay in the page, the way every modal and the field editor do. */
 function overlay(className: string, role?: string) {
   const el = document.createElement("div");
@@ -165,6 +183,88 @@ describe("useBackGestures", () => {
     unmount();
 
     expect(events.unlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["Escape", "Escape", {}],
+    ["⌘[", "[", { metaKey: true }],
+    ["⌘←", "ArrowLeft", { metaKey: true }],
+    ["⌥←", "ArrowLeft", { altKey: true }],
+  ])("goes back on %s", (_label, key, mods) => {
+    const { back } = listen_();
+
+    pressKey(key, mods);
+
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a key nobody means as a way back", () => {
+    const { back } = listen_();
+
+    pressKey("a");
+    pressKey("ArrowLeft");
+
+    expect(back).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an INPUT", "input", false],
+    ["a TEXTAREA", "textarea", false],
+    ["a contenteditable", "div", true],
+  ])("leaves Escape to whoever is typing in %s", (_label, tag, editable) => {
+    // Escape closes what the box has open, and ⌘← goes to the start of the
+    // line. Taking either would take it out of the writer's hands.
+    const { back } = listen_();
+
+    pressKey("Escape", {}, fieldOfType(tag, editable));
+    pressKey("ArrowLeft", { metaKey: true }, fieldOfType(tag, editable));
+
+    expect(back).not.toHaveBeenCalled();
+  });
+
+  it("leaves a press something nearer has already claimed", () => {
+    // The pickers close their suggestion lists on Escape and call
+    // preventDefault on the way; that Escape is theirs, not a request to leave
+    // the view they sit in.
+    const { back } = listen_();
+    const picker = fieldOfType("div");
+    picker.addEventListener("keydown", (e) => e.preventDefault());
+
+    pressKey("Escape", {}, picker);
+
+    expect(back).not.toHaveBeenCalled();
+  });
+
+  it("still hears a press the same element let through", () => {
+    // Only a *claimed* press is somebody else's — the guard must not deafen
+    // the app to every key that happens to pass an element with a listener.
+    const { back } = listen_();
+    const plain = fieldOfType("div");
+    plain.addEventListener("keydown", () => {});
+
+    pressKey("Escape", {}, plain);
+
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not go back on Escape behind an overlay", () => {
+    const { back } = listen_();
+    overlay("modal-backdrop");
+
+    pressKey("Escape");
+
+    expect(back).not.toHaveBeenCalled();
+  });
+
+  it("stops listening for keys once it unmounts", () => {
+    const back = vi.fn();
+    renderHook(() => useBackTarget({ label: "Todo", back }));
+    const { unmount } = renderHook(() => useBackGestures());
+
+    unmount();
+    pressKey("Escape");
+
+    expect(back).not.toHaveBeenCalled();
   });
 
   it("stops the webview taking the press for a history navigation of its own", () => {

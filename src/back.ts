@@ -95,6 +95,35 @@ function overlayOpen(): boolean {
   return document.querySelector('.modal-backdrop, [role="dialog"]') !== null;
 }
 
+/**
+ * True for a keyboard way back.
+ *
+ * Three spellings, all of them somebody's standard. `⌘[` is what Safari uses
+ * and what a Mac user reaches for; `⌘←` is the same thing on a keyboard where
+ * `[` is not a key of its own — on a German layout it costs `⌥5`, which is not
+ * a shortcut anybody would find. `⌥←` is the Windows one, and harmless on a
+ * Mac, where nothing else claims it outside a text box.
+ */
+export function isBackShortcut(e: KeyboardEvent): boolean {
+  // Ctrl is nobody's back chord, and ⌃⌘← is Spaces' — not ours to take.
+  if (e.ctrlKey) return false;
+  if (e.metaKey) return e.key === "[" || e.key === "ArrowLeft";
+  return e.altKey && e.key === "ArrowLeft";
+}
+
+/** Where the keys are somebody else's: `⌘←` goes to the start of the line and
+ *  Escape closes whatever the box has open, and taking either would be taking
+ *  it out of the writer's hands. The same guard, and the same reason, as
+ *  `konami.ts`. */
+function typingIn(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  return (
+    el?.tagName === "INPUT" ||
+    el?.tagName === "TEXTAREA" ||
+    el?.isContentEditable === true
+  );
+}
+
 /** The Rust side's name for a swipe towards the right — see
  *  `src-tauri/src/gestures.rs`. */
 export const NAVIGATE_BACK = "navigate-back";
@@ -106,7 +135,11 @@ export const NAVIGATE_BACK = "navigate-back";
  *  Logitech's Options+ claims the button and emits a swipe gesture instead,
  *  which reaches no webview event at all and has to be caught natively. The
  *  same swipe is what two fingers on a trackpad produce, so the second source
- *  is the standard macOS way back as much as it is the mouse's. */
+ *  is the standard macOS way back as much as it is the mouse's.
+ *
+ *  Escape and the back chords join them: the app had no answer to either, and
+ *  a reader who has just opened an issue reaches for Escape before they reach
+ *  for anything else. */
 export function useBackGestures(): void {
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
@@ -118,7 +151,19 @@ export function useBackGestures(): void {
       if (overlayOpen()) return;
       goBack();
     };
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Somebody nearer the key has already dealt with it — the pickers close
+      // their suggestion lists on Escape, and that Escape is theirs, not a
+      // request to leave the view they are being typed into.
+      if (e.defaultPrevented) return;
+      if (e.key !== "Escape" && !isBackShortcut(e)) return;
+      if (typingIn(e.target) || overlayOpen()) return;
+      e.preventDefault();
+      goBack();
+    };
+
     window.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("keydown", onKeyDown);
 
     let unlisten: (() => void) | undefined;
     let gone = false;
@@ -134,6 +179,7 @@ export function useBackGestures(): void {
       gone = true;
       unlisten?.();
       window.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("keydown", onKeyDown);
     };
   }, []);
 }

@@ -2,7 +2,13 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import "./test-support/dom";
-import { backTarget, goBack, isBackButton, useBackTarget } from "./back";
+import {
+  backTarget,
+  goBack,
+  isBackButton,
+  isBackShortcut,
+  useBackTarget,
+} from "./back";
 
 // The listeners around this registry are covered in backHook.test.ts; this file
 // is about which target is registered and what going back calls.
@@ -50,6 +56,38 @@ describe("isBackButton", () => {
     // `buttons` carries every button down, so reading it alone would take this
     // for a back press. Which button was *pressed* is what `button` says.
     expect(isBackButton(press(0, 1 | 8))).toBe(false);
+  });
+});
+
+describe("isBackShortcut", () => {
+  /** A keypress as the webview would deliver it. */
+  function key(k: string, mods: Partial<KeyboardEventInit> = {}) {
+    return new KeyboardEvent("keydown", { key: k, ...mods });
+  }
+
+  it.each([
+    ["⌘[", "[", { metaKey: true }],
+    ["⌘←", "ArrowLeft", { metaKey: true }],
+    ["⌥←", "ArrowLeft", { altKey: true }],
+  ])("is true for %s", (_label, k, mods) => {
+    expect(isBackShortcut(key(k, mods))).toBe(true);
+  });
+
+  it.each([
+    ["a bare [", "[", {}],
+    ["a bare arrow", "ArrowLeft", {}],
+    ["the other direction", "ArrowRight", { metaKey: true }],
+    ["the other bracket", "]", { metaKey: true }],
+    ["⌥[", "[", { altKey: true }],
+  ])("is false for %s", (_label, k, mods) => {
+    expect(isBackShortcut(key(k, mods))).toBe(false);
+  });
+
+  it("is false for ⌃⌘←, which belongs to Spaces", () => {
+    // Taking a system chord would move the desktop and the view at once.
+    expect(
+      isBackShortcut(key("ArrowLeft", { metaKey: true, ctrlKey: true })),
+    ).toBe(false);
   });
 });
 
