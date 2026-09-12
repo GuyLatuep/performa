@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, SearchResults as Results } from "../api";
-import { clearForward } from "../back";
+import { clearForward, useBackTarget } from "../back";
 import { requestIssue } from "../issueRequest";
-import { describeSearch, SearchRequest } from "../searchRequest";
+import {
+  clearSearchRequest,
+  describeSearch,
+  requestFieldSearch,
+  requestTextSearch,
+  SearchRequest,
+} from "../searchRequest";
 import { useRowSelected, useSelectionScope } from "../selection";
 import { usePinnedIssues } from "../pins";
 import IssueRow from "./IssueRow";
@@ -26,9 +32,12 @@ function ResultRow(props: Parameters<typeof IssueRow>[0]) {
 export default function SearchResults({
   search,
   site,
+  backLabel,
 }: {
   search: SearchRequest;
   site: string;
+  /** Where leaving these results goes — the tab that was showing underneath. */
+  backLabel: string;
 }) {
   const [found, setFound] = useState<Results | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +84,27 @@ export default function SearchResults({
     id: SCOPE,
     rows: (issues ?? []).map((i) => i.key),
     open,
+  });
+
+  /**
+   * The way out.
+   *
+   * Every view that replaces the content area registers one; without it Escape,
+   * ⌘[, the mouse's back button and the swipe all did nothing here, and the
+   * sidebar was the only exit — which failed too on the tab the search was
+   * launched from, since clicking an already-active tab changes no state.
+   *
+   * Going forward runs the same search again, which is what re-entering results
+   * means: the request carries its own copy of the definition, so it is the
+   * search as it was, not as the settings have since become.
+   */
+  useBackTarget({
+    label: backLabel,
+    back: clearSearchRequest,
+    forward: () =>
+      search.kind === "text"
+        ? requestTextSearch(search.term)
+        : requestFieldSearch(search.search, search.term),
   });
 
   return (

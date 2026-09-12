@@ -26,6 +26,11 @@ vi.mock("./components/Todo", () => stub("todo"));
 vi.mock("./components/Timesheet", () => stub("timesheet"));
 vi.mock("./components/MissingWorklogs", () => stub("missing"));
 vi.mock("./components/Mentions", () => stub("mentions"));
+vi.mock("./components/SearchResults", () => ({
+  default: ({ backLabel }: { backLabel: string }) => (
+    <p>results, back to {backLabel}</p>
+  ),
+}));
 vi.mock("./components/IssueView", () => ({
   default: ({
     issue,
@@ -98,6 +103,8 @@ vi.mock("./fun", () => ({
 import App from "./App";
 import { apiMock, resetApiMock } from "./test-support/api";
 import { clearIssueRequest, requestIssue } from "./issueRequest";
+import { clearSearchRequest, requestTextSearch } from "./searchRequest";
+import { clearForward } from "./back";
 import { setTimesheetView } from "./settings";
 
 const CREDS = {
@@ -490,5 +497,82 @@ describe("an issue reached by its key", () => {
     });
 
     expect(screen.getByText("timesheet panel")).toBeDefined();
+  });
+});
+
+describe("results reached from the command palette", () => {
+  // A search belongs to no tab either, so the shell shows it the way it shows an
+  // issue opened by key.
+
+  afterEach(() => {
+    clearSearchRequest();
+    clearIssueRequest();
+    clearForward();
+  });
+
+  it("replaces the tab's content", async () => {
+    await renderSignedIn();
+
+    await act(async () => requestTextSearch("pump"));
+
+    expect(screen.getByText(/results, back to Start/)).toBeDefined();
+    expect(screen.queryByText("start panel")).toBeNull();
+  });
+
+  it("says where leaving them goes, which is the tab underneath", async () => {
+    await renderSignedIn();
+    await act(async () => {
+      fireEvent.keyDown(document.body, { key: "2", metaKey: true });
+    });
+
+    await act(async () => requestTextSearch("pump"));
+
+    expect(screen.getByText(/results, back to Todo/)).toBeDefined();
+  });
+
+  it("gives the tab back when another is asked for", async () => {
+    await renderSignedIn();
+    await act(async () => requestTextSearch("pump"));
+
+    await act(async () => {
+      fireEvent.keyDown(document.body, { key: "4", metaKey: true });
+    });
+
+    expect(screen.getByText("timesheet panel")).toBeDefined();
+  });
+
+  it("gives it back when the tab they were launched from is asked for again", async () => {
+    // The blocker: clicking an already-active tab changes no tab, so an effect
+    // keyed on the tab value never ran and the results stayed up. That tab is
+    // the obvious way back from its own results.
+    await renderSignedIn();
+    await act(async () => requestTextSearch("pump"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(screen.getByText("start panel")).toBeDefined();
+  });
+
+  it("steps aside for an issue opened by key afterwards", async () => {
+    await renderSignedIn();
+    await act(async () => requestTextSearch("pump"));
+
+    await act(async () => requestIssue("ABC-12"));
+
+    expect(screen.getByText(/viewing ABC-12/)).toBeDefined();
+  });
+
+  it("replaces an issue that was open, rather than being swallowed by it", async () => {
+    // The other blocker, and the asymmetry: the shell shows an issue in
+    // preference to a search, so without the clear the palette closed, the
+    // request ran, and nothing on screen changed — the results arriving later,
+    // unannounced, when the reader backed out of the issue.
+    await renderSignedIn();
+    await act(async () => requestIssue("ABC-12"));
+
+    await act(async () => requestTextSearch("pump"));
+
+    expect(screen.getByText(/results, back to Start/)).toBeDefined();
+    expect(screen.queryByText(/viewing ABC-12/)).toBeNull();
   });
 });

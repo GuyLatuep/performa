@@ -20,8 +20,9 @@ vi.mock("../pins", () => ({
 import { apiMock, issueSummary, resetApiMock } from "../test-support/api";
 import { clearIssueRequest, useRequestedIssue } from "../issueRequest";
 import { SavedSearch } from "../savedSearches";
-import { SearchRequest } from "../searchRequest";
+import { getRequestedSearch, SearchRequest } from "../searchRequest";
 import { clearSelection } from "../selection";
+import { backTarget, clearForward, goBack, goForward } from "../back";
 import { AllKeys } from "../test-support/shortcuts";
 import SearchResults from "./SearchResults";
 
@@ -54,7 +55,11 @@ function renderResults(search: SearchRequest = PLANT) {
   render(
     <>
       <AllKeys />
-      <SearchResults search={search} site="https://example.atlassian.net" />
+      <SearchResults
+        search={search}
+        site="https://example.atlassian.net"
+        backLabel="Todo"
+      />
       <Opened />
     </>,
   );
@@ -69,6 +74,7 @@ beforeEach(() => {
 
 afterEach(() => {
   clearSelection();
+  clearForward();
   clearIssueRequest();
   vi.unstubAllGlobals();
   document.body.innerHTML = "";
@@ -212,5 +218,51 @@ describe("the results themselves", () => {
     await userEvent.click(await screen.findByText("Replace the pump"));
 
     expect(screen.getByText("opening ABC-1")).toBeDefined();
+  });
+});
+
+describe("leaving the results", () => {
+  // Every view that replaces the content area registers a way out. Without one,
+  // Escape, ⌘[, the mouse's back button and the swipe all did nothing here.
+
+  it("registers one, named for the tab underneath", async () => {
+    apiMock.searchField.mockResolvedValue(page([]));
+
+    renderResults();
+
+    await act(async () => {});
+    expect(backTarget()?.label).toBe("Todo");
+  });
+
+  it("clears the search, so the tab comes back", async () => {
+    apiMock.searchField.mockResolvedValue(page([]));
+    renderResults();
+    await act(async () => {});
+
+    await act(async () => {
+      goBack();
+    });
+
+    expect(getRequestedSearch()).toBeNull();
+  });
+
+  it("runs the same search again on the way forward", async () => {
+    // Re-entering results means the search as it was — the request carries its
+    // own copy of the definition, not whatever the settings have since become.
+    apiMock.searchField.mockResolvedValue(page([]));
+    renderResults();
+    await act(async () => {});
+    await act(async () => {
+      goBack();
+    });
+
+    await act(async () => {
+      goForward();
+    });
+
+    expect(getRequestedSearch()).toMatchObject({
+      kind: "field",
+      term: "DE_1979",
+    });
   });
 });

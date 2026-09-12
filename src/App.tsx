@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   AtSign,
@@ -199,14 +199,30 @@ export default function App() {
   // returns below, because a hook has to run on every render.
   const openSettings = () => setEditingCreds(true);
   const settingsKeys = useShortcut("settings", openSettings);
+
+  /**
+   * Show a tab, whatever is in front of it.
+   *
+   * Asking for a tab is asking to *see* it, and an issue opened by key or a set
+   * of search results sits over the tab rather than beside it. The effect above
+   * clears those too, but only when the tab value actually changes — so asking
+   * for the tab you are already on, which is the obvious way back from its own
+   * search results, used to do nothing at all.
+   */
+  const showTab = useCallback((t: Tab) => {
+    clearIssueRequest();
+    clearSearchRequest();
+    setTab(t);
+  }, []);
+
   // One per tab rather than a loop: a hook cannot be called from one.
   const tabKeys: Record<Tab, ShortcutProps> = {
-    start: useShortcut("tabStart", () => setTab("start")),
-    todo: useShortcut("tabTodo", () => setTab("todo")),
+    start: useShortcut("tabStart", () => showTab("start")),
+    todo: useShortcut("tabTodo", () => showTab("todo")),
     log: useShortcut("tabLog", () => openLogTab(null)),
-    timesheet: useShortcut("tabTimesheet", () => setTab("timesheet")),
-    missing: useShortcut("tabMissing", () => setTab("missing")),
-    mentions: useShortcut("tabMentions", () => setTab("mentions")),
+    timesheet: useShortcut("tabTimesheet", () => showTab("timesheet")),
+    missing: useShortcut("tabMissing", () => showTab("missing")),
+    mentions: useShortcut("tabMentions", () => showTab("mentions")),
   };
 
   // The celebrating, kept apart from the refreshing: this one needs to know
@@ -288,12 +304,13 @@ export default function App() {
   /** Open the log-work tab, optionally with an issue preselected. */
   function openLogTab(issue: IssueSummary | null) {
     // A visit to the log tab from the log tab changes no tab, so the effect
-    // above would not see it.
+    // above would not see it. `showTab` clears what sits over the tab for the
+    // same reason.
     clearForward();
     setLogIssue(issue);
     setLogOrigin(issue ? tab : null);
     setLogVisit((v) => v + 1);
-    setTab("log");
+    showTab("log");
   }
 
   function onLogged() {
@@ -340,24 +357,24 @@ export default function App() {
         </div>
 
         <nav className="nav">
-          {navRow("start", 0, false, () => setTab("start"))}
-          {navRow("todo", 0, false, () => setTab("todo"))}
+          {navRow("start", 0, false, () => showTab("start"))}
+          {navRow("todo", 0, false, () => showTab("todo"))}
           {/* A manual visit starts fresh, without a preselected issue — also
               when the tab is already open. */}
           {navRow("log", 0, false, () => openLogTab(null))}
-          {navRow("timesheet", 0, false, () => setTab("timesheet"))}
+          {navRow("timesheet", 0, false, () => showTab("timesheet"))}
           {navRow(
             "missing",
             missingItems.length,
             missingUnseen > 0,
-            () => setTab("missing"),
+            () => showTab("missing"),
             missingArrived,
           )}
           {navRow(
             "mentions",
             mentionsUnread,
             mentionsUnread > 0,
-            () => setTab("mentions"),
+            () => showTab("mentions"),
             mentionsArrived,
           )}
         </nav>
@@ -446,7 +463,11 @@ export default function App() {
               onLogged={onLogged}
             />
           ) : search ? (
-            <SearchResults search={search} site={creds.site} />
+            <SearchResults
+              search={search}
+              site={creds.site}
+              backLabel={TAB_LABELS[tab]}
+            />
           ) : (
             <>
               {tab === "start" && (
@@ -454,7 +475,7 @@ export default function App() {
                   site={creds.site}
                   refreshKey={refreshKey}
                   onSelectIssue={openLogTab}
-                  onOpenMissing={() => setTab("missing")}
+                  onOpenMissing={() => showTab("missing")}
                   onLogged={onLogged}
                 />
               )}

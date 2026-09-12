@@ -184,7 +184,31 @@ describe("one already written", () => {
     ).toHaveProperty("value", "Plant number");
   });
 
-  it("is renamed as it is typed, the name being what the palette draws", async () => {
+  it("is renamed once the name box is left", async () => {
+    await renderTab();
+    const box = screen.getByLabelText("Name of the Plant number search");
+
+    await userEvent.type(box, "s");
+    await userEvent.tab();
+
+    expect(getSavedSearches()[0].name).toBe("Plant numbers");
+  });
+
+  it("is renamed on Enter too, without having to click away", async () => {
+    await renderTab();
+
+    await userEvent.type(
+      screen.getByLabelText("Name of the Plant number search"),
+      "s{Enter}",
+    );
+
+    expect(getSavedSearches()[0].name).toBe("Plant numbers");
+  });
+
+  it("is not rewritten on every keystroke", async () => {
+    // The name is held in the row until the box is left. Writing through as it
+    // is typed means the stored name is briefly whatever half-word is in the
+    // box — and briefly empty, which is the state that loses the search.
     await renderTab();
 
     await userEvent.type(
@@ -192,7 +216,46 @@ describe("one already written", () => {
       "s",
     );
 
-    expect(getSavedSearches()[0].name).toBe("Plant numbers");
+    expect(getSavedSearches()[0].name).toBe("Plant number");
+  });
+
+  it("survives being cleared to retype it", async () => {
+    // Select-all-and-retype is an ordinary way to rename something. It used to
+    // persist `name: ""`, which `read()` drops — so the search was gone at the
+    // next launch, with nothing on screen to say so.
+    await renderTab();
+    const box = screen.getByLabelText("Name of the Plant number search");
+
+    await userEvent.clear(box);
+    await userEvent.tab();
+
+    expect(getSavedSearches()).toHaveLength(1);
+    expect(getSavedSearches()[0].name).toBe("Plant number");
+  });
+
+  it("puts the name back in the box when an empty one is refused", async () => {
+    // Otherwise the input sits empty while the list still holds the old name,
+    // and the two disagree with no way to tell which is real.
+    await renderTab();
+    const box = screen.getByLabelText("Name of the Plant number search");
+
+    await userEvent.clear(box);
+    await userEvent.tab();
+
+    expect(box).toHaveProperty("value", "Plant number");
+  });
+
+  it("offers no way to un-choose the field", async () => {
+    // The store refuses a search with no field, so an option for it would only
+    // snap back — and a saved search always has one.
+    await renderTab();
+    const picker = screen.getByLabelText(
+      "Field the Plant number search looks in",
+    );
+
+    expect(
+      within(picker).queryByRole("option", { name: "Pick a field…" }),
+    ).toBeNull();
   });
 
   it("changes which field it looks in", async () => {

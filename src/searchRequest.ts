@@ -1,3 +1,5 @@
+import { clearForward } from "./back";
+import { clearIssueRequest } from "./issueRequest";
 import { SavedSearch } from "./savedSearches";
 import { createStore } from "./store";
 
@@ -19,17 +21,39 @@ export type SearchRequest =
 
 const store = createStore<SearchRequest | null>(null);
 
+/**
+ * Show these results, in place of whatever is on screen.
+ *
+ * Both of these clear the two other things the shell can be showing, for the
+ * same reason the tab switch does: asking for a search is asking to *see* one.
+ * The shell shows an issue opened by key in preference to a search, so without
+ * the clear the palette would close, the request would run, and nothing would
+ * change — with the results ambushing the reader later, when they backed out of
+ * the issue. And the redo stack describes a trail that a new search has just
+ * left, so a forward press must not re-enter it.
+ */
+function show(request: SearchRequest): void {
+  clearIssueRequest();
+  clearForward();
+  store.set(request);
+}
+
 export function requestTextSearch(term: string): void {
-  store.set({ kind: "text", term });
+  show({ kind: "text", term });
 }
 
 export function requestFieldSearch(search: SavedSearch, term: string): void {
-  store.set({ kind: "field", term, search });
+  show({ kind: "field", term, search });
 }
 
 /** The search being shown, or null — which is every other moment. */
 export function useRequestedSearch(): SearchRequest | null {
   return store.use();
+}
+
+/** The same, outside a render. The get/use pair every store here offers. */
+export function getRequestedSearch(): SearchRequest | null {
+  return store.get();
 }
 
 /** Stop showing it. The results view's way out, so also what the back gesture

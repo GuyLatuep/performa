@@ -1,4 +1,5 @@
 import { IssueSummary } from "./api";
+import { clearForward } from "./back";
 import { createStore } from "./store";
 
 /**
@@ -15,9 +16,16 @@ import { createStore } from "./store";
  */
 const store = createStore<IssueSummary | null>(null);
 
-/** Show this issue. The summary is usually unknown at this point — the view
- *  fetches it by key and fills it in. */
+/**
+ * Show this issue. The summary is usually unknown at this point — the view
+ * fetches it by key and fills it in.
+ *
+ * The redo stack is dropped: it describes a trail this has just left, and a
+ * forward press afterwards would re-enter a view the reader has moved on from.
+ * The same rule every other navigation in the app follows.
+ */
 export function requestIssue(key: string): void {
+  clearForward();
   store.set({ key, summary: "" });
 }
 

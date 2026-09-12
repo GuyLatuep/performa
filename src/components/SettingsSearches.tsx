@@ -84,7 +84,7 @@ export default function SettingsSearches() {
 }
 
 /** One saved search, editable in place. Every change applies as it is made, the
- *  way the rest of this screen's settings do. */
+ *  way the rest of this screen's settings do — except the name; see below. */
 function SearchRow({
   search,
   fields,
@@ -94,13 +94,38 @@ function SearchRow({
   fields: string[] | null;
   projects: ProjectSummary[] | null;
 }) {
+  /**
+   * The name while it is being typed.
+   *
+   * The one control here that is not written through on every keystroke. A
+   * search with no name is dropped when the list is next read, so persisting
+   * mid-edit means select-all-and-retype — an ordinary way to rename something —
+   * leaves the app one quit away from losing the search. Held here instead and
+   * committed when the box is left.
+   *
+   * The label is deliberately built from the *stored* name rather than this one,
+   * so a screen reader is not re-announcing the field on every letter.
+   */
+  const [name, setName] = useState(search.name);
+  useEffect(() => setName(search.name), [search.name]);
+  const commitName = () => {
+    updateSavedSearch(search.id, { name });
+    // An empty box is refused by the store, so put back what it still holds
+    // rather than leaving the input disagreeing with the list.
+    setName((typed) => (typed.trim() === "" ? search.name : typed));
+  };
+
   return (
     <>
       <input
         type="text"
         aria-label={`Name of the ${search.name} search`}
-        value={search.name}
-        onChange={(e) => updateSavedSearch(search.id, { name: e.target.value })}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={commitName}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
       />
       <FieldPicker
         label={`Field the ${search.name} search looks in`}
@@ -220,9 +245,14 @@ function FieldPicker({
       disabled={fields === null}
       onChange={(e) => onChange(e.target.value)}
     >
-      <option value="">
-        {fields === null ? "Loading fields…" : "Pick a field…"}
-      </option>
+      {/* Only while nothing is chosen. On a saved search it would be an option
+          to un-choose the field, which the store refuses — leaving the select
+          snapping back to a value the user had just cleared. */}
+      {value === "" && (
+        <option value="">
+          {fields === null ? "Loading fields…" : "Pick a field…"}
+        </option>
+      )}
       {/* A field that has since been renamed or removed on the site would
           otherwise vanish from its own search, silently. */}
       {value !== "" && !fields?.includes(value) && (

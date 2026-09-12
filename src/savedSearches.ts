@@ -90,16 +90,31 @@ function freshId(): string {
   return `s${Date.now().toString(36)}-${issued.toString(36)}`;
 }
 
+/**
+ * A search worth storing, or null.
+ *
+ * The one rule both mutators go through, because `read()` above enforces the
+ * same one on the way back in: a search with no name or no field is dropped when
+ * it is next loaded. Writing one is therefore not "saving an incomplete search",
+ * it is deleting a search on a delay — which is what made clearing the name box
+ * to retype it a way to lose the whole thing.
+ */
+function sanitise(
+  search: Omit<SavedSearch, "id">,
+): Omit<SavedSearch, "id"> | null {
+  const name = search.name.trim();
+  const field = search.field.trim();
+  if (name === "" || field === "") return null;
+  return { ...search, name, field };
+}
+
 /** Add one, and hand back what it was given an id of. */
 export function addSavedSearch(
   search: Omit<SavedSearch, "id">,
 ): SavedSearch | null {
-  if (search.name.trim() === "" || search.field.trim() === "") return null;
-  const added: SavedSearch = {
-    ...search,
-    name: search.name.trim(),
-    id: freshId(),
-  };
+  const clean = sanitise(search);
+  if (!clean) return null;
+  const added: SavedSearch = { ...clean, id: freshId() };
   save([...store.get(), added]);
   return added;
 }
@@ -108,13 +123,26 @@ export function removeSavedSearch(id: string): void {
   save(store.get().filter((s) => s.id !== id));
 }
 
-/** Change one in place. Unknown ids are ignored rather than appended — an update
- *  to something that has been deleted is not a new search. */
+/**
+ * Change one in place.
+ *
+ * Unknown ids are ignored rather than appended — an update to something that has
+ * been deleted is not a new search. A patch that would leave it without a name or
+ * a field is ignored too, for the reason on `sanitise`: storing that is a
+ * deletion the user did not ask for and would not see until the next launch.
+ * Removing a search is what the ✕ is for.
+ */
 export function updateSavedSearch(
   id: string,
   patch: Partial<Omit<SavedSearch, "id">>,
 ): void {
-  save(store.get().map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  save(
+    store.get().map((s) => {
+      if (s.id !== id) return s;
+      const clean = sanitise({ ...s, ...patch });
+      return clean ? { ...clean, id } : s;
+    }),
+  );
 }
 
 /** Forget them all. For tests, whose localStorage outlives one of them. */
