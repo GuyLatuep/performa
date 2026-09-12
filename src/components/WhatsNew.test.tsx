@@ -3,7 +3,11 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
-import { ISSUE_VIEW_NOTICE, TODO_FILTER_NOTICE } from "../notices";
+import {
+  ISSUE_VIEW_NOTICE,
+  KEYBOARD_NOTICE,
+  TODO_FILTER_NOTICE,
+} from "../notices";
 import WhatsNew from "./WhatsNew";
 
 // Tested against the real notices store — it is localStorage plus a set of
@@ -46,10 +50,38 @@ describe("which notice is shown", () => {
     expect(screen.getByText("Issues now open in the app")).toBeDefined();
   });
 
+  it("brings the keyboard notice once the older two are seen", async () => {
+    // The one feature that cannot announce itself: a set of keys and a badge
+    // that appears only while a modifier is held. A user never told to hold it
+    // has no way to find out any of it is there.
+    const { Component } = await freshWhatsNew([
+      TODO_FILTER_NOTICE,
+      ISSUE_VIEW_NOTICE,
+    ]);
+
+    render(<Component onOpenSettings={vi.fn()} />);
+
+    expect(screen.getByText("performa now has a keyboard")).toBeDefined();
+  });
+
+  it("says how to find the keys rather than listing them", async () => {
+    // The badges are the list; the notice only has to say to hold the key.
+    const { Component } = await freshWhatsNew([
+      TODO_FILTER_NOTICE,
+      ISSUE_VIEW_NOTICE,
+    ]);
+
+    render(<Component onOpenSettings={vi.fn()} />);
+
+    expect(screen.getByText(/Hold/)).toBeDefined();
+    expect(screen.getByText(/opens the command palette/)).toBeDefined();
+  });
+
   it("shows nothing once every notice has been seen", async () => {
     const { Component } = await freshWhatsNew([
       TODO_FILTER_NOTICE,
       ISSUE_VIEW_NOTICE,
+      KEYBOARD_NOTICE,
     ]);
 
     const { container } = render(<Component onOpenSettings={vi.fn()} />);

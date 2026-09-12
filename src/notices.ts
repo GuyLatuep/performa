@@ -14,6 +14,7 @@ const SEEN_KEY = "performa-notices-seen";
  *  an id re-shows the notice to everyone. */
 export const TODO_FILTER_NOTICE = "todo-filter-2026-08";
 export const ISSUE_VIEW_NOTICE = "issue-view-2026-08";
+export const KEYBOARD_NOTICE = "keyboard-2026-09";
 
 function readSeen(): string[] {
   try {

@@ -1,9 +1,11 @@
 import {
   dismissNotice,
   ISSUE_VIEW_NOTICE,
+  KEYBOARD_NOTICE,
   TODO_FILTER_NOTICE,
   useNoticePending,
 } from "../notices";
+import { primaryGlyph } from "../platform";
 
 interface Props {
   /** Open the settings screen on the Todo tab, so the user can set the filter
@@ -19,11 +21,51 @@ interface Props {
 export default function WhatsNew({ onOpenSettings }: Props) {
   const todoFilterPending = useNoticePending(TODO_FILTER_NOTICE);
   const issueViewPending = useNoticePending(ISSUE_VIEW_NOTICE);
+  const keyboardPending = useNoticePending(KEYBOARD_NOTICE);
 
   if (todoFilterPending)
     return <TodoFilterNotice onOpenSettings={onOpenSettings} />;
   if (issueViewPending) return <IssueViewNotice />;
+  if (keyboardPending) return <KeyboardNotice />;
   return null;
+}
+
+/** The keyboard layer, which is the one feature that cannot announce itself.
+ *
+ *  Everything else the app has added shows up as something on screen. This is a
+ *  set of keys and a badge that appears only while a modifier is held — so a
+ *  user who is never told to hold it has no way to find out any of it is there,
+ *  and the feature whose whole design is discoverability would be the one nobody
+ *  discovers. */
+function KeyboardNotice() {
+  const key = primaryGlyph();
+  return (
+    <div className="modal-backdrop">
+      <div className="modal">
+        <h3>performa now has a keyboard</h3>
+        <p className="modal-sub">
+          <strong>Hold {key}</strong> and every action within reach names its
+          own key, as a small badge on its button. Let go and they are gone.
+          There is nothing to memorise — the badges are the list.
+        </p>
+        <p className="modal-sub">
+          <strong>{key}P</strong> opens the command palette: everything the app
+          can do, searchable by name, each entry showing its own shortcut beside
+          it. Type an issue key there to open it, or search your Jira by text —
+          and under <strong>Settings → Searches</strong> you can build searches
+          of your own over any field your site has.
+        </p>
+        <p className="modal-sub">
+          In any list, <strong>↑</strong> and <strong>↓</strong> walk the rows
+          and <strong>Enter</strong> opens one. The handbook has the whole
+          catalogue under <em>Keyboard</em>.
+        </p>
+        <div className="row">
+          <button onClick={() => dismissNotice(KEYBOARD_NOTICE)}>Got it</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** The issue view, and that its fields are the user's to arrange. */

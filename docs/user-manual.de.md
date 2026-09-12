@@ -182,6 +182,40 @@ Erscheinungsbild, Textgröße und Handbuch liegen hier statt im Fenster.
 
 **Escape** schließt sie, ohne die Ansicht dahinter zu verlassen.
 
+#### Einen Vorgang über seinen Schlüssel öffnen
+
+Tippe einen Vorgangsschlüssel — **ABC-1234** — und die Palette bietet an, ihn zu
+öffnen, ganz oben in der Liste. Er ist das, was die Eingabe *ist*, und nicht
+etwas, dem sie ähnelt — deshalb führt er. Groß- und Kleinschreibung spielt keine
+Rolle: `abc-1234` findet denselben Vorgang.
+
+Der Vorgang öffnet sich in der App, über dem Tab, auf dem du warst; zurück führt
+dich wieder dorthin.
+
+#### Suchen
+
+**Search by text** wird immer angeboten: auswählen, Wörter eintippen, **Enter** —
+und alle Vorgänge, die diese Wörter in irgendeinem von Jira durchsuchten Feld
+tragen, kommen als gewöhnliche Liste zurück. Es sind dieselben Zeilen wie im
+Todo-Tab, also laufen die Pfeiltasten durch sie und **Enter** öffnet eine.
+
+Eigene Suchen stehen daneben als **Search by …**, unter dem Namen, den du ihnen
+gegeben hast. Wie du eine anlegst, steht unter
+[Einstellungen → Searches](#einstellungen).
+
+Beide fragen den Suchbegriff in einem zweiten Schritt ab. Beim Auswählen leert
+sich das Feld, damit das, was du zum *Finden* der Suche getippt hast, nicht mit
+dem verwechselt wird, wonach du suchen willst; der Hinweis darunter sagt, worauf
+sie wartet. **Escape** führt dort zurück zur Befehlsliste statt aus der Palette
+heraus — hast du die falsche von zwei Suchen erwischt, ist die andere einen
+Tastendruck entfernt.
+
+Die Ergebnisse nennen ihre Anzahl. Hatte Jira mehr, als die App angefragt hat,
+steht dort **first 100** mit dem Hinweis, den Begriff einzugrenzen: eine volle
+Seite ist kein Beweis, dass nichts dahinter kommt, und diese Suchen schließen
+abgeschlossene Vorgänge bewusst ein — eine lange Historie erreicht die Grenze
+also ganz regulär.
+
 ### Wenn eine Taste nichts tut
 
 - **Du hast etwas eingegeben.** Eine Taste, die ungespeicherte Wörter
@@ -448,10 +482,13 @@ Der **Settings**-Link in der Kopfzeile öffnet denselben Bildschirm wie bei der 
 - **Daily work hours** — 0,5–24 h; daraus ergeben sich die Tagesziel-Linie und, × 5, der Wochenziel-Ring in den Diagrammen.
 - **Timesheet days** — **Mon–Fri** (Wochenenden ausgeblendet, außer sie enthalten erfasste Zeit) oder **Full week**.
 - **Todo** — welche Status der Todo-Tab ausblendet, pro Projekt. Die meisten Sites verwenden überall dieselben Status, deshalb gibt es ein **Copy to**, um die übrigen Projekte in einem Rutsch zu füllen.
+- **Searches** — eigene Suchen, von denen jede in der Befehlspalette ([⌘P](#die-befehlspalette)) als **Search by …** erscheint. Eine Zeile je Suche: ein **Name**, das zu durchsuchende **Field** (aus der Feldliste deines Jira, es gibt also nichts zu buchstabieren), die auszuschließenden Projekte unter **Exclude projects** und **Whole value**. Lässt du **Whole value** aus, passt alles, was mit dem Eingetippten *beginnt* — `DE_1979` findet dann auch `DE_1979_03`; setze den Haken, wo eine Teilübereinstimmung jeden Nachbarn mit gleichem Anfang mitziehen würde. Ein Feld, das deine Site nicht mehr hat, bleibt stehen und wird als *(not on this site)* gekennzeichnet, statt zu verschwinden — eine Suche, die nicht mehr funktioniert, sagt so, warum. Die reine Textsuche muss nicht eingerichtet werden und wird immer angeboten.
 - **Logging** — die Ausführlichkeit des Debug-Logs (**Error**, **Warn**, **Info** oder **Debug**; siehe [Debug-Log](#debug-log)) sowie ein **Open log folder**-Button.
 - **Zugangsdaten** — Site, E-Mail oder Token ändern. Bleibt das Token-Feld leer, wird das gespeicherte Token beibehalten — du musst es also nicht neu eingeben, um z. B. einen Tippfehler in der E-Mail zu korrigieren. Beim Speichern wird erneut gegen Jira geprüft.
 
-Appearance (Theme, Akzentfarbe, Typ-Symbole), Stunden, die Wochenend-Einstellung und der Log-Level wirken **sofort** als Live-Vorschau — **Cancel** stellt die Werte vom Öffnen des Bildschirms wieder her.
+Appearance (Theme, Akzentfarbe, Typ-Symbole), Stunden, die Wochenend-Einstellung und der Log-Level wirken **sofort** als Live-Vorschau — **Cancel** stellt die Werte vom Öffnen des Bildschirms wieder her. Die Suchen gehören nicht zu dieser Rücknahme: sie sind deine, keine Vorschau, und das **✕** in der Zeile entfernt eine.
+
+Gespeicherte Suchen gehören zu dem Konto, für das sie geschrieben wurden — ein Feldname bedeutet auf einem anderen Jira nichts —, deshalb startet eine Anmeldung als jemand anderes mit einer leeren Liste.
 
 Welche Felder ein **Vorgang** zeigt, steht nicht hier — das liegt am Vorgang selbst, unter **Arrange fields**.
 

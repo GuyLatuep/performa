@@ -176,6 +176,36 @@ text size and the handbook all live here rather than cluttering the window.
 
 **Escape** closes it without leaving the view behind it.
 
+#### Opening an issue by its key
+
+Type an issue key — **ABC-1234** — and the palette offers to open it, first in
+the list. It is what the query *is* rather than something it resembles, so it
+leads. Case does not matter: `abc-1234` finds the same issue.
+
+The issue opens in the app, over whichever tab you were on, and going back
+returns you there.
+
+#### Searching
+
+**Search by text** is always offered: pick it, type your words, press **Enter**,
+and every issue with those words in any field Jira searches comes back as an
+ordinary list — the same rows the Todo tab draws, so the arrow keys walk them and
+**Enter** opens one.
+
+Searches of your own appear beside it as **Search by …**, named however you named
+them. See [Settings → Searches](#settings) for building one.
+
+Both ask for the term in a second step. Picking the search empties the box, so
+what you typed to *find* the search is not mistaken for what you want to search
+*for*, and the hint underneath says what it is waiting for. **Escape** there goes
+back to the list of commands rather than out of the palette — having picked the
+wrong one of two searches, the other is one press away.
+
+Results say how many they found. Where Jira had more than the app asked for, they
+say **first 100** and suggest narrowing the term: a full page is not proof there
+is nothing after it, and these searches deliberately include finished issues, so
+a long history reaches the limit as a matter of course.
+
 ### When a key does nothing
 
 - **You have typed something.** A key that would throw unsaved words away — a
@@ -442,10 +472,13 @@ The **Settings** link in the header opens the same screen used for the first-run
 - **Daily work hours** — 0.5–24 h; this drives the daily target line and, × 5, the weekly target ring in the charts.
 - **Timesheet days** — **Mon–Fri** (weekends hidden unless they contain logged time) or **Full week**.
 - **Todo** — which statuses the Todo tab hides, per project. Most sites use the same statuses everywhere, so the list carries a **Copy to** for filling the rest in at once.
+- **Searches** — searches of your own, each becoming **Search by …** in the command palette ([⌘P](#the-command-palette)). One row each: a **Name**, the **Field** to look in (offered from your own Jira's list, so there is nothing to spell), the projects to **Exclude**, and **Whole value**. Leave **Whole value** unticked to match anything *starting* with what you type — `DE_1979` then also finds `DE_1979_03` — and tick it where a partial match would drag in every neighbour sharing an opening. A field your site no longer has is kept and marked *(not on this site)* rather than disappearing, so a search that has stopped working says why. Searching plain text needs no setting up and is always offered.
 - **Logging** — the debug-log verbosity (**Error**, **Warn**, **Info**, or **Debug**; see [Debug log](#debug-log)) and an **Open log folder** button.
 - **Credentials** — change site, email, or token. Leaving the token field blank keeps the stored token, so you don't need to re-enter it to fix a typo in the email. Saving re-verifies against Jira.
 
-Appearance (theme, accent, type icons), hours, the weekend toggle, and the log level apply **instantly** as a live preview — pressing **Cancel** restores the values from when you opened the screen.
+Appearance (theme, accent, type icons), hours, the weekend toggle, and the log level apply **instantly** as a live preview — pressing **Cancel** restores the values from when you opened the screen. Searches are not part of that rollback: they are yours rather than a preview, and the **✕** on a row is what removes one.
+
+Saved searches belong to the account they were written for — a field name means nothing on another Jira — so signing in as somebody else starts with an empty list.
 
 Which fields an **issue** shows is not here — that lives on the issue itself, under **Arrange fields**.
 
