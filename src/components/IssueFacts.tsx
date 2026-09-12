@@ -58,7 +58,7 @@ export default function IssueFacts({
   const [arranging, setArranging] = useState(false);
   const startArranging = () => setArranging(true);
   // The button is only there while reading, and so is the key.
-  const arrangeKeys = useShortcut("arrange", startArranging, !arranging);
+  const arrangeKeys = useShortcut("edit", startArranging, !arranging);
   const fieldConfig = useIssueFieldConfig();
 
   const onDrop = useCallback((dragged: string, onto: string) => {

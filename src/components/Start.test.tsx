@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
@@ -32,12 +38,15 @@ vi.mock("../achievements", () => ({ recordEvent: vi.fn(() => []) }));
 vi.mock("./IssueRow", () => ({
   default: ({
     issue,
+    selected,
     onSelect,
   }: {
     issue: { key: string };
+    selected?: boolean;
     onSelect: (i: unknown) => void;
   }) => (
-    <li>
+    // `aria-current` is what the real row marks the selection with.
+    <li aria-current={selected ? "true" : undefined}>
       <button onClick={() => onSelect(issue)}>{issue.key}</button>
     </li>
   ),
@@ -50,6 +59,7 @@ import {
   resetApiMock,
   worklogEntry,
 } from "../test-support/api";
+import { AllKeys } from "../test-support/shortcuts";
 import Start from "./Start";
 
 const WEDNESDAY = new Date(2026, 2, 18, 12, 0, 0);
@@ -73,7 +83,15 @@ function renderStart() {
     onLogged: vi.fn(),
   };
   render(
-    <Start site="https://example.atlassian.net" refreshKey={0} {...handlers} />,
+    <>
+      {/* The app mounts its key listeners once, in `App`. */}
+      <AllKeys />
+      <Start
+        site="https://example.atlassian.net"
+        refreshKey={0}
+        {...handlers}
+      />
+    </>,
   );
   return handlers;
 }
@@ -251,5 +269,35 @@ describe("the missing-worklog section", () => {
     renderStart();
 
     expect(screen.queryByTitle(/Ignore until/)).toBeNull();
+  });
+});
+
+describe("walking both of this screen's lists", () => {
+  /** The row the keyboard is on. */
+  function selected() {
+    return document.querySelector('[aria-current="true"]')?.textContent ?? null;
+  }
+
+  function down() {
+    fireEvent.keyDown(document.body, { key: "ArrowDown" });
+  }
+
+  it("crosses from the due issues into the missing worklogs below them", async () => {
+    // Two scopes on one screen, walked in the order they are given. This is what
+    // the explicit `order` is for — the two sections mount independently.
+    apiMock.dueIssues.mockResolvedValue([
+      issueSummary({ key: "ABC-1", summary: "Replace the pump" }),
+    ]);
+    missingStore.items = [
+      missingWorklog({ issueKey: "ABC-9", issueSummary: "Seal the pump" }),
+    ];
+    renderStart();
+    await screen.findByRole("button", { name: "ABC-1" });
+
+    await act(async () => down());
+    expect(selected()).toContain("ABC-1");
+
+    await act(async () => down());
+    expect(selected()).toContain("ABC-9");
   });
 });

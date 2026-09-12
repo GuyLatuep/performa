@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
@@ -15,6 +21,7 @@ vi.mock("../achievements", () => ({ recordEvent: vi.fn() }));
 
 import { setDailyHours, setFunMode, setShowWeekends } from "../settings";
 import { apiMock, resetApiMock, worklogEntry } from "../test-support/api";
+import { AllKeys } from "../test-support/shortcuts";
 import TimesheetWeek from "./TimesheetWeek";
 
 // Wednesday of the week starting Monday 2026-03-16.
@@ -24,14 +31,21 @@ const SUNDAY = "2026-03-22";
 
 function renderWeek(refreshKey = 0) {
   render(
-    <TimesheetWeek
-      site="https://example.atlassian.net"
-      refreshKey={refreshKey}
-    />,
+    <>
+      {/* The app mounts its key listeners once, in `App`. */}
+      <AllKeys />
+      <TimesheetWeek
+        site="https://example.atlassian.net"
+        refreshKey={refreshKey}
+      />
+    </>,
   );
 }
 
 beforeEach(() => {
+  vi.stubGlobal("navigator", {
+    userAgent: "Macintosh; Intel Mac OS X 10_15_7",
+  });
   resetApiMock();
   openUrl.mockClear();
   localStorage.clear();
@@ -241,5 +255,42 @@ describe("the row actions", () => {
     expect(openUrl).toHaveBeenCalledWith(
       "https://example.atlassian.net/browse/ABC-1",
     );
+  });
+});
+
+describe("walking the ledger with the arrow keys", () => {
+  function down() {
+    fireEvent.keyDown(document.body, { key: "ArrowDown" });
+  }
+
+  it("walks the rows as the day groups lay them out", async () => {
+    // Flattened: the day headings between the groups are not rows.
+    apiMock.listWorklogs.mockResolvedValue([
+      worklogEntry({ id: "1", date: MONDAY }),
+    ]);
+    renderWeek();
+    await screen.findByText("ABC-1");
+
+    await act(async () => down());
+
+    expect(
+      document.querySelector('[aria-current="true"]')?.textContent,
+    ).toContain("ABC-1");
+  });
+
+  it("edits the selected worklog on ⌘E", async () => {
+    apiMock.listWorklogs.mockResolvedValue([
+      worklogEntry({ id: "1", date: MONDAY }),
+    ]);
+    renderWeek();
+    await screen.findByText("ABC-1");
+    await act(async () => down());
+
+    await act(async () => {
+      fireEvent.keyDown(document.body, { key: "e", metaKey: true });
+    });
+
+    // The edit modal is the same one the row's pencil opens.
+    expect(screen.getByRole("heading", { name: /Edit ABC-1/ })).toBeDefined();
   });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { hasPrimaryModifier, isMac } from "./platform";
-import { OVERLAY_SELECTOR } from "./keys";
+import { drafting, OVERLAY_SELECTOR, textBox } from "./keys";
 
 /**
  * Every ⌘-shortcut in the app, declared once.
@@ -79,15 +79,24 @@ export const SHORTCUTS = {
   },
   attach: { key: "u", label: "Attach files" },
   linkItem: { key: "i", label: "Link work item" },
-  arrange: { key: "e", label: "Arrange fields" },
+  // Editing, whatever is in front: the issue view's field layout, a worklog row's
+  // own entry. The two never share a screen.
+  edit: { key: "e", label: "Edit" },
 
   // Submitting is the one action that must work with a full text box — it is
   // what empties it — so it stands down for nothing.
   submit: { key: "s", label: "Submit" },
 
-  // The timer's one singular control. Starting one is per issue row, which is
-  // a different shortcut on a different thing.
-  timer: { key: "t", label: "Stop the timer" },
+  // One verb on one key, and the two halves are mutually exclusive by
+  // definition: the timer bar binds it to Stop only while a timer runs, and an
+  // issue row binds it to Start only while none does.
+  timer: { key: "t", label: "Start or stop the timer" },
+
+  // On whichever row the keyboard is on. Only the selected row binds these, and
+  // only one row in the app is ever selected, so the three lists carrying an
+  // issue row never contend for them.
+  pin: { key: "b", label: "Pin or unpin" },
+  logAgain: { key: "d", label: "Log again" },
 
   timesheetView: { key: "y", label: "Week or month" },
   prevPeriod: {
@@ -101,13 +110,10 @@ export const SHORTCUTS = {
     label: "Next period",
   },
 
-  // Answered by `back.ts`. "typing" rather than "draft" because that handler
-  // stands down whenever a text box has focus, full or empty — `⌘←` means
-  // "start of line" there and that is the writer's key regardless. A badge
-  // using the draft rule would sit undimmed over an empty box where the key
-  // would in fact decline, which is the badge lying.
-  back: { key: "[", label: "Back", standsDown: "typing", external: true },
-  forward: { key: "]", label: "Forward", standsDown: "typing", external: true },
+  // Answered by `back.ts`, which stands down on the same draft rule as
+  // everything else here — so the badge says what the key will do.
+  back: { key: "[", label: "Back", standsDown: "draft", external: true },
+  forward: { key: "]", label: "Forward", standsDown: "draft", external: true },
 } as const satisfies Record<string, Shortcut>;
 
 export type ShortcutId = keyof typeof SHORTCUTS;
@@ -210,49 +216,6 @@ export function ariaKeyShortcuts(id: ShortcutId): string {
     ? "Arrow" + s.key.slice(5, 6).toUpperCase() + s.key.slice(6)
     : s.key.toUpperCase();
   return `${primary}+${s.shift ? "Shift+" : ""}${named}`;
-}
-
-/**
- * Input types holding words somebody would mind losing.
- *
- * A date box is pre-filled with today and a checkbox holds no words; neither is
- * a draft, and counting them as one would have ⌘2 refuse to work from the log
- * form's date field, which has held a value since it mounted.
- */
-const TEXTUAL = new Set([
-  "",
-  "text",
-  "search",
-  "url",
-  "email",
-  "tel",
-  "password",
-]);
-
-function textBox(el: Element | null): boolean {
-  const node = el as HTMLElement | null;
-  if (!node) return false;
-  if (node.isContentEditable) return true;
-  if (node.tagName === "TEXTAREA") return true;
-  return (
-    node.tagName === "INPUT" && TEXTUAL.has((node as HTMLInputElement).type)
-  );
-}
-
-/**
- * There is something typed and unsaved where the cursor is.
- *
- * The "and something typed" half is what makes this cheap enough to be true: no
- * form registers anything, nothing can go stale, and an untouched comment box
- * does not hold a tab switch hostage. What it deliberately does not cover is a
- * draft in a box that no longer has focus — the same exposure clicking the tab
- * has always had.
- */
-function drafting(el: Element | null): boolean {
-  if (!textBox(el)) return false;
-  const node = el as HTMLElement;
-  if (node.isContentEditable) return (node.textContent ?? "").trim() !== "";
-  return (node as HTMLInputElement | HTMLTextAreaElement).value.trim() !== "";
 }
 
 /**

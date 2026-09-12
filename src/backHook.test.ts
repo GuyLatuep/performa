@@ -60,6 +60,14 @@ function pressKey(
   fireEvent.keyDown(target, { key, ...mods });
 }
 
+/** A field with something written in it — which is what stands in the way. */
+function written(tag: string, contentEditable = false) {
+  const el = fieldOfType(tag, contentEditable);
+  if (contentEditable) el.textContent = "half a comment";
+  else (el as HTMLInputElement).value = "half a comment";
+  return el;
+}
+
 /** An element in the page, since a detached one never reaches the window. */
 function fieldOfType(tag: string, contentEditable = false) {
   const el = document.createElement(tag);
@@ -227,17 +235,32 @@ describe("useBackGestures", () => {
   it.each([
     ["an INPUT", "input", false],
     ["a TEXTAREA", "textarea", false],
-    ["a SELECT", "select", false],
     ["a contenteditable", "div", true],
-  ])("leaves Escape to whoever is typing in %s", (_label, tag, editable) => {
-    // Escape closes what the box has open, and ⌘← goes to the start of the
-    // line. Taking either would take it out of the writer's hands.
+  ])("leaves the keys to somebody typing in %s", (_label, tag, editable) => {
+    // Once there are words in the box, Escape closes what the box has open and
+    // ⌘← goes to the start of the line. Taking either would take it out of the
+    // writer's hands — and leaving the view would throw the words away.
     const { back } = listen_();
 
-    pressKey("Escape", {}, fieldOfType(tag, editable));
-    pressKey("ArrowLeft", { metaKey: true }, fieldOfType(tag, editable));
+    pressKey("Escape", {}, written(tag, editable));
+    pressKey("ArrowLeft", { metaKey: true }, written(tag, editable));
 
     expect(back).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an INPUT", "input", false],
+    ["a TEXTAREA", "textarea", false],
+    ["a contenteditable", "div", true],
+  ])("still goes back from an empty %s", (_label, tag, editable) => {
+    // A form that has just opened autofocuses its first field. Refusing to leave
+    // the view over an empty box is what made ⌘[ dead on arrival at the log
+    // form, which is the bug this rule replaces.
+    const { back } = listen_();
+
+    pressKey("ArrowLeft", { metaKey: true }, fieldOfType(tag, editable));
+
+    expect(back).toHaveBeenCalledTimes(1);
   });
 
   it("leaves a press something nearer has already claimed", () => {

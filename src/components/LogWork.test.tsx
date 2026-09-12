@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { backTarget, goBack } from "../back";
@@ -27,6 +33,7 @@ import {
   resetApiMock,
   worklogEntry,
 } from "../test-support/api";
+import { AllKeys } from "../test-support/shortcuts";
 import LogWork from "./LogWork";
 
 const ISSUE = issueSummary({ key: "ABC-1", summary: "Replace the pump" });
@@ -34,11 +41,15 @@ const ISSUE = issueSummary({ key: "ABC-1", summary: "Replace the pump" });
 function renderLogWork(props: Partial<Parameters<typeof LogWork>[0]> = {}) {
   const onLogged = vi.fn();
   render(
-    <LogWork
-      site="https://example.atlassian.net"
-      onLogged={onLogged}
-      {...props}
-    />,
+    <>
+      {/* The app mounts its key listeners once, in `App`. */}
+      <AllKeys />
+      <LogWork
+        site="https://example.atlassian.net"
+        onLogged={onLogged}
+        {...props}
+      />
+    </>,
   );
   return onLogged;
 }
@@ -50,7 +61,14 @@ async function renderForm(props: Partial<Parameters<typeof LogWork>[0]> = {}) {
   return onLogged;
 }
 
-beforeEach(resetApiMock);
+beforeEach(() => {
+  resetApiMock();
+  // The chord is ⌘ here; which modifier a platform spells shortcuts with is
+  // platform.test.ts's business.
+  vi.stubGlobal("navigator", {
+    userAgent: "Macintosh; Intel Mac OS X 10_15_7",
+  });
+});
 
 describe("picking an issue", () => {
   it("opens the picker when none was handed over", () => {
@@ -100,6 +118,37 @@ describe("the way back", () => {
     expect(
       screen.getByRole("button", { name: /Choose a different issue/ }),
     ).toBeDefined();
+  });
+
+  it("is reachable by ⌘[ straight after the form opens", async () => {
+    // The duration field autofocuses, and a blanket "is anybody typing" guard
+    // made ⌘[ dead on arrival here. An empty box is no reason to refuse to leave
+    // the view it sits in.
+    const onBack = vi.fn();
+    await renderForm({ backLabel: "Todo", onBack });
+
+    await act(async () => {
+      fireEvent.keyDown(screen.getByLabelText(/Time spent/), {
+        key: "[",
+        metaKey: true,
+      });
+    });
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays put once there is something written in the form", async () => {
+    // From then on the words are worth more than the shortcut.
+    const onBack = vi.fn();
+    await renderForm({ backLabel: "Todo", onBack });
+    const duration = screen.getByLabelText(/Time spent/) as HTMLInputElement;
+    await userEvent.type(duration, "1h");
+
+    await act(async () => {
+      fireEvent.keyDown(duration, { key: "[", metaKey: true });
+    });
+
+    expect(onBack).not.toHaveBeenCalled();
   });
 
   it("is what the back gesture takes to the caller's tab", async () => {

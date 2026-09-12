@@ -1,6 +1,8 @@
 import { CornerDownRight, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useEffect, useRef } from "react";
 import { MissingWorklog } from "../api";
+import { useShortcut } from "../shortcuts";
 import { timeAgo } from "../time";
 
 interface Props {
@@ -16,6 +18,9 @@ interface Props {
   /** Wave this finding away. Given by the dedicated tab only — the start tab's
    *  overview is a summary, and dismissing belongs where the list is worked. */
   onIgnore?: () => void;
+  /** The keyboard is on this row. False by default, for the hosts that have no
+   *  selection at all. */
+  selected?: boolean;
 }
 
 /** One flagged activity: issue key linking out to Jira, a click target for
@@ -28,11 +33,29 @@ export default function MissingRow({
   onAction,
   showLogTarget = false,
   onIgnore,
+  selected = false,
 }: Props) {
+  const row = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selected) row.current?.scrollIntoView({ block: "nearest" });
+  }, [selected]);
+
+  // Only the selected row binds, and only one row in the app is selected.
+  const jiraKeys = useShortcut(
+    "openInJira",
+    () => openUrl(`${site}/browse/${item.issueKey}`),
+    selected,
+  );
+
   return (
-    <div className="worklog-row">
+    <div
+      ref={row}
+      className={`worklog-row${selected ? " selected" : ""}`}
+      aria-current={selected ? "true" : undefined}
+    >
       <div className="worklog-main">
         <button
+          {...jiraKeys}
           className="key-link key"
           title={`Open ${item.issueKey} in browser`}
           onClick={() => openUrl(`${site}/browse/${item.issueKey}`)}

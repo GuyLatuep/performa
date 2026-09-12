@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api, IssueSummary, MissingWorklog, WorklogEntry } from "../api";
 import { formatDuration, weekRange } from "../time";
 import { usePinnedIssues } from "../pins";
+import { useRowSelected, useSelectionScope } from "../selection";
 import { useMissing } from "../missing";
 import { removeTemplate, useTemplates, WorklogTemplate } from "../templates";
 import IssueRow from "./IssueRow";
@@ -52,6 +53,12 @@ export default function Start({
 }
 
 /** Issues assigned to me due within the last 7 or next 14 days. */
+/** This screen's two lists, in the order the arrows walk them. The template
+ *  chips are deliberately not a third: a horizontal row of chips is not a list,
+ *  and ↑/↓ over it would be the wrong gesture. */
+const DUE_SCOPE = "start.due";
+const MISSING_SCOPE = "start.missing";
+
 function DueSection({
   site,
   onSelectIssue,
@@ -81,6 +88,19 @@ function DueSection({
     };
   }, []);
 
+  // The first of this screen's two lists: the arrows walk the due issues, then
+  // cross into the missing worklogs below them. Explicit order rather than
+  // registration order, because the two sections mount independently.
+  useSelectionScope({
+    id: DUE_SCOPE,
+    order: 0,
+    rows: (issues ?? []).map((i) => i.key),
+    open: (key) => {
+      const issue = (issues ?? []).find((i) => i.key === key);
+      if (issue) onSelectIssue(issue);
+    },
+  });
+
   return (
     <section className="start-section">
       <div className="day-head">
@@ -94,7 +114,7 @@ function DueSection({
       )}
       <ul className="issue-list">
         {issues?.map((issue) => (
-          <IssueRow
+          <DueRow
             key={issue.key}
             issue={issue}
             site={site}
@@ -105,6 +125,13 @@ function DueSection({
       </ul>
     </section>
   );
+}
+
+/** One due issue, told whether the keyboard is on it. A wrapper so the
+ *  subscription is the row's own — see the same shape in Todo. */
+function DueRow(props: Parameters<typeof IssueRow>[0]) {
+  const selected = useRowSelected(DUE_SCOPE, props.issue.key);
+  return <IssueRow {...props} selected={selected} />;
 }
 
 /** This week's charts, same data as the timesheet's current week. */
@@ -209,6 +236,16 @@ function MissingSection({
   items: MissingWorklog[];
   onOpenMissing: () => void;
 }) {
+  // The second list, after the due issues. A reminder has no "open" of its own
+  // here — the row's action is to go to the tab that owns it, which is what
+  // Enter does.
+  useSelectionScope({
+    id: MISSING_SCOPE,
+    order: 1,
+    rows: items.map(missingRowKey),
+    open: onOpenMissing,
+  });
+
   return (
     <section className="start-section">
       <div className="day-head">
@@ -218,7 +255,7 @@ function MissingSection({
         </button>
       </div>
       {items.map((item) => (
-        <MissingRow
+        <StartMissingRow
           key={missingRowKey(item)}
           item={item}
           site={site}
@@ -228,4 +265,10 @@ function MissingSection({
       ))}
     </section>
   );
+}
+
+/** One reminder on this screen, told whether the keyboard is on it. */
+function StartMissingRow(props: Parameters<typeof MissingRow>[0]) {
+  const selected = useRowSelected(MISSING_SCOPE, missingRowKey(props.item));
+  return <MissingRow {...props} selected={selected} />;
 }

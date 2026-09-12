@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { IssueSummary, Mention } from "../api";
 import { clearForward } from "../back";
 import { useShortcut } from "../shortcuts";
+import { useRowSelected, useSelectionScope } from "../selection";
 import IssueView from "./IssueView";
 import { recordEvent } from "../achievements";
 import AchievementToast from "./AchievementToast";
@@ -24,6 +25,9 @@ interface Props {
   /** A worklog was filed from an opened issue — refresh what depends on it. */
   onLogged: () => void;
 }
+
+/** This list's name in the selection registry. */
+const SCOPE = "mentions";
 
 // Inbox of comments that tag the user. Opening the tab marks everything listed
 // as read; the rows stay highlighted for this visit so it is still visible
@@ -69,6 +73,24 @@ export default function Mentions({ site, onLogged }: Props) {
   // The same verb as Todo's Refresh, so the same key. What it acts on is decided
   // by which screen has a control for it mounted.
   const refreshKeys = useShortcut("refresh", refresh, !busy);
+
+  const openIssue = (issue: IssueSummary) => {
+    clearForward();
+    setOpened(issue);
+  };
+  // Not while an issue is open over the list: the arrows belong to whatever is
+  // being read there.
+  useSelectionScope(
+    {
+      id: SCOPE,
+      rows: items.map(mentionId),
+      open: (id) => {
+        const item = items.find((i) => mentionId(i) === id);
+        if (item) openIssue({ key: item.issueKey, summary: item.issueSummary });
+      },
+    },
+    opened === null,
+  );
 
   if (opened) {
     return (
@@ -138,10 +160,7 @@ export default function Mentions({ site, onLogged }: Props) {
           item={item}
           site={site}
           unread={unread.has(mentionId(item))}
-          onOpen={(issue) => {
-            clearForward();
-            setOpened(issue);
-          }}
+          onOpen={openIssue}
         />
       ))}
     </div>
@@ -159,6 +178,17 @@ function MentionRow({
   unread: boolean;
   onOpen: (issue: IssueSummary) => void;
 }) {
+  const selected = useRowSelected(SCOPE, mentionId(item));
+  const row = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selected) row.current?.scrollIntoView({ block: "nearest" });
+  }, [selected]);
+  const jiraKeys = useShortcut(
+    "openInJira",
+    () => openUrl(`${site}/browse/${item.issueKey}`),
+    selected,
+  );
+
   // A Mention means somebody wants something from you, and the expected
   // response is to go and look — so the row opens the issue here. The key is
   // the one exception, kept as the way out to Jira for what this view cannot
@@ -166,10 +196,17 @@ function MentionRow({
   const open = () => onOpen({ key: item.issueKey, summary: item.issueSummary });
 
   return (
-    <div className={`worklog-row mention-row${unread ? " unread" : ""}`}>
+    <div
+      ref={row}
+      className={`worklog-row mention-row${unread ? " unread" : ""}${
+        selected ? " selected" : ""
+      }`}
+      aria-current={selected ? "true" : undefined}
+    >
       <div className="worklog-main">
         <div className="mention-head">
           <button
+            {...jiraKeys}
             className="issue-open key"
             title={`Open ${item.issueKey} in browser`}
             onClick={() => openUrl(`${site}/browse/${item.issueKey}`)}

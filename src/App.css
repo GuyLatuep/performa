@@ -1465,6 +1465,14 @@ main {
   background: var(--accent-text);
 }
 
+/* The same on a worklog-shaped row, which is a flex div with a bottom border
+   rather than a list item — an inset shadow draws the bar without disturbing
+   that border the way an absolutely positioned ::before would. */
+.worklog-row.selected {
+  background: var(--fill-tertiary);
+  box-shadow: inset 3px 0 0 var(--accent-text);
+}
+
 /* Inline issue-key button (timesheet / missing worklog rows). */
 .key-link {
   background: none;

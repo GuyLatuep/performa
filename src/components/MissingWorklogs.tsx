@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, MissingWorklog } from "../api";
 import { clearForward, useBackTarget } from "../back";
 import { useShortcut, useShortcutBadge } from "../shortcuts";
+import { useRowSelected, useSelectionScope } from "../selection";
 import { timeAgo, toDateInput, toTimeInput } from "../time";
 import {
   ignoreMissing,
@@ -28,6 +29,15 @@ import AchievementToast from "./AchievementToast";
 interface Props {
   site: string;
   onLogged: () => void;
+}
+
+/** This list's name in the selection registry. */
+const SCOPE = "missing";
+
+/** One reminder, told whether the keyboard is on it. */
+function TabMissingRow(props: Parameters<typeof MissingRow>[0]) {
+  const selected = useRowSelected(SCOPE, missingRowKey(props.item));
+  return <MissingRow {...props} selected={selected} />;
 }
 
 // Reminder list: issues with recent own activity but no worklog around it.
@@ -68,6 +78,26 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
     "refresh",
     refresh,
     !busy && logging === null,
+  );
+
+  const startLogging = useCallback((item: MissingWorklog) => {
+    clearForward();
+    setLogging(item);
+  }, []);
+
+  // Not while the log form is up: the arrows belong to the form, not to the list
+  // behind it.
+  useSelectionScope(
+    {
+      id: SCOPE,
+      rows: items.map(missingRowKey),
+      // Enter opens the form for that finding, which is what its row does.
+      open: (key) => {
+        const item = items.find((i) => missingRowKey(i) === key);
+        if (item) startLogging(item);
+      },
+    },
+    logging === null,
   );
 
   const closeForm = useCallback(() => setLogging(null), []);
@@ -124,15 +154,12 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
       )}
 
       {items.map((item) => (
-        <MissingRow
+        <TabMissingRow
           key={missingRowKey(item)}
           item={item}
           site={site}
           actionTitle={`Log work on ${item.logKey}`}
-          onAction={() => {
-            clearForward();
-            setLogging(item);
-          }}
+          onAction={() => startLogging(item)}
           showLogTarget
           onIgnore={() => ignoreMissing(item)}
         />

@@ -1,6 +1,8 @@
 import { Check, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useEffect, useRef } from "react";
 import { WorklogEntry } from "../api";
+import { useShortcut } from "../shortcuts";
 import { formatDuration } from "../time";
 
 // One booked worklog, with the three things you can do to it. Shared by the
@@ -18,6 +20,9 @@ interface Props {
   onDelete: () => void;
   onEdit: () => void;
   onRepeat: () => void;
+  /** The keyboard is on this row. False by default, so the month matrix's cell
+   *  drill-down — which has no selection — is unaffected. */
+  selected?: boolean;
 }
 
 export default function WorklogRow({
@@ -29,11 +34,34 @@ export default function WorklogRow({
   onDelete,
   onEdit,
   onRepeat,
+  selected = false,
 }: Props) {
+  const row = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selected) row.current?.scrollIntoView({ block: "nearest" });
+  }, [selected]);
+
+  // The three things this row offers, on the keys those verbs carry everywhere
+  // else. Deleting is deliberately not among them: it is two-step and
+  // irreversible, and a half-designed keyboard path to it is worse than none —
+  // the ✕ and ✓ buttons remain the way.
+  const editKeys = useShortcut("edit", onEdit, selected);
+  const repeatKeys = useShortcut("logAgain", onRepeat, selected);
+  const jiraKeys = useShortcut(
+    "openInJira",
+    () => openUrl(`${site}/browse/${entry.issueKey}`),
+    selected,
+  );
+
   return (
-    <div className="worklog-row">
+    <div
+      ref={row}
+      className={`worklog-row${selected ? " selected" : ""}`}
+      aria-current={selected ? "true" : undefined}
+    >
       <div className="worklog-main">
         <button
+          {...jiraKeys}
           className="key-link key"
           title={`Open ${entry.issueKey} in browser`}
           onClick={() => openUrl(`${site}/browse/${entry.issueKey}`)}
@@ -62,10 +90,20 @@ export default function WorklogRow({
           </>
         ) : (
           <>
-            <button className="icon" title="Log again today" onClick={onRepeat}>
+            <button
+              {...repeatKeys}
+              className="icon"
+              title="Log again today"
+              onClick={onRepeat}
+            >
               <RotateCcw size={16} strokeWidth={1.75} aria-hidden />
             </button>
-            <button className="icon" title="Edit" onClick={onEdit}>
+            <button
+              {...editKeys}
+              className="icon"
+              title="Edit"
+              onClick={onEdit}
+            >
               <Pencil size={16} strokeWidth={1.75} aria-hidden />
             </button>
             <button className="icon" title="Delete" onClick={onConfirmDelete}>

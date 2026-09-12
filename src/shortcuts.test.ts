@@ -124,16 +124,18 @@ describe("the catalogue", () => {
     expect(SHORTCUTS.forward.external).toBe(true);
   });
 
-  it("stands those two down for typing rather than for a draft", () => {
-    // `back.ts` declines whenever a text box has focus, full or empty, because
-    // `⌘←` is "start of line" there. A badge on the draft rule would sit
-    // undimmed over an empty box where the key would in fact decline.
-    expect(SHORTCUTS.back.standsDown).toBe("typing");
+  it("stands those two down on the same draft rule as everything else", () => {
+    // `back.ts` used to decline whenever a text box had focus at all, which made
+    // ⌘[ dead on arrival at any form that autofocuses its first field. Both now
+    // wait for there to be something to lose, so the badge says what the key
+    // will actually do.
+    expect(SHORTCUTS.back.standsDown).toBe("draft");
 
-    const box = field("textarea", "");
+    const empty = field("textarea", "");
+    expect(standingDown("back", empty)).toBe(false);
 
-    expect(standingDown("back", box)).toBe(true);
-    expect(standingDown("tabTodo", box)).toBe(false);
+    empty.value = "half a comment";
+    expect(standingDown("back", empty)).toBe(true);
   });
 });
 

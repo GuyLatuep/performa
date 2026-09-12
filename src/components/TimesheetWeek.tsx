@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, WorklogEntry } from "../api";
 import { useShortcut } from "../shortcuts";
+import { useRowSelected, useSelectionScope } from "../selection";
 import { formatDayLabel, formatDuration, weekRange } from "../time";
 import WeekChart from "./WeekChart";
 import RepeatModal from "./RepeatModal";
@@ -19,6 +20,15 @@ const DAY_FORMAT: Intl.DateTimeFormatOptions = {
   month: "short",
   day: "numeric",
 };
+
+/** This ledger's name in the selection registry. */
+const SCOPE = "week";
+
+/** One worklog row, told whether the keyboard is on it. */
+function WeekRow(props: Parameters<typeof WorklogRow>[0]) {
+  const selected = useRowSelected(SCOPE, props.entry.id);
+  return <WorklogRow {...props} selected={selected} />;
+}
 
 export default function TimesheetWeek({ site, refreshKey }: Props) {
   const [offset, setOffset] = useState(0);
@@ -74,6 +84,16 @@ export default function TimesheetWeek({ site, refreshKey }: Props) {
       : offset === -1
         ? "Last week"
         : `${start} – ${end}`;
+
+  // The rows as the day groups lay them out — flattened, because the arrows walk
+  // what is on screen and the day headings are not rows.
+  const shown = dates.flatMap((date) => byDate.get(date)!.map((e) => e.id));
+  useSelectionScope({
+    id: SCOPE,
+    rows: shown,
+    // A worklog has no "open": the row's three buttons are what it offers, and
+    // those are on their own keys.
+  });
 
   const prevKeys = useShortcut("prevPeriod", () => setOffset(offset - 1));
   // Never past this week, the same bound the button carries.
@@ -135,7 +155,7 @@ export default function TimesheetWeek({ site, refreshKey }: Props) {
               <span className="muted">{formatDuration(dayTotal)}</span>
             </div>
             {list.map((e) => (
-              <WorklogRow
+              <WeekRow
                 key={e.id}
                 entry={e}
                 site={site}

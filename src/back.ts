@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { overlayOpen, typingIn } from "./keys";
+import { drafting, overlayOpen } from "./keys";
 import { hasPrimaryModifier } from "./platform";
 
 /**
@@ -206,7 +206,13 @@ export function useBackGestures(): void {
       if (e.defaultPrevented) return;
       const back = e.key === "Escape" || isBackShortcut(e);
       if (!back && !isForwardShortcut(e)) return;
-      if (typingIn(e.target) || overlayOpen()) return;
+      // Only a box with something *in* it stands in the way. A form that has
+      // just opened autofocuses its first field, and an empty field is no reason
+      // to refuse to leave the view it is in — which is what a blanket
+      // "is anybody typing" guard did, making ⌘[ dead on arrival at the log
+      // form. Where the field does hold words, `⌘←` is "start of line" and
+      // Escape is the box's own, and both stay the writer's.
+      if (drafting(e.target) || overlayOpen()) return;
       e.preventDefault();
       if (back) goBack();
       else goForward();

@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { api, IssueSummary } from "../api";
 import { usePinnedIssues } from "../pins";
+import {
+  moveSelection,
+  openSelected,
+  useRowSelected,
+  useSelectionScope,
+} from "../selection";
 import IssueRow from "./IssueRow";
 
 // Find one of your issues and hand it to whoever asked. The log tab's front
@@ -17,6 +23,15 @@ interface Props {
 /** How long to wait for the typing to stop before asking Jira. Long enough
  *  that a word costs one search rather than five. */
 const DEBOUNCE_MS = 300;
+
+/** This list's name in the selection registry. */
+const SCOPE = "picker";
+
+/** One result, told whether the keyboard is on it. */
+function PickerRow(props: Parameters<typeof IssueRow>[0]) {
+  const selected = useRowSelected(SCOPE, props.issue.key);
+  return <IssueRow {...props} selected={selected} />;
+}
 
 export default function IssuePicker({
   site,
@@ -60,6 +75,43 @@ export default function IssuePicker({
     }
   }
 
+  /** The rows as they are on screen: the pinned issues lead, then the results
+   *  that are not already among them. */
+  const shown = [
+    ...(showPinned ? pinnedIssues : []),
+    ...results.filter((i) => !showPinned || !pinnedKeys.has(i.key)),
+  ];
+
+  useSelectionScope({
+    id: SCOPE,
+    rows: shown.map((i) => i.key),
+    open: (key) => {
+      const issue = shown.find((i) => i.key === key);
+      if (issue) onSelect(issue);
+    },
+  });
+
+  /**
+   * The arrows and Enter, handled here rather than left to the window listener.
+   *
+   * The search box has focus the whole time this list is being read — it
+   * autofocuses, and you are typing into it — so the global handler's typing
+   * guard rightly keeps out of it. But a search box above its own results is the
+   * one place arrows should move the results rather than the cursor, which is
+   * exactly what every other typeahead in this app does on its own input.
+   */
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    let acted = false;
+    if (e.key === "ArrowDown") acted = moveSelection(1);
+    else if (e.key === "ArrowUp") acted = moveSelection(-1);
+    else if (e.key === "Enter") acted = openSelected();
+    else return;
+    // Claimed, so the caret stays where it is and the page does not scroll — and
+    // so the window listeners know this press is spoken for.
+    if (acted) e.preventDefault();
+  }
+
   return (
     <>
       <label>
@@ -69,6 +121,7 @@ export default function IssuePicker({
           placeholder="Search text or issue key (blank = assigned to me)"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
+          onKeyDown={onKeyDown}
           autoFocus={autoFocus}
         />
       </label>
@@ -79,7 +132,7 @@ export default function IssuePicker({
       <ul className="issue-list">
         {showPinned &&
           pinnedIssues.map((issue, i) => (
-            <IssueRow
+            <PickerRow
               key={issue.key}
               issue={issue}
               site={site}
@@ -91,7 +144,7 @@ export default function IssuePicker({
         {results
           .filter((issue) => !showPinned || !pinnedKeys.has(issue.key))
           .map((issue) => (
-            <IssueRow
+            <PickerRow
               key={issue.key}
               issue={issue}
               site={site}

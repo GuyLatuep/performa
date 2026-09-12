@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
@@ -21,13 +27,15 @@ vi.mock("./IssueRow", () => ({
   default: ({
     issue,
     pinned,
+    selected,
     onSelect,
   }: {
     issue: { key: string; summary: string };
     pinned: boolean;
+    selected?: boolean;
     onSelect: (i: unknown) => void;
   }) => (
-    <li>
+    <li aria-current={selected ? "true" : undefined}>
       <button data-pinned={pinned} onClick={() => onSelect(issue)}>
         {issue.key}
       </button>
@@ -36,6 +44,7 @@ vi.mock("./IssueRow", () => ({
 }));
 
 import { apiMock, issueSummary, resetApiMock } from "../test-support/api";
+import { clearSelection } from "../selection";
 import IssuePicker from "./IssuePicker";
 
 /** user-event drives its own clock, so it has to be told about the fake one
@@ -170,5 +179,91 @@ describe("choosing", () => {
     await user.click(await screen.findByRole("button", { name: "ABC-1" }));
 
     expect(onSelect).toHaveBeenCalledWith(chosen);
+  });
+});
+
+describe("walking the results from the search box", () => {
+  // The box has focus the whole time this list is being read — it autofocuses,
+  // and you are typing into it — so the window listener's typing guard keeps out
+  // of it. A search box above its own results is the one place the arrows should
+  // move the results rather than the caret.
+
+  afterEach(clearSelection);
+
+  function box() {
+    return screen.getByLabelText(/Find an issue/);
+  }
+
+  function selected() {
+    return document.querySelector('[aria-current="true"]')?.textContent ?? null;
+  }
+
+  it("moves the selection down the results", async () => {
+    apiMock.searchIssues.mockResolvedValue([
+      issueSummary({ key: "ABC-1" }),
+      issueSummary({ key: "ABC-2" }),
+    ]);
+    renderPicker();
+    await screen.findByText("ABC-1");
+
+    await act(async () => {
+      fireEvent.keyDown(box(), { key: "ArrowDown" });
+    });
+
+    expect(selected()).toContain("ABC-1");
+  });
+
+  it("keeps the caret where it is, rather than scrolling the page", async () => {
+    apiMock.searchIssues.mockResolvedValue([issueSummary({ key: "ABC-1" })]);
+    renderPicker();
+    await screen.findByText("ABC-1");
+
+    // preventDefault was called, so neither the caret nor the page moves.
+    expect(fireEvent.keyDown(box(), { key: "ArrowDown" })).toBe(false);
+  });
+
+  it("picks the selected issue on Enter", async () => {
+    apiMock.searchIssues.mockResolvedValue([
+      issueSummary({ key: "ABC-1" }),
+      issueSummary({ key: "ABC-2" }),
+    ]);
+    const onSelect = renderPicker();
+    await screen.findByText("ABC-1");
+    await act(async () => {
+      fireEvent.keyDown(box(), { key: "ArrowDown" });
+      fireEvent.keyDown(box(), { key: "ArrowDown" });
+    });
+
+    await act(async () => {
+      fireEvent.keyDown(box(), { key: "Enter" });
+    });
+
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "ABC-2" }),
+    );
+  });
+
+  it("leaves a chord to the layers that own it", async () => {
+    // ⌘← is back's, and this box must not swallow it.
+    apiMock.searchIssues.mockResolvedValue([issueSummary({ key: "ABC-1" })]);
+    renderPicker();
+    await screen.findByText("ABC-1");
+
+    expect(fireEvent.keyDown(box(), { key: "ArrowLeft", metaKey: true })).toBe(
+      true,
+    );
+  });
+
+  it("walks the pinned issues first, as they are shown", async () => {
+    pins.usePinnedIssues.mockReturnValue([{ key: "PIN-1", summary: "Pinned" }]);
+    apiMock.searchIssues.mockResolvedValue([issueSummary({ key: "ABC-1" })]);
+    renderPicker();
+    await screen.findByText("ABC-1");
+
+    await act(async () => {
+      fireEvent.keyDown(box(), { key: "ArrowDown" });
+    });
+
+    expect(selected()).toContain("PIN-1");
   });
 });

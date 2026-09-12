@@ -8,6 +8,7 @@ import { togglePin } from "../pins";
 import { useIssueTypeIcon } from "../issueTypeIcons";
 import { useShowIssueTypeIcons } from "../settings";
 import { startTimer, useTimer } from "../timer";
+import { useShortcut } from "../shortcuts";
 
 /** One issue in a selectable list: pin star, type icon, key link, summary,
  *  timer start. Shows a due-date badge when the issue carries one. */
@@ -39,6 +40,24 @@ export default function IssueRow({
     if (selected) row.current?.scrollIntoView({ block: "nearest" });
   }, [selected]);
 
+  // Bound only while the keyboard is on this row, which is what makes one key
+  // serve two hundred of them: exactly one row is ever selected, so exactly one
+  // set of these is ever registered. The badges land on this row's own buttons
+  // for the same reason.
+  const pinKeys = useShortcut("pin", () => togglePin(issue), selected);
+  const jiraKeys = useShortcut(
+    "openInJira",
+    () => openUrl(`${site}/browse/${issue.key}`),
+    selected,
+  );
+  // Starting a timer is the other half of ⌘T, and only available on the same
+  // terms the button is: not while another timer is already running.
+  const timerKeys = useShortcut(
+    "timer",
+    () => startTimer(issue.key, issue.summary),
+    selected && !activeTimer,
+  );
+
   return (
     <li
       ref={row}
@@ -53,6 +72,7 @@ export default function IssueRow({
       aria-current={selected ? "true" : undefined}
     >
       <button
+        {...pinKeys}
         className={`icon pin-toggle${pinned ? " pinned" : ""}`}
         title={pinned ? `Unpin ${issue.key}` : `Pin ${issue.key} to top`}
         onClick={() => togglePin(issue)}
@@ -66,6 +86,7 @@ export default function IssueRow({
       </button>
       <TypeIcon type={issue.issueType} url={issue.issueTypeIcon} />
       <button
+        {...jiraKeys}
         className="issue-open key"
         title={`Open ${issue.key} in browser`}
         onClick={() => openUrl(`${site}/browse/${issue.key}`)}
@@ -97,6 +118,7 @@ export default function IssueRow({
       )}
       {issue.dueDate && <DueBadge date={issue.dueDate} />}
       <button
+        {...timerKeys}
         className={`timer-start${isRunning ? " running" : ""}`}
         disabled={!!activeTimer}
         title={

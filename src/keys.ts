@@ -26,6 +26,55 @@ export function typingIn(target: EventTarget | null): boolean {
 }
 
 /**
+ * Input types holding words somebody would mind losing.
+ *
+ * A date box is pre-filled with today and a checkbox holds no words; neither is
+ * a draft, and counting them as one would have a shortcut refuse to work from
+ * the log form's date field, which has held a value since it mounted.
+ */
+const TEXTUAL = new Set([
+  "",
+  "text",
+  "search",
+  "url",
+  "email",
+  "tel",
+  "password",
+]);
+
+/** A box words get typed into. Narrower than `typingIn`: a `<select>` is not
+ *  one, however much it answers the arrow keys. */
+export function textBox(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  if (el.isContentEditable) return true;
+  if (el.tagName === "TEXTAREA") return true;
+  return (
+    el.tagName === "INPUT" && TEXTUAL.has((el as HTMLInputElement).type ?? "")
+  );
+}
+
+/**
+ * There is something typed and unsaved here.
+ *
+ * The guard for anything that would throw those words away — leaving the view,
+ * switching tab, reloading the list. The "and something typed" half is what
+ * makes it cheap enough to be true: no form registers anything, nothing can go
+ * stale, and a box that has only just been focused does not hold the whole
+ * keyboard hostage. A freshly opened form autofocuses its first field, and an
+ * empty field is not a reason to refuse to go back out of it.
+ *
+ * What it deliberately does not cover is a draft in a box that no longer has
+ * focus — the same exposure clicking the control has always had.
+ */
+export function drafting(target: EventTarget | null): boolean {
+  if (!textBox(target)) return false;
+  const el = target as HTMLElement;
+  if (el.isContentEditable) return (el.textContent ?? "").trim() !== "";
+  return (el as HTMLInputElement | HTMLTextAreaElement).value.trim() !== "";
+}
+
+/**
  * This element answers Enter and Space on its own.
  *
  * A native button fires its click on Enter *keydown*, so a window-level Enter
