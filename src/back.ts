@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { overlayOpen, typingIn } from "./keys";
 
 /**
  * Where "back" leads right now.
@@ -129,17 +130,6 @@ export function isForwardButton(e: MouseEvent): boolean {
   return e.button === 4 || (e.button === 1 && (e.buttons & 16) !== 0);
 }
 
-/** Anything overlaying the page: every modal in the app is a `.modal-backdrop`
- *  and the field editor is a `role="dialog"` popover.
- *
- *  None of them registers a back target, and going back *behind* an open modal
- *  would leave it floating over a view it was never opened from. They keep
- *  their own ways out (a Cancel button, the backdrop, Escape) until they are
- *  taught to register too. */
-function overlayOpen(): boolean {
-  return document.querySelector('.modal-backdrop, [role="dialog"]') !== null;
-}
-
 /**
  * True for a keyboard way back.
  *
@@ -161,19 +151,6 @@ export function isForwardShortcut(e: KeyboardEvent): boolean {
   if (e.ctrlKey) return false;
   if (e.metaKey) return e.key === "]" || e.key === "ArrowRight";
   return e.altKey && e.key === "ArrowRight";
-}
-
-/** Where the keys are somebody else's: `⌘←` goes to the start of the line and
- *  Escape closes whatever the box has open, and taking either would be taking
- *  it out of the writer's hands. The same guard, and the same reason, as
- *  `konami.ts`. */
-function typingIn(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  return (
-    el?.tagName === "INPUT" ||
-    el?.tagName === "TEXTAREA" ||
-    el?.isContentEditable === true
-  );
 }
 
 /** The Rust side's name for a swipe towards the right — see

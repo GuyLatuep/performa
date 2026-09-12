@@ -75,6 +75,7 @@ describe("useKonamiCode", () => {
   it.each([
     ["INPUT", "input"],
     ["TEXTAREA", "textarea"],
+    ["SELECT", "select"],
   ])("ignores the code typed into an %s", (_label, tag) => {
     // The letters at the end of the code are ordinary letters in a comment
     // box — firing there would hijack someone's typing.
@@ -122,6 +123,19 @@ describe("useKonamiCode", () => {
     press(KONAMI_CODE.slice(-1));
 
     expect(onEntered).not.toHaveBeenCalled();
+  });
+
+  it("still hears a press something else has already claimed", () => {
+    // This watcher only *observes*: it must never grow a `defaultPrevented`
+    // guard "for consistency" with back.ts. A list moving its selection on the
+    // arrow keys calls preventDefault on every one of them, and a guard here
+    // would make the code unenterable on the one tab that offers it.
+    const { onEntered } = watch();
+    document.body.addEventListener("keydown", (e) => e.preventDefault());
+
+    press(KONAMI_CODE);
+
+    expect(onEntered).toHaveBeenCalledTimes(1);
   });
 
   it("stops listening once it unmounts", () => {

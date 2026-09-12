@@ -219,6 +219,7 @@ describe("useBackGestures", () => {
   it.each([
     ["an INPUT", "input", false],
     ["a TEXTAREA", "textarea", false],
+    ["a SELECT", "select", false],
     ["a contenteditable", "div", true],
   ])("leaves Escape to whoever is typing in %s", (_label, tag, editable) => {
     // Escape closes what the box has open, and ⌘← goes to the start of the

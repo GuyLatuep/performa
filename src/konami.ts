@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { typingIn } from "./keys";
 
 /** ↑ ↑ ↓ ↓ ← → ← → B A. */
 export const KONAMI_CODE = [
@@ -49,13 +50,7 @@ export function useKonamiCode(onEntered: () => void, active: boolean): void {
     const onKeyDown = (e: KeyboardEvent) => {
       // Not while somebody is typing: the letters at the end of the code are
       // ordinary letters in a comment box.
-      const target = e.target as HTMLElement | null;
-      if (
-        target?.tagName === "INPUT" ||
-        target?.tagName === "TEXTAREA" ||
-        target?.isContentEditable
-      )
-        return;
+      if (typingIn(e.target)) return;
       recent.current = pushKey(recent.current, e.key);
       if (isKonami(recent.current)) {
         recent.current = [];

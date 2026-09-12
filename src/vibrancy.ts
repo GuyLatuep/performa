@@ -1,3 +1,5 @@
+import { isMac } from "./platform";
+
 /** Whether the window behind this webview is a vibrancy surface.
  *
  *  Only macOS gets one: `tauri.macos.conf.json` makes the window transparent
@@ -6,12 +8,12 @@
  *  deliberately — Mica needs Windows 11, and a transparent window on Windows 10
  *  with no effect applied is just a see-through window.
  *
- *  The platform is read off the user agent rather than through a plugin: this
- *  decides which CSS to apply, so being wrong costs a background colour, and
- *  it is not worth a dependency and an async call before first paint.
+ *  The platform test itself moved to `platform.ts` once the keyboard layer
+ *  needed the same answer for which modifier to spell shortcuts with; the
+ *  reasoning for reading the user agent rather than asking a plugin is there.
  */
 export function isVibrancyPlatform(): boolean {
-  return /Macintosh|Mac OS X/.test(navigator.userAgent);
+  return isMac();
 }
 
 /** Mark the document so the vibrancy rules in App.css apply. Without the mark
