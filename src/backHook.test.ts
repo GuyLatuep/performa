@@ -57,7 +57,9 @@ function pressKey(
   mods: Partial<KeyboardEventInit> = {},
   target: Element = document.body,
 ) {
-  fireEvent.keyDown(target, { key, ...mods });
+  // Handed back, so a test can ask whether the press was claimed: `fireEvent`
+  // returns false when something called `preventDefault`.
+  return fireEvent.keyDown(target, { key, ...mods });
 }
 
 /** A field with something written in it — which is what stands in the way. */
@@ -353,5 +355,90 @@ describe("useBackGestures", () => {
     document.body.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  describe("what it declines to swallow", () => {
+    // A press this listener does not act on has to reach whoever else wants it:
+    // both siblings open with `if (e.defaultPrevented) return`, so claiming a
+    // key and then declining it deafens them for nothing.
+
+    it("leaves a forward press alone when there is nowhere to go", () => {
+      // The redo stack is empty in the overwhelmingly common case, so this used
+      // to swallow ⌘→ app-wide — including in the boxes where it means "end of
+      // line".
+      listen_();
+
+      expect(pressKey("]", { metaKey: true })).toBe(true);
+    });
+
+    it("leaves Escape alone with no way back registered", () => {
+      renderHook(() => useBackGestures());
+
+      expect(pressKey("Escape")).toBe(true);
+    });
+
+    it("still claims a press it acts on", () => {
+      listen_();
+
+      expect(pressKey("Escape")).toBe(false);
+    });
+  });
+
+  describe("a held key", () => {
+    it("goes back once, not once per repeat", () => {
+      // Going back is a step rather than a rate: a held Escape in the issue view
+      // would rewind several hops of the link trail on one press.
+      const { back } = listen_();
+
+      pressKey("Escape");
+      pressKey("Escape", { repeat: true });
+      pressKey("Escape", { repeat: true });
+
+      expect(back).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("the draft guard", () => {
+    /** A focused box with something written in it. */
+    function draft() {
+      const box = document.createElement("textarea");
+      document.body.append(box);
+      box.value = "half a comment";
+      box.focus();
+      return box;
+    }
+
+    it("keeps the mouse's back button from discarding one", () => {
+      // The omission was the wrong way round: a thumb button caught in passing
+      // is the least deliberate way to leave a view, and it was the one with no
+      // protection.
+      const { back } = listen_();
+      draft();
+
+      pressMouse(3, 8);
+
+      expect(back).not.toHaveBeenCalled();
+    });
+
+    it("keeps a swipe from discarding one", async () => {
+      const { back } = listen_();
+      await subscribed();
+      draft();
+
+      await act(async () => events.fire(NAVIGATE_BACK));
+
+      expect(back).not.toHaveBeenCalled();
+    });
+
+    it("still lets the mouse button back out of an empty form", () => {
+      const { back } = listen_();
+      const box = document.createElement("textarea");
+      document.body.append(box);
+      box.focus();
+
+      pressMouse(3, 8);
+
+      expect(back).toHaveBeenCalledTimes(1);
+    });
   });
 });

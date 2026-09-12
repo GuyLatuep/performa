@@ -275,6 +275,19 @@ describe("a chord somebody else answers", () => {
 });
 
 describe("the guards", () => {
+  it("runs once for a held chord, not once per repeat", () => {
+    // Every action here is a step rather than a rate: a held ⌘J on a selected
+    // row opens a browser tab per repeat.
+    const run = vi.fn();
+    render(<Probe run={run} />);
+
+    press("2");
+    press("2", document.body, { repeat: true });
+    press("2", document.body, { repeat: true });
+
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
   it("stands aside for a press something nearer already claimed", () => {
     const run = vi.fn();
     render(<Probe run={run} />);

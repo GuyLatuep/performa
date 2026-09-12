@@ -1,6 +1,6 @@
 /** @vitest-environment happy-dom */
 import { afterEach, describe, expect, it } from "vitest";
-import { isActivatable, overlayOpen, typingIn } from "./keys";
+import { drafting, isActivatable, overlayOpen, typingIn } from "./keys";
 
 // The listeners that ask these questions are covered in backHook.test.ts and
 // konamiHook.test.ts; this file is about the answers themselves.
@@ -93,5 +93,44 @@ describe("overlayOpen", () => {
   it("is false again once it closes", () => {
     el("div", { class: "modal-backdrop" }).remove();
     expect(overlayOpen()).toBe(false);
+  });
+});
+
+describe("drafting", () => {
+  /** A field with something written in it. */
+  function written(tag: string, value = "half a comment", type?: string) {
+    const node = el(tag, type ? { type } : {}) as HTMLInputElement;
+    node.value = value;
+    return node;
+  }
+
+  it("is false for an empty box, so a form that just opened can be left", () => {
+    expect(drafting(written("textarea", ""))).toBe(false);
+  });
+
+  it("is true once something is written", () => {
+    expect(drafting(written("textarea"))).toBe(true);
+  });
+
+  it("is true for a number box with a value in it", () => {
+    // The daily-hours field and a duration are both typed; only the pre-filled
+    // kinds below are not drafts.
+    expect(drafting(written("input", "7.5", "number"))).toBe(true);
+  });
+
+  it.each([
+    ["a date, which arrives pre-filled", "date", "2026-09-12"],
+    ["a time, likewise", "time", "09:00"],
+    ["a checkbox, which holds no words", "checkbox", "on"],
+  ])("is false for %s", (_label, type, value) => {
+    expect(drafting(written("input", value, type))).toBe(false);
+  });
+
+  it("is false for whitespace, which is nothing written", () => {
+    expect(drafting(written("textarea", "   \n "))).toBe(false);
+  });
+
+  it("is false for a button, however much it is focused", () => {
+    expect(drafting(el("button"))).toBe(false);
   });
 });

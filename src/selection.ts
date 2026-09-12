@@ -174,13 +174,31 @@ export function useSelectionScope(scope: SelectionScope, active = true): void {
     scopes.set(scope.id, mine);
     return () => {
       // Guarded the way `back.ts` guards its slot: React commits every cleanup
-      // before every setup, so a screen replacing another can see the outgoing
-      // scope's cleanup run after the incoming one has claimed the same id.
+      // before every setup, so a scope replacing another sees the outgoing one's
+      // cleanup run after the incoming one has claimed the id.
       if (scopes.get(scope.id) === mine) scopes.delete(scope.id);
-      // A selection pointing into a scope that has gone is not a selection.
-      if (store.get()?.scopeId === scope.id) store.set(null);
     };
   }, [scope.id, active]);
+
+  // Letting go of the selection is a *different* lifetime from holding the
+  // registration, which is why it is its own effect rather than a second line in
+  // the cleanup above.
+  //
+  // That one runs whenever `active` flips, and a list does that without going
+  // anywhere: the missing-worklog tab deactivates its scope while the log form
+  // is up. Clearing there meant closing the form and finding yourself back at
+  // the top of the list, having lost the row you were working on. Keyed on the
+  // id alone, this runs only when the scope truly goes — and the selection then
+  // survives a round trip through a form, to be re-homed by `reselect` when the
+  // rows come back.
+  useEffect(() => {
+    const id = scope.id;
+    return () => {
+      // Unless something has taken the id over, in which case the selection is
+      // now that scope's business.
+      if (!scopes.has(id) && store.get()?.scopeId === id) store.set(null);
+    };
+  }, [scope.id]);
 
   // A stable key for "the rows changed", so an ordinary re-render does not
   // disturb a selection the user is holding.

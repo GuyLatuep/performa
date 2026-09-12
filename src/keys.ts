@@ -1,10 +1,12 @@
 /**
  * What a key press is allowed to mean, for every listener in the app.
  *
- * Three window-level handlers already read the same two questions — is somebody
- * typing, and is something covering the page — and a fourth is on the way. They
- * live here so there is one answer rather than four that drift.
+ * Five listeners now read the same three questions — is somebody typing, is
+ * there something unsaved, and is something covering the page. They live here so
+ * there is one answer rather than five that drift.
  */
+
+import { useEffect, useRef } from "react";
 
 /**
  * Somebody is typing here, so the keys belong to them.
@@ -40,6 +42,10 @@ const TEXTUAL = new Set([
   "email",
   "tel",
   "password",
+  // A number box holds something typed as much as a text one does — the daily
+  // hours, a duration. It is only the *pre-filled* kinds below that are not
+  // drafts.
+  "number",
 ]);
 
 /** A box words get typed into. Narrower than `typingIn`: a `<select>` is not
@@ -55,19 +61,65 @@ export function textBox(target: EventTarget | null): boolean {
 }
 
 /**
- * There is something typed and unsaved here.
+ * Forms that say they are holding something unsaved.
+ *
+ * The focused box answers for itself — see [`drafting`] — but a form is more
+ * than the box the cursor happens to be in. The log form has a duration, a date,
+ * a time and a comment: with the cursor in the date field, which is pre-filled
+ * and therefore not a draft, Escape used to leave and take the typed duration
+ * and comment with it. A form that knows it holds words says so here, and then
+ * the question is about the form rather than about one of its fields.
+ *
+ * Identity is a box per mounted form rather than a count, so a form that
+ * unmounts mid-edit takes its own entry with it and cannot leave the count
+ * standing.
+ */
+const holding = new Set<object>();
+
+/**
+ * Say that this form holds something the user would mind losing.
+ *
+ * Registered only while `unsaved` — a form that has just opened, or has just
+ * been submitted, holds nothing, and an empty form must not hold the keyboard
+ * hostage.
+ */
+export function useUnsavedWork(unsaved: boolean): void {
+  const token = useRef({});
+  useEffect(() => {
+    if (!unsaved) return;
+    // Captured, so the cleanup removes the entry it added rather than whatever
+    // the ref points at by then.
+    const mine = token.current;
+    holding.add(mine);
+    return () => {
+      holding.delete(mine);
+    };
+  }, [unsaved]);
+}
+
+/** Whether any mounted form is holding unsaved work. */
+export function anythingUnsaved(): boolean {
+  return holding.size > 0;
+}
+
+/**
+ * There is something typed and unsaved.
  *
  * The guard for anything that would throw those words away — leaving the view,
- * switching tab, reloading the list. The "and something typed" half is what
- * makes it cheap enough to be true: no form registers anything, nothing can go
- * stale, and a box that has only just been focused does not hold the whole
- * keyboard hostage. A freshly opened form autofocuses its first field, and an
- * empty field is not a reason to refuse to go back out of it.
+ * switching tab, reloading the list. Two sources, because "unsaved" is asked
+ * about two different things:
  *
- * What it deliberately does not cover is a draft in a box that no longer has
- * focus — the same exposure clicking the control has always had.
+ * - **The box under the cursor**, which answers for itself. This half is what
+ *   makes the common case cheap and impossible to get stale: a box that has only
+ *   just been focused holds nothing, so a freshly opened form — which autofocuses
+ *   its first field — can still be left.
+ * - **Any form that has said so**, for the fields the cursor is *not* in.
+ *
+ * What it still does not cover is a draft in a box belonging to no form that
+ * registers — the same exposure clicking the control has always had.
  */
 export function drafting(target: EventTarget | null): boolean {
+  if (anythingUnsaved()) return true;
   if (!textBox(target)) return false;
   const el = target as HTMLElement;
   if (el.isContentEditable) return (el.textContent ?? "").trim() !== "";

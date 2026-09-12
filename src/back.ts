@@ -193,8 +193,14 @@ export function useBackGestures(): void {
       // Chromium treats these buttons as a history navigation of its own
       // unless this is called. There is no history here to navigate, but a
       // webview deciding otherwise would be hard to see and harder to debug.
+      // Unconditional here, unlike the key handler below, for that reason.
       e.preventDefault();
-      if (overlayOpen()) return;
+      // The same draft rule the keyboard follows. It was missing here, and the
+      // omission was the wrong way round: a thumb button caught in passing is
+      // the *least* deliberate way to leave a view, and it was the one with no
+      // protection. `activeElement` rather than the event's target, which for a
+      // mouse press is wherever the pointer happened to be.
+      if (drafting(document.activeElement) || overlayOpen()) return;
       if (back) goBack();
       else goForward();
     };
@@ -203,6 +209,11 @@ export function useBackGestures(): void {
       // their suggestion lists on Escape, and that Escape is theirs, not a
       // request to leave the view they are being typed into.
       if (e.defaultPrevented) return;
+      // A held key repeats, and going back is a step rather than a rate: a held
+      // Escape in the issue view would rewind several hops of the link trail on
+      // one press, pushing a redo entry for each. The arrow keys over a list are
+      // the one place repeating is the point, and they are handled elsewhere.
+      if (e.repeat) return;
       const back = e.key === "Escape" || isBackShortcut(e);
       if (!back && !isForwardShortcut(e)) return;
       // Only a box with something *in* it stands in the way. A form that has
@@ -212,9 +223,13 @@ export function useBackGestures(): void {
       // form. Where the field does hold words, `⌘←` is "start of line" and
       // Escape is the box's own, and both stay the writer's.
       if (drafting(e.target) || overlayOpen()) return;
-      e.preventDefault();
-      if (back) goBack();
-      else goForward();
+      // Claimed only once something actually happened. `goForward` returns false
+      // whenever the redo stack is empty, which is nearly always — so swallowing
+      // the press regardless left `⌘→` dead app-wide, including in the boxes
+      // where it means "end of line", and marked a bare Escape as handled on a
+      // plain tab view, which deafens the two sibling listeners for a key this
+      // one then declined to act on.
+      if (back ? goBack() : goForward()) e.preventDefault();
     };
 
     window.addEventListener("mousedown", onMouseDown);
@@ -224,7 +239,11 @@ export function useBackGestures(): void {
     let gone = false;
     const subscribe = (name: string, run: () => void) =>
       listen(name, () => {
-        if (!overlayOpen()) run();
+        // The same draft rule as the other two paths. A swipe is the least
+        // deliberate of the three — a trackpad catches one in passing — so it is
+        // the last place that should be able to discard what somebody typed.
+        if (drafting(document.activeElement) || overlayOpen()) return;
+        run();
       }).then((fn) => {
         // Subscribing is a round trip to Rust, and a fast unmount can beat it.
         if (gone) fn();

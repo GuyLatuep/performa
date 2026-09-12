@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { api, JiraUser } from "../api";
+import { useUnsavedWork } from "../keys";
 import { useShortcut } from "../shortcuts";
 import { CommentAction } from "../comments";
 import {
@@ -145,6 +146,12 @@ export default function CommentPanel({
       box.current?.setSelectionRange(next.caret, next.caret);
     });
   }
+
+  // The comment box is one field, so the focused-box half of the draft guard
+  // would answer for it — but only while it *has* focus. Said here too, so
+  // clicking a button beside it and then pressing Escape does not throw the
+  // comment away.
+  useUnsavedWork(text.trim() !== "");
 
   // Gone while the box is empty or the post is in flight, exactly as the button
   // is disabled — posting nothing is not a thing the key should offer.

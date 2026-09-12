@@ -381,6 +381,10 @@ export function useShortcutKeys(): void {
       // Somebody nearer the key has dealt with it already — the same first rule,
       // and the same reason, as `back.ts`'s handler.
       if (e.defaultPrevented) return;
+      // A held chord repeats, and every action here is a step rather than a
+      // rate: a held ⌘J on a selected row opens a browser tab per repeat, and a
+      // held ⌘B flips a pin on and off while the list re-sorts underneath.
+      if (e.repeat) return;
       const id = matchShortcut(e);
       if (!id) return;
       const binding = active(id);

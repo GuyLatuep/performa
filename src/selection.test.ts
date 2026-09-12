@@ -223,6 +223,23 @@ describe("a list that changes underneath the selection", () => {
     expect(selectedRow()?.rowId).toBe("b");
   });
 
+  it("holds on while a form opens over it and closes again", () => {
+    // The scope deactivates while the form is up. Clearing the selection then
+    // meant coming back to the list at the top of it, having lost the row that
+    // was being worked on.
+    const { rerender } = renderHook(
+      ({ on }: { on: boolean }) =>
+        useSelectionScope({ id: "missing", rows: ["a", "b", "c"] }, on),
+      { initialProps: { on: true } },
+    );
+    selectRow("missing", "b");
+
+    rerender({ on: false });
+    rerender({ on: true });
+
+    expect(selectedRow()?.rowId).toBe("b");
+  });
+
   it("lets go when the list itself unmounts", () => {
     const { unmount } = list("todo", ["a"]);
     selectRow("todo", "a");

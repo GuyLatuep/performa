@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { WorklogInput } from "../api";
 import { formatDuration, nowTime, parseDuration, today } from "../time";
+import { useUnsavedWork } from "../keys";
 
 // The duration/date/time/comment quartet shared by every place that logs or
 // edits work: the log-work form, the timer stop modal, the missing-worklog
@@ -48,6 +49,13 @@ export function useWorklogDraft(initial: Partial<WorklogDraft> = {}) {
     (p: Partial<WorklogDraft>) => setDraft((d) => ({ ...d, ...p })),
     [],
   );
+
+  // A duration or a comment is words somebody typed; the date and time arrive
+  // pre-filled and the billable flag is a switch, so neither is a draft. Said
+  // here rather than left to whichever field has the cursor: with the cursor in
+  // the date box, Escape used to leave the form and take the other two with it.
+  useUnsavedWork(draft.duration.trim() !== "" || draft.comment.trim() !== "");
+
   return { draft, patch, seconds: parseDuration(draft.duration) };
 }
 
