@@ -323,13 +323,15 @@ function useBinding(
   run: (() => void) | null,
   enabled: boolean,
 ): ShortcutProps {
-  // The live handler, boxed the way `back.ts` boxes its target: the closure is
-  // new on every render, and re-running the ref for that would have React
-  // detach and re-attach the node each time.
+  // The live handler, boxed: the closure is new on every render, and re-running
+  // the ref for that would have React detach and re-attach the node each time.
+  //
+  // Published during render, for the reason `selection.ts` explains at length: a
+  // press can arrive in the same frame as a re-render, and an effect publishes
+  // after it — which would run the handler from the render before, closing over
+  // state that has already moved on.
   const latest = useRef(run);
-  useEffect(() => {
-    latest.current = run;
-  });
+  latest.current = run;
 
   const ref = useCallback(
     (node: HTMLElement | null) => {

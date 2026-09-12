@@ -51,11 +51,10 @@ export function backTarget(): BackTarget | null {
  */
 export function useBackTarget(target: BackTarget, active = true): void {
   const slot = useRef(target);
-  // In an effect rather than during render: a gesture can only arrive between
-  // commits, by which time this has run.
-  useEffect(() => {
-    slot.current = target;
-  });
+  // Published during render, the same as the shortcut and selection registries:
+  // a gesture arriving in the same frame as a re-render would otherwise be
+  // answered by the target from the render before it.
+  slot.current = target;
 
   useEffect(() => {
     if (!active) return;

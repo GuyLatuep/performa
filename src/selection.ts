@@ -153,9 +153,16 @@ export function openSelected(): boolean {
  */
 export function useSelectionScope(scope: SelectionScope, active = true): void {
   const slot = useRef<Slot>({ current: scope, seq: 0 });
-  useEffect(() => {
-    slot.current.current = scope;
-  });
+  // Published during render rather than from an effect.
+  //
+  // An arrow press can land in the same frame a list first paints — a list whose
+  // rows arrived from a cache, or a second list on a screen where the first is
+  // still loading — and an effect publishes after that frame. Until it ran, the
+  // scope still held the empty row list it mounted with, so the press went to
+  // whichever list *had* published, or to nothing at all. Assigning a plain box
+  // is idempotent and repeating it costs nothing, which is what makes it safe to
+  // do here.
+  slot.current.current = scope;
 
   useEffect(() => {
     if (!active) return;

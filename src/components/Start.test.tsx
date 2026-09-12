@@ -295,9 +295,12 @@ describe("walking both of this screen's lists", () => {
     await screen.findByRole("button", { name: "ABC-1" });
 
     await act(async () => down());
-    expect(selected()).toContain("ABC-1");
+    // Waited for rather than asserted outright: the second list's rows are there
+    // from the first render and the first list's arrive from a promise, so on a
+    // slow machine the press can land between the two.
+    await waitFor(() => expect(selected()).toContain("ABC-1"));
 
     await act(async () => down());
-    expect(selected()).toContain("ABC-9");
+    await waitFor(() => expect(selected()).toContain("ABC-9"));
   });
 });
