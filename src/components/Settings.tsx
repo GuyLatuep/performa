@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { CredentialsMeta } from "../api";
+import { useBackTarget } from "../back";
 import { useShortcut } from "../shortcuts";
 import {
   getDailyHours,
@@ -93,6 +94,26 @@ export default function Settings({
   useEffect(() => {
     getVersion().then(setVersion);
   }, []);
+
+  /**
+   * Escape closes this screen — and so do ⌘[, the mouse's back button and a
+   * swipe, all of them being one gesture.
+   *
+   * It closes *keeping* the changes, which is `onCancel`'s job here despite the
+   * name: everything on these tabs applies live, so the reader has already
+   * watched the theme change. Reverting that on Escape would undo something they
+   * can see, which is not what dismissing a screen means. The **Cancel** button
+   * stays the way to roll back, being the one place where that is asked for
+   * explicitly.
+   *
+   * Registered only where there is a way out at all — on first run this screen
+   * is the only thing there is, and `onCancel` is not given.
+   *
+   * A half-typed API token is safe without anything being arranged for it: the
+   * back layer stands down while the focused field holds something, so Escape
+   * reaches this only from a screen nobody is mid-sentence on.
+   */
+  useBackTarget({ label: "performa", back: () => onCancel?.() }, !!onCancel);
 
   // Only where there is a Save to press: the connection tab brings its own, and
   // on first run there is no way out of this screen at all.

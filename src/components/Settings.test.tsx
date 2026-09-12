@@ -1,9 +1,10 @@
 /** @vitest-environment happy-dom */
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
 import { CredentialsMeta } from "../api";
+import { AllKeys } from "../test-support/shortcuts";
 import Settings from "./Settings";
 
 vi.mock("../api", async () => {
@@ -87,7 +88,11 @@ async function renderSettings(
 ) {
   const onSaved = vi.fn();
   const view = render(
-    <Settings existing={null} onSaved={onSaved} {...props} />,
+    <>
+      {/* The app mounts its key listeners once, in `App`. */}
+      <AllKeys />
+      <Settings existing={null} onSaved={onSaved} {...props} />
+    </>,
   );
   // The version arrives through a promise.
   await act(async () => {});
@@ -97,6 +102,9 @@ async function renderSettings(
 const tab = (name: string) => screen.getByRole("tab", { name });
 
 beforeEach(() => {
+  vi.stubGlobal("navigator", {
+    userAgent: "Macintosh; Intel Mac OS X 10_15_7",
+  });
   vi.clearAllMocks();
   stores.theme = "dark";
 });
@@ -279,5 +287,114 @@ describe("the build stamp", () => {
     expect(
       screen.getByText(/v0\.4\.0 · built 2026-01-01 00:00 UTC/),
     ).toBeDefined();
+  });
+});
+
+describe("leaving it with the keyboard", () => {
+  /** Press at the body, so it bubbles to the window listener. */
+  function press(key: string, mods: Partial<KeyboardEventInit> = {}) {
+    return fireEvent.keyDown(document.body, { key, ...mods });
+  }
+
+  it("closes on Escape", async () => {
+    const onCancel = vi.fn();
+    await renderSettings({ existing, onCancel });
+
+    await act(async () => {
+      press("Escape");
+    });
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes on ⌘[ as well, the two being one gesture", async () => {
+    const onCancel = vi.fn();
+    await renderSettings({ existing, onCancel });
+
+    await act(async () => {
+      press("[", { metaKey: true });
+    });
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps what was changed, rather than rolling it back", async () => {
+    // Everything here applies live, so the reader has already watched the theme
+    // change. Reverting it on Escape would undo something they can see; the
+    // Cancel button stays the way to ask for that. The rollback calls every
+    // setter back to its snapshot, so the test is that it does not happen.
+    const onCancel = vi.fn();
+    await renderSettings({ existing, onCancel });
+    stores.setTheme.mockClear();
+
+    await act(async () => {
+      press("Escape");
+    });
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(stores.setTheme).not.toHaveBeenCalled();
+  });
+
+  it("still rolls back when Cancel is pressed, which Escape is not", async () => {
+    const onCancel = vi.fn();
+    await renderSettings({ existing, onCancel });
+    stores.setTheme.mockClear();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(stores.setTheme).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays put on first run, where there is nowhere to go", async () => {
+    // The connect screen is the only thing there is until it is filled in, so it
+    // is given no way out and must not invent one.
+    await renderSettings({ existing: null });
+
+    await act(async () => {
+      press("Escape");
+    });
+
+    // Still here. (The back layer does consume the press either way — it calls
+    // preventDefault before asking whether there is anywhere to go — but with no
+    // target registered there is nothing for it to do.)
+    expect(screen.getByText("connection tab")).toBeDefined();
+  });
+
+  it("leaves the keys alone while a field is half filled in", async () => {
+    // The reason this screen was left out of the back layer to begin with — a
+    // mouse twitch must not cost a half-entered connection. It needs nothing
+    // arranged for it: the back layer already stands down while the focused
+    // field holds something, so the field itself is what the guard reads.
+    const onCancel = vi.fn();
+    await renderSettings({ existing, onCancel });
+    const field = document.createElement("input");
+    document.body.append(field);
+    field.value = "half-a-token";
+    field.focus();
+
+    await act(async () => {
+      fireEvent.keyDown(field, { key: "Escape" });
+      fireEvent.keyDown(field, { key: "[", metaKey: true });
+    });
+
+    expect(onCancel).not.toHaveBeenCalled();
+    field.remove();
+  });
+
+  it("closes again once that field is empty", async () => {
+    // The other half of the rule: an empty box is no obstacle, which is what
+    // makes a freshly opened screen leaveable at all.
+    const onCancel = vi.fn();
+    await renderSettings({ existing, onCancel });
+    const field = document.createElement("input");
+    document.body.append(field);
+    field.focus();
+
+    await act(async () => {
+      fireEvent.keyDown(field, { key: "Escape" });
+    });
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    field.remove();
   });
 });
