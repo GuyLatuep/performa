@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { api, CredentialsMeta, IssueSummary } from "./api";
+import { useBackGestures } from "./back";
 import { logInfo } from "./log";
 import Settings from "./components/Settings";
 import Start from "./components/Start";
@@ -160,6 +161,10 @@ export default function App() {
   useEffect(() => {
     if (signedIn) logInfo(`view: ${tab}`);
   }, [signedIn, tab]);
+
+  // The mouse's back button, for whichever screen is currently offering a way
+  // out. Mounted here so there is exactly one listener for the whole app.
+  useBackGestures();
 
   // The celebrating, kept apart from the refreshing: this one needs to know
   // what was logged, which `api.logWork` announces.

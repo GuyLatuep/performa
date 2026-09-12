@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, MissingWorklog } from "../api";
+import { useBackTarget } from "../back";
 import { timeAgo, toDateInput, toTimeInput } from "../time";
 import {
   ignoreMissing,
@@ -60,11 +61,14 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
     setBusy(false);
   }
 
+  const closeForm = useCallback(() => setLogging(null), []);
+  useBackTarget({ label: "the list", back: closeForm }, logging !== null);
+
   if (logging) {
     return (
       <LogForm
         item={logging}
-        onCancel={() => setLogging(null)}
+        onCancel={closeForm}
         onSaved={async () => {
           setLogging(null);
           onLogged();

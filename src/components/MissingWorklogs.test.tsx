@@ -1,7 +1,8 @@
 /** @vitest-environment happy-dom */
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { backTarget, goBack } from "../back";
 import "../test-support/dom";
 import type { MissingWorklog } from "../api";
 
@@ -280,6 +281,24 @@ describe("logging from a finding", () => {
     // Twice over: the entry's own duration and the issue's running total.
     expect(screen.getAllByText("30m")).toHaveLength(2);
     expect(apiMock.issueWorklogs).toHaveBeenCalledWith("ABC-1");
+  });
+
+  it("goes back to the list on the back gesture too", async () => {
+    renderTab();
+    await userEvent.click(screen.getByTitle("Log work on ABC-1"));
+
+    await act(async () => {
+      goBack();
+    });
+
+    expect(screen.getByText(/without logging time around it/)).toBeDefined();
+    expect(apiMock.logWork).not.toHaveBeenCalled();
+  });
+
+  it("offers the gesture nothing while the list itself is up", () => {
+    renderTab();
+
+    expect(backTarget()).toBeNull();
   });
 
   it("goes back to the list on cancel", async () => {

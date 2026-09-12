@@ -1,9 +1,10 @@
 /** @vitest-environment happy-dom */
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
 import type { LinkedItem } from "../api";
+import { backTarget, goBack } from "../back";
 
 vi.mock("../api", async () => {
   const { apiModule } = await import("../test-support/api");
@@ -146,6 +147,27 @@ describe("the way out", () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
+  it("is the same way out the back gesture takes", async () => {
+    // The mouse's back button calls what the registered target says, and the
+    // corner button calls the same function — so they cannot come to mean
+    // different things.
+    const { onBack } = renderView({ backLabel: "Todo" });
+    await screen.findByRole("button", { name: /Back to Todo/ });
+
+    await act(async () => {
+      goBack();
+    });
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("names where it leads, so the gesture and the button agree", async () => {
+    renderView({ backLabel: "Mentions" });
+    await screen.findByRole("button", { name: /Back to Mentions/ });
+
+    expect(backTarget()?.label).toBe("Mentions");
+  });
+
   it("opens the issue in Jira", async () => {
     renderView();
 
@@ -187,6 +209,22 @@ describe("following a link", () => {
     expect(
       await screen.findByRole("button", { name: /Back to ABC-1/ }),
     ).toBeDefined();
+  });
+
+  it("makes the gesture step up the trail too", async () => {
+    const { onBack } = renderView();
+    await screen.findByText("links for ABC-1");
+    await userEvent.click(
+      screen.getByRole("button", { name: "follow to ABC-2" }),
+    );
+    await screen.findByRole("button", { name: /Back to ABC-1/ });
+
+    await act(async () => {
+      goBack();
+    });
+
+    expect(await screen.findByText("facts for ABC-1")).toBeDefined();
+    expect(onBack).not.toHaveBeenCalled();
   });
 
   it("steps back up the trail rather than leaving the view", async () => {
@@ -276,5 +314,31 @@ describe("moving the issue through its workflow", () => {
     ).toBeDefined();
     // Nothing is sent until the screen is filled in and submitted.
     expect(apiMock.transitionIssue).not.toHaveBeenCalled();
+  });
+
+  it("backs out of an open screen before it leaves the issue", async () => {
+    // The screen sits on the issue. Leaving for the list while a half-filled
+    // one is up would skip past the thing being read.
+    apiMock.issueTransitions.mockResolvedValue([
+      transition({
+        id: "41",
+        name: "Resolve",
+        to: "Resolved",
+        fields: [
+          fieldMeta({ id: "resolution", name: "Resolution", required: true }),
+        ],
+      }),
+    ]);
+    const { onBack } = renderView({ backLabel: "Todo" });
+    await screen.findByRole("option", { name: /Resolved/ });
+    await userEvent.selectOptions(screen.getByRole("combobox"), "41");
+    await screen.findByRole("heading", { name: "Resolve" });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Back to ABC-1/ }),
+    );
+
+    expect(screen.queryByRole("heading", { name: "Resolve" })).toBeNull();
+    expect(onBack).not.toHaveBeenCalled();
   });
 });

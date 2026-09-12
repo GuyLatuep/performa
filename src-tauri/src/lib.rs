@@ -1,5 +1,6 @@
 mod cleanup;
 mod creds;
+mod gestures;
 mod jira;
 mod logging;
 mod tray;
@@ -962,6 +963,10 @@ pub fn run() {
                 eprintln!("logging::init failed: {e}");
             }
             cleanup::sweep_update_leftovers(app);
+            // Before the window exists: the monitor is app-wide, not per
+            // window, and a swipe cannot arrive until there is something to
+            // swipe at anyway.
+            gestures::watch(app.handle());
             cleanup::sweep_downloaded_attachments(&attachment_dir());
             tray::setup(app)?;
             // The window is created hidden (`"visible": false` in

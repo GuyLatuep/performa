@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useBackTarget } from "../back";
 import Blockmark from "./Blockmark";
 
 const AUTHOR = "Malte Polzin";
@@ -12,6 +13,8 @@ export default function About({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     getVersion().then(setVersion);
   }, []);
+
+  useBackTarget({ label: "performa", back: onClose });
 
   return (
     <div className="setup settings-page about">

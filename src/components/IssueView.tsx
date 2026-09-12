@@ -9,6 +9,7 @@ import {
   LinkedItem,
   Transition,
 } from "../api";
+import { useBackTarget } from "../back";
 import { OfferedTransition } from "../transitions";
 import { useIssueFieldConfig } from "../issueFieldNames";
 import { logInfo } from "../log";
@@ -143,17 +144,35 @@ export default function IssueView({
   // opened from the status the issue has just left.
   useEffect(() => setScreen(null), [open.key]);
 
+  /** One step out: an open transition screen first, then the link trail, then
+   *  the list. The order is what is on top of what — leaving the issue while a
+   *  half-filled screen sits over it would skip past the thing being read.
+   *
+   *  The Back button in the corner calls this too, so the mouse's back button
+   *  and the visible control can never mean different things. */
+  const back = useCallback(() => {
+    if (screen) {
+      setScreen(null);
+      setMoveError(null);
+    } else if (cameFrom) {
+      setTrail((t) => t.slice(0, -1));
+    } else {
+      onBack();
+    }
+  }, [screen, cameFrom, onBack]);
+
+  /** Where that step lands, named. The screen sits *on* the issue, so backing
+   *  out of it returns to the issue itself. */
+  const backTo = screen ? open.key : (cameFrom?.key ?? backLabel);
+
+  useBackTarget({ label: backTo, back });
+
   return (
     <div className="panel issue-view">
       <div className="back-row">
-        <button
-          className="link"
-          onClick={() =>
-            cameFrom ? setTrail((t) => t.slice(0, -1)) : onBack()
-          }
-        >
+        <button className="link" onClick={back}>
           <ArrowLeft size={15} strokeWidth={2} aria-hidden />
-          Back to {cameFrom ? cameFrom.key : backLabel}
+          Back to {backTo}
         </button>
         <button
           className="link"
@@ -206,10 +225,7 @@ export default function IssueView({
                 entry={screen}
                 busy={moving}
                 failure={moveError}
-                onCancel={() => {
-                  setScreen(null);
-                  setMoveError(null);
-                }}
+                onCancel={back}
                 onSubmit={(fields) => runMove(screen, fields)}
               />
             </section>

@@ -39,6 +39,13 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async () => undefined),
 }));
 
+// `listen` reads the same internals and fails the same way. A test that cares
+// what an event does mocks this module itself (see TimerBar.test.tsx); this is
+// only so that merely mounting a subscriber does not throw.
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(async () => () => {}),
+}));
+
 // Each test file starts from an empty store, whatever an earlier one wrote.
 beforeEach(() => {
   localStorage.clear();

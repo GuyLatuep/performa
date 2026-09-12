@@ -1,7 +1,8 @@
 /** @vitest-environment happy-dom */
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { backTarget, goBack } from "../back";
 import "../test-support/dom";
 
 vi.mock("../api", async () => {
@@ -99,6 +100,34 @@ describe("the way back", () => {
     expect(
       screen.getByRole("button", { name: /Choose a different issue/ }),
     ).toBeDefined();
+  });
+
+  it("is what the back gesture takes to the caller's tab", async () => {
+    const onBack = vi.fn();
+    await renderForm({ backLabel: "Todo", onBack });
+
+    await act(async () => {
+      goBack();
+    });
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("is what the back gesture takes to the picker once the tab-return is gone", async () => {
+    await renderForm();
+
+    await act(async () => {
+      goBack();
+    });
+
+    expect(screen.getByRole("button", { name: "pick ABC-1" })).toBeDefined();
+  });
+
+  it("offers the gesture nothing at all while the picker is up", async () => {
+    // The picker *is* the log tab, and the tab strip is how you leave a tab.
+    renderLogWork();
+
+    expect(backTarget()).toBeNull();
   });
 
   it("goes back to the picker on 'choose a different issue'", async () => {

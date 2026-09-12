@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { api, IssueSummary } from "../api";
+import { useBackTarget } from "../back";
 import { logInfo } from "../log";
 import { formatDuration } from "../time";
 import IssueHistory from "./IssueHistory";
@@ -42,6 +43,20 @@ export default function LogWork({
   // Bumped after logging so the history list below the form reloads.
   const [historyKey, setHistoryKey] = useState(0);
 
+  /** Whichever way out the back row is offering — see the comment on it below.
+   *  Null while the picker is up: that is the log tab itself, and the tab strip
+   *  is how you leave a tab. */
+  const cameFrom = onBack && selected === initialIssue ? backLabel : null;
+  const back = useCallback(() => {
+    if (onBack && selected === initialIssue) onBack();
+    else setSelected(null);
+  }, [onBack, selected, initialIssue]);
+
+  useBackTarget(
+    { label: cameFrom ?? "the issue picker", back },
+    selected !== null,
+  );
+
   function selectIssue(issue: IssueSummary) {
     // Billability shouldn't leak from the previous entry.
     patch({ nonBillable: false });
@@ -78,10 +93,10 @@ export default function LogWork({
           {/* Only while the issue the caller handed over is still the one on
               screen: once another issue is picked here, the log tab is where
               the user came from. */}
-          {onBack && selected === initialIssue && (
-            <button className="link" onClick={onBack}>
+          {cameFrom && (
+            <button className="link" onClick={back}>
               <ArrowLeft size={15} strokeWidth={2} aria-hidden />
-              Back to {backLabel}
+              Back to {cameFrom}
             </button>
           )}
           <button className="link" onClick={() => setSelected(null)}>
