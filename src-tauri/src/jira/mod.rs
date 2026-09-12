@@ -1314,6 +1314,27 @@ mod tests {
         assert!(!is_issue_key("-123"));
     }
 
+    /// The webview reads issue keys too — the command palette offers to open one
+    /// the moment you have typed it — and `parseIssueKey` in `src/issueKey.ts`
+    /// mirrors this function rule for rule. Where the two disagree, the palette
+    /// offers a key this side then refuses.
+    ///
+    /// So the same table lives in both suites, asserted here and in
+    /// `src/issueKey.test.ts`. Changing either rule without the other breaks one
+    /// of them, which is the point of writing it twice.
+    #[test]
+    fn issue_key_shapes_match_the_webviews() {
+        for ok in ["ABC-1", "AB-7", "PERFORMA-1234", "A1B-9", "abc-1", "aBc-12"] {
+            assert!(is_issue_key(ok), "{ok} should be a key");
+        }
+        for bad in [
+            "refresh", "A-1", "-1", "ABC-", "ABC-1a", "1BC-1", "A.C-1", "ABC1", "", "ABC-1-2",
+            "AB-CD-1",
+        ] {
+            assert!(!is_issue_key(bad), "{bad} should not be a key");
+        }
+    }
+
     #[test]
     fn search_jql_escapes_user_text() {
         let jql = build_search_jql(r#"quo"te \ back"#);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActionSpec, allActions, filterActions } from "../actions";
+import { ActionSpec, allActions, filterActions, typedAction } from "../actions";
 import { overlayOpen } from "../keys";
 import { matchShortcut } from "../shortcuts";
 
@@ -46,10 +46,14 @@ export default function CommandPalette() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
-  const matches = useMemo(
-    () => filterActions(actions, query),
-    [actions, query],
-  );
+  const matches = useMemo(() => {
+    const found = filterActions(actions, query);
+    // An issue key leads, because it is the one thing the query *is* rather than
+    // something it resembles: having typed PERF-12 in full, opening PERF-12 is
+    // not a guess about what was meant.
+    const typed = typedAction(query);
+    return typed ? [typed, ...found] : found;
+  }, [actions, query]);
 
   // The active row can be past the end after a keystroke narrows the list.
   const at = Math.min(active, Math.max(0, matches.length - 1));

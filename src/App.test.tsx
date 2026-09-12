@@ -26,6 +26,24 @@ vi.mock("./components/Todo", () => stub("todo"));
 vi.mock("./components/Timesheet", () => stub("timesheet"));
 vi.mock("./components/MissingWorklogs", () => stub("missing"));
 vi.mock("./components/Mentions", () => stub("mentions"));
+vi.mock("./components/IssueView", () => ({
+  default: ({
+    issue,
+    backLabel,
+    onBack,
+  }: {
+    issue: { key: string };
+    backLabel: string;
+    onBack: () => void;
+  }) => (
+    <div>
+      <p>
+        viewing {issue.key} from {backLabel}
+      </p>
+      <button onClick={onBack}>leave the issue</button>
+    </div>
+  ),
+}));
 vi.mock("./components/LogWork", () => ({
   default: ({ backLabel }: { backLabel?: string }) => (
     <p>log panel{backLabel ? ` from ${backLabel}` : ""}</p>
@@ -79,6 +97,7 @@ vi.mock("./fun", () => ({
 
 import App from "./App";
 import { apiMock, resetApiMock } from "./test-support/api";
+import { clearIssueRequest, requestIssue } from "./issueRequest";
 import { setTimesheetView } from "./settings";
 
 const CREDS = {
@@ -419,5 +438,57 @@ describe("signing out", () => {
 
     await waitFor(() => expect(apiMock.clearCredentials).toHaveBeenCalled());
     expect(await screen.findByText("connect screen")).toBeDefined();
+  });
+});
+
+describe("an issue reached by its key", () => {
+  // Typing a key in the command palette asks for an issue that belongs to no
+  // tab, so the shell shows it rather than a list doing so.
+
+  afterEach(clearIssueRequest);
+
+  it("replaces the tab's content, keeping the sidebar", async () => {
+    await renderSignedIn();
+
+    await act(async () => requestIssue("ABC-12"));
+
+    expect(screen.getByText(/viewing ABC-12/)).toBeDefined();
+    expect(screen.queryByText("start panel")).toBeNull();
+    // Still in the app, not over it: the tabs are where they were.
+    expect(screen.getByRole("button", { name: "Todo" })).toBeDefined();
+  });
+
+  it("says where going back leads, which is the tab underneath", async () => {
+    await renderSignedIn();
+    await act(async () => {
+      fireEvent.keyDown(document.body, { key: "2", metaKey: true });
+    });
+
+    await act(async () => requestIssue("ABC-12"));
+
+    expect(screen.getByText(/from Todo/)).toBeDefined();
+  });
+
+  it("gives the tab back when the issue is left", async () => {
+    await renderSignedIn();
+    await act(async () => requestIssue("ABC-12"));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "leave the issue" }),
+    );
+
+    expect(screen.getByText("start panel")).toBeDefined();
+  });
+
+  it("gives it back when another tab is asked for instead", async () => {
+    // The tab was asked for, so the tab is what should be on screen.
+    await renderSignedIn();
+    await act(async () => requestIssue("ABC-12"));
+
+    await act(async () => {
+      fireEvent.keyDown(document.body, { key: "4", metaKey: true });
+    });
+
+    expect(screen.getByText("timesheet panel")).toBeDefined();
   });
 });

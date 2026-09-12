@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "./api";
 import { goBack, goForward } from "./back";
+import { parseIssueKey } from "./issueKey";
+import { requestIssue } from "./issueRequest";
 import { setFunMode } from "./settings";
 import {
   boundShortcuts,
@@ -189,4 +191,26 @@ export function filterActions(
     .map((s, i) => ({ ...s, i }))
     .sort((a, b) => a.rank - b.rank || a.i - b.i)
     .map((s) => s.action);
+}
+
+/**
+ * The action a query *is*, rather than one it matches.
+ *
+ * Everything else on offer is a fixed list the query filters. An issue key is
+ * not in any list — there are a hundred thousand of them — so typing one means
+ * something the palette has to read rather than find. Null for every query that
+ * is not one, which is nearly all of them.
+ *
+ * Kept apart from `allActions` because it depends on the query: that list is
+ * read once when the palette opens, and this is recomputed on every keystroke.
+ */
+export function typedAction(query: string): ActionSpec | null {
+  const key = parseIssueKey(query);
+  if (!key) return null;
+  return {
+    id: `open.${key}`,
+    name: `Open ${key}`,
+    group: "Issue",
+    run: () => requestIssue(key),
+  };
 }

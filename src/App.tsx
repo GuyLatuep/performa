@@ -12,6 +12,8 @@ import {
 import { api, CredentialsMeta, IssueSummary } from "./api";
 import { clearForward, useBackGestures } from "./back";
 import { useSelectionKeys } from "./selection";
+import { clearIssueRequest, useRequestedIssue } from "./issueRequest";
+import IssueView from "./components/IssueView";
 import { ShortcutProps, useShortcut, useShortcutKeys } from "./shortcuts";
 import { logInfo } from "./log";
 import Settings from "./components/Settings";
@@ -105,6 +107,11 @@ export default function App() {
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
 
+  /** An issue somebody reached by typing its key. It belongs to no tab — the
+   *  Todo and Mentions tabs each open issues off their own list — so the shell
+   *  shows it, over whichever tab is underneath. */
+  const typedIssue = useRequestedIssue();
+
   const missingItems = useMissing();
   const missingUnseen = useMissingUnseenCount();
   const mentionsUnread = useMentionsUnreadCount();
@@ -164,6 +171,9 @@ export default function App() {
     if (signedIn) logInfo(`view: ${tab}`);
     // Leaving for another tab leaves the trail the redo stack described.
     clearForward();
+    // And leaves an issue opened by key: the tab was asked for, so the tab is
+    // what should be on screen.
+    clearIssueRequest();
   }, [signedIn, tab]);
 
   // The mouse's back button, for whichever screen is currently offering a way
@@ -419,34 +429,49 @@ export default function App() {
         <TimerBar onLogged={onLogged} />
 
         <main>
-          {tab === "start" && (
-            <Start
+          {/* An issue reached by key replaces the tab's content rather than the
+              window: the sidebar stays, so it is still clear where going back
+              leads — and `IssueView` registers that way out itself. */}
+          {typedIssue ? (
+            <IssueView
+              issue={typedIssue}
               site={creds.site}
-              refreshKey={refreshKey}
-              onSelectIssue={openLogTab}
-              onOpenMissing={() => setTab("missing")}
+              backLabel={TAB_LABELS[tab]}
+              onBack={clearIssueRequest}
               onLogged={onLogged}
             />
-          )}
-          {tab === "todo" && <Todo site={creds.site} onLogged={onLogged} />}
-          {tab === "log" && (
-            <LogWork
-              key={logVisit}
-              site={creds.site}
-              onLogged={onLogged}
-              initialIssue={logIssue}
-              backLabel={logOrigin ? TAB_LABELS[logOrigin] : undefined}
-              onBack={logOrigin ? () => setTab(logOrigin) : undefined}
-            />
-          )}
-          {tab === "timesheet" && (
-            <Timesheet site={creds.site} refreshKey={refreshKey} />
-          )}
-          {tab === "missing" && (
-            <MissingWorklogs site={creds.site} onLogged={onLogged} />
-          )}
-          {tab === "mentions" && (
-            <Mentions site={creds.site} onLogged={onLogged} />
+          ) : (
+            <>
+              {tab === "start" && (
+                <Start
+                  site={creds.site}
+                  refreshKey={refreshKey}
+                  onSelectIssue={openLogTab}
+                  onOpenMissing={() => setTab("missing")}
+                  onLogged={onLogged}
+                />
+              )}
+              {tab === "todo" && <Todo site={creds.site} onLogged={onLogged} />}
+              {tab === "log" && (
+                <LogWork
+                  key={logVisit}
+                  site={creds.site}
+                  onLogged={onLogged}
+                  initialIssue={logIssue}
+                  backLabel={logOrigin ? TAB_LABELS[logOrigin] : undefined}
+                  onBack={logOrigin ? () => setTab(logOrigin) : undefined}
+                />
+              )}
+              {tab === "timesheet" && (
+                <Timesheet site={creds.site} refreshKey={refreshKey} />
+              )}
+              {tab === "missing" && (
+                <MissingWorklogs site={creds.site} onLogged={onLogged} />
+              )}
+              {tab === "mentions" && (
+                <Mentions site={creds.site} onLogged={onLogged} />
+              )}
+            </>
           )}
         </main>
       </div>

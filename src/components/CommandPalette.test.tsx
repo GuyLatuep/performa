@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
 import { useScreenActions } from "../actions";
+import { clearIssueRequest, useRequestedIssue } from "../issueRequest";
 import { clearForward, useBackTarget } from "../back";
 import { AllKeys } from "../test-support/shortcuts";
 import { useShortcut, useShortcutBadge } from "../shortcuts";
@@ -74,6 +75,7 @@ beforeEach(() => {
 
 afterEach(() => {
   clearForward();
+  clearIssueRequest();
   vi.unstubAllGlobals();
   document.body.innerHTML = "";
 });
@@ -246,5 +248,72 @@ describe("using it", () => {
     });
 
     expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("typing an issue key", () => {
+  /** What the app would show, read from the store the palette writes. */
+  function Opened() {
+    const issue = useRequestedIssue();
+    return <p>{issue ? `opening ${issue.key}` : "nothing opened"}</p>;
+  }
+
+  async function openWith(query: string) {
+    render(
+      <>
+        <Screen />
+        <Opened />
+      </>,
+    );
+    await openPalette();
+    await userEvent.type(box(), query);
+  }
+
+  it("offers to open it", async () => {
+    await openWith("ABC-12");
+
+    expect(names()).toContain("Open ABC-12");
+  });
+
+  it("offers it first, it being what the query is rather than resembles", async () => {
+    // Having typed the key in full, opening it is not a guess about what was
+    // meant.
+    await openWith("ABC-12");
+
+    expect(names()[0]).toBe("Open ABC-12");
+  });
+
+  it("opens it on Enter", async () => {
+    await openWith("ABC-12");
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(screen.getByText("opening ABC-12")).toBeDefined();
+  });
+
+  it("upper-cases what was typed, as Jira writes them", async () => {
+    await openWith("abc-12");
+
+    expect(names()[0]).toBe("Open ABC-12");
+  });
+
+  it("offers nothing of the sort for an ordinary word", async () => {
+    await openWith("refresh");
+
+    expect(names().some((n) => n?.startsWith("Open ABC"))).toBe(false);
+  });
+
+  it("offers nothing while the key is still half typed", async () => {
+    // "ABC-" is not yet a key, and offering to open it would be offering to open
+    // nothing.
+    await openWith("ABC-");
+
+    expect(names().some((n) => n?.startsWith("Open "))).toBe(false);
+  });
+
+  it("shows no chord for it, there being no key to press", async () => {
+    await openWith("ABC-12");
+
+    expect(options()[0].querySelector(".command-chord")).toBeNull();
   });
 });
