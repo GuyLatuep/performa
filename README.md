@@ -41,6 +41,7 @@ roughly **5–10 MB**.
 | 🍱 **Tray timer** | Per-issue timer with 15-minute round-up, mirrored live in the system tray / menu bar — stop and log straight from there. Starting a timer also nudges the issue to Jira's "In Arbeit" status, best-effort. |
 | 📅 **Weekly timesheet** | Per-day totals and target charts; edit, delete, and repeat worklogs, or save them as templates. |
 | 🔔 **Missing-worklog watcher** | Flags recent Jira comments / status changes without logged time nearby and raises a desktop notification. |
+| ⌨️ **Keyboard-first** | Nearly every action on a ⌘/Ctrl chord, arrow-key navigation through every list, and a ⌘P command palette — hold ⌘ and each one names its key on the button itself. |
 | 🚀 **Auto-update** | Hourly check against GitHub releases. |
 | 🪵 **Debug log** | Rotating file (Python-`logging`-style lines, 3 most recent sessions kept), Settings-configurable level, one-click "open log folder". |
 

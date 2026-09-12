@@ -9,6 +9,7 @@ performa ist eine kleine Desktop-App (macOS + Windows) zum Erfassen deiner Arbei
 - [Was ist performa?](#was-ist-performa)
 - [Erste Schritte](#erste-schritte)
 - [Die Oberfläche im Überblick](#die-oberfläche-im-überblick)
+- [Tastatur](#tastatur)
 - [Start-Tab (Dashboard)](#start-tab-dashboard)
 - [Todo-Tab](#todo-tab)
 - [Die Vorgangsansicht](#die-vorgangsansicht)
@@ -69,21 +70,126 @@ Das Hauptfenster besteht aus:
 - **Timer-Leiste** — erscheint nur, während ein Timer läuft ([Der Timer](#der-timer)).
 - **Sechs Tabs**: **Start**, **Todo**, **Log work**, **Timesheet**, **Missing worklog**, **Mentions**. Die App öffnet sich auf **Start**.
 
+## Tastatur
+
+Fast alles in performa hat eine Taste. Du musst sie nicht lernen: **halte ⌘**
+(unter Windows Strg) und jede erreichbare Aktion nennt ihre eigene — als kleines
+Abzeichen an der Ecke ihrer Schaltfläche. Lässt du los, sind sie wieder weg.
+
+Ein **abgeblendetes** Abzeichen ist eine Taste, die es gibt, die aber in diesem
+Moment nicht auslöst — siehe [Wenn eine Taste nichts tut](#wenn-eine-taste-nichts-tut).
+
+> Die Tastenkürzel stehen hier mit **⌘**. Unter Windows gilt überall **Strg**;
+> die Tasten selbst sind dieselben.
+
+### Zwischen den Ansichten wechseln
+
+| | |
+| --- | --- |
+| **⌘1** … **⌘6** | die sechs Tabs, in der Reihenfolge der Seitenleiste |
+| **⌘,** | Einstellungen |
+| **⌘P** | die [Befehlspalette](#die-befehlspalette) |
+| **⌘R** | die Liste aktualisieren, auf der du gerade bist |
+
 ### Zurück navigieren
 
-Jede Ansicht mit einem **Back**-Element lässt sich auch verlassen, ohne es zu treffen:
+Jede Ansicht mit einem **Back**-Element lässt sich auch verlassen, ohne es zu
+treffen:
 
 - **Escape**, oder **⌘[** / **⌘←** (**Alt+←** unter Windows).
 - **Die Zurück-Taste der Maus**, falls sie eine hat.
 - **Eine Zwei-Finger-Wischgeste nach rechts** auf dem Trackpad.
 
-Alle tun genau das, was auch das Back-Element tut: einen Schritt aus der Stelle heraus, an der du gerade bist. Ein offenes Übergangsformular wird geschlossen, bevor der Vorgang darunter verlassen wird, und eine Spur verknüpfter Vorgänge wird Schritt für Schritt zurückgegangen.
+Alle tun genau das, was auch das Back-Element tut: einen Schritt aus der Stelle
+heraus, an der du gerade bist. Ein offenes Übergangsformular wird geschlossen,
+bevor der Vorgang darunter verlassen wird, und eine Spur verknüpfter Vorgänge
+wird Schritt für Schritt zurückgegangen.
 
-**Vorwärts** geht den umgekehrten Weg — die Vorwärts-Taste der Maus, **⌘]** / **⌘→** (**Alt+→**) oder eine Wischgeste nach links. Sie führt wieder in das hinein, was du gerade verlassen hast, und nur in das: navigierst du woandershin, ist der Weg vorwärts aufgegeben.
+**Vorwärts** geht den umgekehrten Weg — die Vorwärts-Taste der Maus, **⌘]** /
+**⌘→** (**Alt+→**) oder eine Wischgeste nach links. Sie führt wieder in das
+hinein, was du gerade verlassen hast, und nur in das: navigierst du
+woandershin, ist der Weg vorwärts aufgegeben.
 
-Wo die Eingabe jemand anderem gehört, halten sie sich heraus. Nichts bewegt sich, während du in ein Feld schreibst, während ein Dialog offen ist, oder wenn die Taste eine geöffnete Auswahlliste schließt — Escape im Kommentarfeld schließt die Erwähnungsliste und lässt den Vorgang stehen.
+> **Wenn die Zurück-Taste der Maus scheinbar nichts tut**, schau in die
+> Treiber-Software. Logitech Options+ und Vergleichbare übernehmen die
+> Daumentasten und senden statt eines Tastendrucks eine Wischgeste; performa
+> versteht beides — solange die Taste noch auf **Zurück** steht.
 
-> **Wenn die Zurück-Taste der Maus scheinbar nichts tut**, schau in die Treiber-Software. Logitech Options+ und Vergleichbare übernehmen die Daumentasten und senden statt eines Tastendrucks eine Wischgeste; performa versteht beides — solange die Taste noch auf **Zurück** steht.
+### Durch eine Liste gehen
+
+In den Ansichten Todo, Start, Mentions, Missing Worklogs und Timesheet-Woche:
+
+| | |
+| --- | --- |
+| **↑** **↓** | durch die Zeilen gehen |
+| **Enter** | die Zeile öffnen, auf der du stehst |
+
+Die Zeile, auf der du stehst, ist hinterlegt und trägt links einen farbigen
+Balken. Sie folgt dem Vorgang, nicht der Position: sortierst du eine Spalte neu,
+bleibst du auf demselben Vorgang, auch wenn er woanders steht. Das sind die
+einzigen Kürzel ohne Modifikatortaste — weil Listen überall so funktionieren.
+
+Der Start-Tab hat zwei Listen — die fälligen Vorgänge und die Erinnerungen
+darunter — und **↓** wechselt vom Ende der einen an den Anfang der nächsten.
+
+Im Suchfeld von **Log work** bewegen die Pfeile die Ergebnisse, während du
+weitertippst; so findest und wählst du einen Vorgang ohne die Maus.
+
+### Auf das wirken, was vor dir liegt
+
+Dasselbe Verb behält überall dieselbe Taste; worauf es wirkt, ist die Zeile, auf
+der du stehst, oder das, was gerade offen vor dir liegt.
+
+| | |
+| --- | --- |
+| **⌘J** | im Browser in Jira öffnen |
+| **⌘T** | den Timer dafür starten — oder den laufenden stoppen |
+| **⌘B** | oben an die Log-work-Liste anpinnen oder wieder lösen |
+| **⌘L** | Arbeit darauf erfassen |
+| **⌘E** | bearbeiten — einen Worklog-Eintrag, oder das Feldlayout der Vorgangsansicht |
+| **⌘D** | heute noch einmal erfassen |
+| **⌘K** | kommentieren (**⌘⇧K** für eine Kundenantwort im Service Desk) |
+| **⌘U** | Dateien anhängen |
+| **⌘I** | einen Vorgang verknüpfen |
+| **⌘S** | das Formular vor dir abschicken |
+| **⌘Y** | das Timesheet zwischen Woche und Monat umschalten |
+| **⌘⇧←** **⌘⇧→** | die vorige oder nächste Woche bzw. den vorigen oder nächsten Monat |
+
+**⌘S** meint immer das Formular, das du vor dir hast. Ist ein Dialog offen,
+schickt es *diesen* ab; schließt er, bekommt das Formular dahinter die Taste
+zurück.
+
+### Die Befehlspalette
+
+**⌘P** öffnet eine Liste von allem, was die App gerade kann, durchsuchbar nach
+Namen. Ein paar Buchstaben tippen, **Enter** drücken, und es läuft.
+
+Jeder Eintrag zeigt sein eigenes Kürzel daneben — die Palette ist also auch der
+Weg, sie zu lernen; was du oft brauchst, findest du bald ohne sie. Einträge ohne
+Kürzel sind nur hier erreichbar, und das ist der Sinn: die fünf
+**Sort by …**-Spalten des Todo-Tabs sind keine fünf eigenen Tasten wert, und
+Erscheinungsbild, Textgröße und Handbuch liegen hier statt im Fenster.
+
+**Escape** schließt sie, ohne die Ansicht dahinter zu verlassen.
+
+### Wenn eine Taste nichts tut
+
+- **Du hast etwas eingegeben.** Eine Taste, die ungespeicherte Wörter
+  wegwerfen würde — Tab-Wechsel, Aktualisieren, Zurückgehen — hält sich zurück,
+  solange in dem Feld, in dem du bist, etwas steht; ihr Abzeichen blendet ab und
+  sagt das. Ein *leeres* Feld steht nicht im Weg: ein gerade geöffnetes Formular
+  setzt den Cursor in sein erstes Feld, und verlassen kannst du es trotzdem.
+- **Die Taste gehört dem Feld.** **⌘←** heißt im Textfeld „Zeilenanfang“, und
+  **Escape** schließt erst eine offene Erwähnungsliste.
+- **Ein Dialog ist offen.** Dann wirken nur seine eigenen Tasten; die Ansicht
+  dahinter ist bis zum Schließen nicht erreichbar.
+- **Das Element ist nicht auf dem Bildschirm.** Eine Taste existiert nur, solange
+  ihre Schaltfläche existiert: **⌘T** stoppt einen Timer nur, wenn einer läuft,
+  und **⌘I** bietet eine Verknüpfung nur an, solange das Formular zu ist.
+
+Manche Kombinationen erreichen performa gar nicht, weil macOS sie zuerst für sich
+nimmt: **⌘Q** **⌘W** **⌘H** **⌘M** **⌘Z** **⌘X** **⌘C** **⌘V** **⌘A**. Das ist
+Absicht — nur so funktionieren Kopieren und Einfügen in jedem Feld der App.
 
 ## Start-Tab (Dashboard)
 

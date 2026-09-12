@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import CloseGuard from "./components/CloseGuard";
+import CommandPalette from "./components/CommandPalette";
 import ShortcutBadges from "./components/ShortcutBadges";
 import { applyTheme, onThemeChange } from "./theme";
 import { applyAccent } from "./accent";
@@ -30,6 +31,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         controls — and a `position: fixed` layer needs no ancestor that could
         one day gain a transform and quietly become its containing block. */}
     <ShortcutBadges />
+    {/* A peer for the same reason the badges are: it lists whatever controls are
+        mounted, which includes the screens `App` early-returns for. */}
+    <CommandPalette />
     <CloseGuard />
   </React.StrictMode>,
 );

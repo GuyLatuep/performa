@@ -3157,6 +3157,76 @@ section.issue-fact .issue-description {
   white-space: nowrap;
 }
 
+/* ---------- Command palette ----------
+   The app's ordinary sheet, holding the typeahead the pickers already use — so
+   it looks like everything else and behaves like the one thing in the app that
+   is already a filtered list with a keyboard. */
+.command-palette {
+  /* The list does the scrolling, not the sheet, so the box stays put while a
+     hundred commands move inside it. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.command-palette input {
+  width: 100%;
+}
+
+/* Overrides the picker's popover positioning: here the list *is* the content of
+   the sheet rather than something floating under a field. */
+.command-list {
+  position: static;
+  max-height: 50vh;
+  margin: 0;
+  border: none;
+  /* The rows carry the reading rhythm; a border round them as well would box a
+     list that is already inside a box. */
+}
+
+/* One row: what it is called on the left, its chord on the right. */
+.command-list .mention-option {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--tap-compact);
+}
+.command-name {
+  flex: 1;
+  min-width: 0;
+  /* A long name gives way rather than pushing its chord off the row. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The same key cap the badges wear, at rest rather than mid-press — the whole
+   point of showing it here is that it is the thing you will press next time
+   instead of opening this. */
+.command-chord {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: var(--r-control);
+  background: var(--fill-secondary);
+  color: var(--muted);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Section headings inside the list. Not a heading element: the list is a
+   listbox, and an option's parent may hold nothing that claims to be read
+   first. */
+.command-group {
+  margin: var(--sp-3) 0 var(--sp-1);
+  padding: 0 10px;
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  color: var(--muted);
+}
+.command-list li:first-child .command-group {
+  margin-top: 0;
+}
+
 /* ---------- Shortcut badges ----------
    Hold the modifier and every action within reach names its key. One layer for
    all of them, drawn over the app and measured from the controls rather than

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { hasPrimaryModifier, isMac } from "./platform";
+import { hasPrimaryModifier, isMac, primaryGlyph } from "./platform";
 import { drafting, OVERLAY_SELECTOR, textBox } from "./keys";
 
 /**
@@ -98,6 +98,10 @@ export const SHORTCUTS = {
   pin: { key: "b", label: "Pin or unpin" },
   logAgain: { key: "d", label: "Log again" },
 
+  // Answered by the palette's own listener: it has no visible control to hang a
+  // binding on, being the thing that *lists* the controls.
+  palette: { key: "p", label: "Command palette", external: true },
+
   timesheetView: { key: "y", label: "Week or month" },
   prevPeriod: {
     key: "arrowleft",
@@ -188,6 +192,18 @@ const KEY_GLYPHS: Record<string, string> = {
 export function keyLabel(id: ShortcutId): string {
   const s = TABLE[id];
   return (s.shift ? "⇧" : "") + (KEY_GLYPHS[s.key] ?? s.key);
+}
+
+/** The whole chord, spelled out. For anywhere the modifier is *not* being held
+ *  at the time — the command palette lists these beside the names. */
+export function chordLabel(id: ShortcutId): string {
+  return primaryGlyph() + keyLabel(id).toUpperCase();
+}
+
+/** What this action is called. The catalogue's own label, so the palette and the
+ *  conflict test cannot disagree about it. */
+export function shortcutLabel(id: ShortcutId): string {
+  return TABLE[id].label;
 }
 
 /**

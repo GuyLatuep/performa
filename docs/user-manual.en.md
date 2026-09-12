@@ -9,6 +9,7 @@ performa is a small desktop app (macOS + Windows) for logging your work hours on
 - [What is performa?](#what-is-performa)
 - [Getting started](#getting-started)
 - [The interface at a glance](#the-interface-at-a-glance)
+- [Keyboard](#keyboard)
 - [Start tab (dashboard)](#start-tab-dashboard)
 - [Todo tab](#todo-tab)
 - [The issue view](#the-issue-view)
@@ -69,6 +70,27 @@ The main window consists of:
 - **Timer bar** — appears only while a timer is running ([The timer](#the-timer)).
 - **Six tabs**: **Start**, **Todo**, **Log work**, **Timesheet**, **Missing worklog**, **Mentions**. The app opens on **Start**.
 
+## Keyboard
+
+Nearly everything in performa has a key. You do not have to learn them: **hold
+⌘** (Ctrl on Windows) and every action within reach names its own, as a small
+badge at the corner of its button. Let go and they are gone.
+
+A badge drawn **dimmed** is a key that is real but will not fire this second —
+see [When a key does nothing](#when-a-key-does-nothing).
+
+> The shortcuts are written here with **⌘**. On Windows, read **Ctrl** for every
+> one of them; the keys themselves are the same.
+
+### Moving between views
+
+| | |
+| --- | --- |
+| **⌘1** … **⌘6** | the six tabs, in the order the sidebar lists them |
+| **⌘,** | Settings |
+| **⌘P** | the [command palette](#the-command-palette) |
+| **⌘R** | refresh whatever list you are on |
+
 ### Going back
 
 Every screen with a **Back** control can also be left without aiming at it:
@@ -77,13 +99,93 @@ Every screen with a **Back** control can also be left without aiming at it:
 - **Your mouse's back button**, if it has one.
 - **A two-finger swipe to the right** on a trackpad.
 
-All of them do the same one thing the Back control does: step out of exactly where you are. An open transition screen closes before the issue underneath it is left, and a trail of linked issues is walked back one at a time.
+All of them do the same one thing the Back control does: step out of exactly
+where you are. An open transition screen closes before the issue underneath it
+is left, and a trail of linked issues is walked back one at a time.
 
-**Forward** goes the other way — the mouse's forward button, **⌘]** / **⌘→** (**Alt+→**), or a swipe to the left. It re-enters what you just stepped out of, and only that: navigating anywhere else gives up the way forward.
+**Forward** goes the other way — the mouse's forward button, **⌘]** / **⌘→**
+(**Alt+→**), or a swipe to the left. It re-enters what you just stepped out of,
+and only that: navigating anywhere else gives up the way forward.
 
-They keep out of the way where the input belongs to something else. Nothing moves while you are typing in a box, while a dialog is open, or when the key closes a picker you have open — Escape in a comment box closes the mention list and leaves the issue where it is.
+> **If your mouse's back button appears to do nothing**, look at its driver
+> software. Logitech's Options+ and its equivalents take the thumb buttons over
+> and send a swipe gesture rather than a button press; performa understands both,
+> as long as the button is still set to **Back**.
 
-> **If your mouse's back button appears to do nothing**, look at its driver software. Logitech's Options+ and its equivalents take the thumb buttons over and send a swipe gesture rather than a button press; performa understands both, as long as the button is still set to **Back**.
+### Walking a list
+
+On the Todo, Start, Mentions, Missing-worklog and Timesheet-week screens:
+
+| | |
+| --- | --- |
+| **↑** **↓** | move through the rows |
+| **Enter** | open the row you are on |
+
+The row you are on is washed and carries a coloured bar down its left edge. It
+follows the issue rather than the position, so re-sorting a column leaves you on
+the same issue even though it has moved. These are the only shortcuts without a
+modifier, because that is what every list everywhere answers to.
+
+The Start tab has two lists — the due issues and the reminders under them — and
+**↓** crosses from the end of one into the start of the next.
+
+In the **Log work** search box the arrows move through the results while you go
+on typing, so an issue can be found and picked without touching the mouse.
+
+### Acting on what you are looking at
+
+The same verb keeps the same key everywhere; what it acts on is whichever row
+you are on, or whatever is open in front of you.
+
+| | |
+| --- | --- |
+| **⌘J** | open it in Jira, in the browser |
+| **⌘T** | start its timer — or stop the running one |
+| **⌘B** | pin it to the top of the Log-work list, or unpin it |
+| **⌘L** | log work on it |
+| **⌘E** | edit it — a worklog entry, or the issue view's field layout |
+| **⌘D** | log it again today |
+| **⌘K** | comment (**⌘⇧K** for a customer reply on a service-desk issue) |
+| **⌘U** | attach files |
+| **⌘I** | link a work item |
+| **⌘S** | submit the form in front of you |
+| **⌘Y** | switch the timesheet between week and month |
+| **⌘⇧←** **⌘⇧→** | the previous or next week or month |
+
+**⌘S** always means the form you are looking at. With a dialog open it submits
+*that* dialog, and the form behind it gets the key back when the dialog closes.
+
+### The command palette
+
+**⌘P** opens a list of everything the app can do right now, searchable by name.
+Type a few letters, press **Enter**, and it runs.
+
+Each entry shows its own shortcut beside it, so the palette is also the way to
+learn them — the ones you use often will stop needing it. Entries with no
+shortcut are reachable only here, which is the point: the Todo tab's five
+**Sort by …** columns are not worth five keys of their own, and appearance,
+text size and the handbook all live here rather than cluttering the window.
+
+**Escape** closes it without leaving the view behind it.
+
+### When a key does nothing
+
+- **You have typed something.** A key that would throw unsaved words away — a
+  tab switch, a refresh, going back — stands down while the box you are in has
+  something in it, and its badge dims to say so. An *empty* box is no
+  obstacle: a form that has just opened puts the cursor in its first field, and
+  you can still leave.
+- **The key belongs to the box.** **⌘←** is "start of line" in a text field, and
+  **Escape** closes a mention list before it closes anything else.
+- **A dialog is open.** Only the dialog's own keys work; the screen behind it is
+  not reachable until it closes.
+- **The control is not on screen.** A key exists only while its button does, so
+  **⌘T** stops a timer only while one is running, and **⌘I** offers a link only
+  while that form is closed.
+
+Some chords never reach performa at all, because macOS claims them first:
+**⌘Q** **⌘W** **⌘H** **⌘M** **⌘Z** **⌘X** **⌘C** **⌘V** **⌘A**. That is
+deliberate — it is what keeps copy and paste working in every box in the app.
 
 ## Start tab (dashboard)
 

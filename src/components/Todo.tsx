@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, invalidateCachedReads, IssueSummary } from "../api";
 import { clearForward } from "../back";
 import { useShortcut } from "../shortcuts";
+import { useScreenActions } from "../actions";
 import { useRowSelected, useSelectionScope } from "../selection";
 import { usePinnedIssues } from "../pins";
 import { useIgnoredStatuses } from "../todoStatuses";
@@ -27,6 +28,15 @@ interface Props {
 
 /** This list's name in the selection registry. */
 const SCOPE = "todo";
+
+/** The sortable columns, named the way the palette offers them. */
+const COLUMNS = [
+  { column: "type", name: "type" },
+  { column: "key", name: "issue key" },
+  { column: "summary", name: "summary" },
+  { column: "priority", name: "priority" },
+  { column: "status", name: "status" },
+] as const;
 
 // Todo tab: everything waiting on the user — escalations they raised that are
 // back in their court, plus every open issue assigned to them. Most urgent
@@ -97,6 +107,19 @@ export default function Todo({ site, onLogged }: Props) {
     clearForward();
     setOpened(issue);
   }, []);
+
+  // The five column headers carry no chord of their own — five more keys for
+  // something done rarely would be five keys badly spent — so the palette is
+  // where they are reachable by keyboard at all.
+  useScreenActions(
+    COLUMNS.map(({ column, name }) => ({
+      id: `todo.sort.${column}`,
+      name: `Sort by ${name}`,
+      group: "Todo",
+      keywords: "order column",
+      run: () => setTodoSort({ column, direction: "asc" }),
+    })),
+  );
 
   useSelectionScope({
     id: SCOPE,
