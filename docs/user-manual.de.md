@@ -69,6 +69,22 @@ Das Hauptfenster besteht aus:
 - **Timer-Leiste** — erscheint nur, während ein Timer läuft ([Der Timer](#der-timer)).
 - **Sechs Tabs**: **Start**, **Todo**, **Log work**, **Timesheet**, **Missing worklog**, **Mentions**. Die App öffnet sich auf **Start**.
 
+### Zurück navigieren
+
+Jede Ansicht mit einem **Back**-Element lässt sich auch verlassen, ohne es zu treffen:
+
+- **Escape**, oder **⌘[** / **⌘←** (**Alt+←** unter Windows).
+- **Die Zurück-Taste der Maus**, falls sie eine hat.
+- **Eine Zwei-Finger-Wischgeste nach rechts** auf dem Trackpad.
+
+Alle tun genau das, was auch das Back-Element tut: einen Schritt aus der Stelle heraus, an der du gerade bist. Ein offenes Übergangsformular wird geschlossen, bevor der Vorgang darunter verlassen wird, und eine Spur verknüpfter Vorgänge wird Schritt für Schritt zurückgegangen.
+
+**Vorwärts** geht den umgekehrten Weg — die Vorwärts-Taste der Maus, **⌘]** / **⌘→** (**Alt+→**) oder eine Wischgeste nach links. Sie führt wieder in das hinein, was du gerade verlassen hast, und nur in das: navigierst du woandershin, ist der Weg vorwärts aufgegeben.
+
+Wo die Eingabe jemand anderem gehört, halten sie sich heraus. Nichts bewegt sich, während du in ein Feld schreibst, während ein Dialog offen ist, oder wenn die Taste eine geöffnete Auswahlliste schließt — Escape im Kommentarfeld schließt die Erwähnungsliste und lässt den Vorgang stehen.
+
+> **Wenn die Zurück-Taste der Maus scheinbar nichts tut**, schau in die Treiber-Software. Logitech Options+ und Vergleichbare übernehmen die Daumentasten und senden statt eines Tastendrucks eine Wischgeste; performa versteht beides — solange die Taste noch auf **Zurück** steht.
+
 ## Start-Tab (Dashboard)
 
 Der Start-Tab ist die Startseite und zeigt vier Bereiche. Bereiche ohne Inhalt werden ausgeblendet.
@@ -143,6 +159,8 @@ Wird ein Vorgang aus dem **Todo**- oder **Mentions**-Tab geöffnet, zeigt perfor
 **Anhänge.** Ein Klick lädt eine Datei herunter und öffnet sie, Dateien auf das Fenster ziehen oder **Attach files…** fügt welche hinzu, **✕** entfernt eine (mit Rückfrage — sie ist danach für alle weg).
 
 **Verknüpfte Vorgänge.** Unter den Anhängen stehen die Vorgänge, mit denen dieser verknüpft ist, nach Beziehung gruppiert — *blocks*, *is blocked by*, *relates to*, je nachdem, was die Jira-Site kennt. Jede Zeile zeigt Schlüssel, Zusammenfassung und aktuellen Status; der Schlüssel öffnet den Vorgang im Browser. **Link work item…** legt eine Verknüpfung an: erst die Beziehung wählen, dann den anderen Vorgang über seinen Schlüssel oder Wörter aus der Zusammenfassung suchen. **✕** entfernt eine Verknüpfung — nur die Verknüpfung, beide Vorgänge bleiben.
+
+**Sie verlassen.** Der **Back**-Link in der Ecke führt zurück zur Liste — genauso wie Escape, die Zurück-Taste der Maus und eine Zwei-Finger-Wischgeste nach rechts ([Zurück navigieren](#zurück-navigieren)). Bist du einem verknüpften Vorgang gefolgt, geht es zunächst zu dem Vorgang zurück, aus dem du kamst, und nicht hinaus zur Liste — einen Vorgang pro Schritt.
 
 **Felder anordnen.** **Arrange fields** über dem Raster übergibt dir das Layout: ein Feld am **⠿**-Griff ziehen, mit der Größen-Schaltfläche umstellen (eine Zelle, zwei Zellen oder eine ganze Zeile für Fließtext), mit **✕** entfernen und jedes andere Feld deines Jira hinzufügen. **Done** kehrt zum Lesen zurück. Das Layout gilt für alle Vorgänge.
 

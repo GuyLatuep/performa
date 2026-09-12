@@ -69,6 +69,22 @@ The main window consists of:
 - **Timer bar** — appears only while a timer is running ([The timer](#the-timer)).
 - **Six tabs**: **Start**, **Todo**, **Log work**, **Timesheet**, **Missing worklog**, **Mentions**. The app opens on **Start**.
 
+### Going back
+
+Every screen with a **Back** control can also be left without aiming at it:
+
+- **Escape**, or **⌘[** / **⌘←** (**Alt+←** on Windows).
+- **Your mouse's back button**, if it has one.
+- **A two-finger swipe to the right** on a trackpad.
+
+All of them do the same one thing the Back control does: step out of exactly where you are. An open transition screen closes before the issue underneath it is left, and a trail of linked issues is walked back one at a time.
+
+**Forward** goes the other way — the mouse's forward button, **⌘]** / **⌘→** (**Alt+→**), or a swipe to the left. It re-enters what you just stepped out of, and only that: navigating anywhere else gives up the way forward.
+
+They keep out of the way where the input belongs to something else. Nothing moves while you are typing in a box, while a dialog is open, or when the key closes a picker you have open — Escape in a comment box closes the mention list and leaves the issue where it is.
+
+> **If your mouse's back button appears to do nothing**, look at its driver software. Logitech's Options+ and its equivalents take the thumb buttons over and send a swipe gesture rather than a button press; performa understands both, as long as the button is still set to **Back**.
+
 ## Start tab (dashboard)
 
 The Start tab is the landing page and shows four sections. Sections with nothing to show are hidden.
@@ -143,6 +159,8 @@ Opening an issue from the **Todo** or **Mentions** tab shows it inside performa 
 **Attachments.** Open one to download and view it, drop files on the window or use **Attach files…** to add them, and **✕** to remove one (with a confirmation — it is removed for everyone).
 
 **Linked work items.** Under the attachments, the issues this one is linked to, grouped by relationship — *blocks*, *is blocked by*, *relates to*, whatever your site defines. Each row shows the key, the summary and the current status; the key opens that issue in the browser. **Link work item…** adds one: pick how it relates to this issue, then find the other issue by key or by words from its summary. **✕** removes a link — only the link goes, both issues stay.
+
+**Leaving it.** The **Back** link in the corner returns to the list — as do Escape, your mouse's back button and a two-finger swipe right ([Going back](#going-back)). After following a linked work item it goes back to the issue you came from rather than out to the list, one issue per step.
 
 **Arranging the fields.** **Arrange fields** above the grid turns the layout over to you: drag a field by its **⠿** grip, resize it with the size button (one cell, two cells, or a full row for prose), remove it with **✕**, and add any other field your Jira site has. **Done** returns to reading. The layout is yours and applies to every issue.
 
