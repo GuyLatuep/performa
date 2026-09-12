@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import CloseGuard from "./components/CloseGuard";
+import ShortcutBadges from "./components/ShortcutBadges";
 import { applyTheme, onThemeChange } from "./theme";
 import { applyAccent } from "./accent";
 import { applyTextScale } from "./textScale";
@@ -24,6 +25,11 @@ onThemeChange(applyAccent);
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <App />
+    {/* A peer of the app, not a child of it: `App` early-returns for the
+        loading, About and Settings screens, which all carry badgeable
+        controls — and a `position: fixed` layer needs no ancestor that could
+        one day gain a transform and quietly become its containing block. */}
+    <ShortcutBadges />
     <CloseGuard />
   </React.StrictMode>,
 );

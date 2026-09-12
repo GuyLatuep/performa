@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { api, CredentialsMeta, IssueSummary } from "./api";
 import { clearForward, useBackGestures } from "./back";
+import { ShortcutProps, useShortcut, useShortcutKeys } from "./shortcuts";
 import { logInfo } from "./log";
 import Settings from "./components/Settings";
 import Start from "./components/Start";
@@ -168,6 +169,20 @@ export default function App() {
   // out. Mounted here so there is exactly one listener for the whole app.
   useBackGestures();
 
+  // The ⌘-shortcut dispatcher, for the same reason: one listener over the
+  // registry every control binds itself into.
+  useShortcutKeys();
+
+  // Each shortcut is handed the very function its visible control calls, so the
+  // two cannot come to mean different things. Declared up here, above the early
+  // returns below, because a hook has to run on every render.
+  const goStart = () => setTab("start");
+  const goTodo = () => setTab("todo");
+  const openSettings = () => setEditingCreds(true);
+  const startKeys = useShortcut("tabStart", goStart);
+  const todoKeys = useShortcut("tabTodo", goTodo);
+  const settingsKeys = useShortcut("settings", openSettings);
+
   // The celebrating, kept apart from the refreshing: this one needs to know
   // what was logged, which `api.logWork` announces.
   useEffect(
@@ -270,11 +285,13 @@ export default function App() {
     alert: boolean,
     onSelect: () => void,
     arrived = false,
+    shortcut?: ShortcutProps,
   ) {
     const Icon = TAB_ICONS[t];
     const label = TAB_LABELS[t];
     return (
       <button
+        {...shortcut}
         className={`nav-row${tab === t ? " active" : ""}${alert ? " alert" : ""}${
           arrived && tab !== t ? " arrived" : ""
         }`}
@@ -298,8 +315,8 @@ export default function App() {
         </div>
 
         <nav className="nav">
-          {navRow("start", 0, false, () => setTab("start"))}
-          {navRow("todo", 0, false, () => setTab("todo"))}
+          {navRow("start", 0, false, goStart, false, startKeys)}
+          {navRow("todo", 0, false, goTodo, false, todoKeys)}
           {/* A manual visit starts fresh, without a preselected issue — also
               when the tab is already open. */}
           {navRow("log", 0, false, () => openLogTab(null))}
@@ -323,7 +340,7 @@ export default function App() {
         <div className="account">
           <span className="muted">{creds.email}</span>
           <div className="account-actions">
-            <button className="link" onClick={() => setEditingCreds(true)}>
+            <button className="link" {...settingsKeys} onClick={openSettings}>
               Settings
             </button>
             <button

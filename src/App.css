@@ -3128,6 +3128,85 @@ section.issue-fact .issue-description {
   white-space: nowrap;
 }
 
+/* ---------- Shortcut badges ----------
+   Hold the modifier and every action within reach names its key. One layer for
+   all of them, drawn over the app and measured from the controls rather than
+   placed by them: a badge in the flow would shove its row sideways the moment
+   the key went down, and a badge inside a scrolling panel would be clipped by
+   it.
+
+   Above the drag ghost, which is the highest thing in the file, because the
+   whole point is that it reads over whatever is on screen — and nothing is ever
+   mid-drag while the modifier is held. Nothing in the layer takes the pointer:
+   the control underneath is still the thing you click. */
+.shortcut-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  pointer-events: none;
+}
+
+/* Centred on the control's top-right corner, half on and half off, so it reads
+   as attached without covering the label. `left`/`top` are set inline from the
+   measured rect; the translate does the centring without anyone having to know
+   how wide a badge turned out to be. */
+.shortcut-badge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 1.25rem;
+  padding: 1px 4px;
+
+  /* A rounded square rather than the capsule the other badges wear. Badges here
+     are filled and never outlined, and this one keeps that — but a lone
+     character in a capsule reads as a count, the way .nav-count does, and this
+     is not a count. A key cap is square. */
+  border-radius: var(--r-control);
+
+  /* The layer floats over anything — a white panel, the accent-filled active
+     nav row — so the fill needs something opaque behind it, or it would take
+     that row's blue through and --muted would stop being readable on it. The
+     gradient is --fill-secondary painted flat onto --surface: the same grey any
+     badge sitting on a panel has, wherever this one happens to land. */
+  background-color: var(--surface);
+  background-image: linear-gradient(
+    var(--fill-secondary),
+    var(--fill-secondary)
+  );
+
+  color: var(--muted);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  animation: shortcut-badge-in var(--dur-micro) var(--ease-spring);
+}
+
+/* The key is real but stands down this second: ⌘2 while a comment is half
+   written would throw the words away, so it does not fire. Dimmed rather than
+   dropped — an absent badge says "no such key", which is a different statement.
+   --faint is the token for a control that is present and disabled, and this is
+   the one place where falling under AA is the meaning. */
+.shortcut-badge.standing-down {
+  background-image: linear-gradient(
+    var(--fill-quaternary),
+    var(--fill-quaternary)
+  );
+  color: var(--faint);
+}
+
+@keyframes shortcut-badge-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 /* A pointer held down over a page of text selects it, which fights the drag
    and leaves the grid highlighted afterwards. */
 body.dragging-field {
