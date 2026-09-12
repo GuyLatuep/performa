@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { api, CredentialsMeta, IssueSummary } from "./api";
 import { clearForward, useBackGestures } from "./back";
+import { useSelectionKeys } from "./selection";
 import { ShortcutProps, useShortcut, useShortcutKeys } from "./shortcuts";
 import { logInfo } from "./log";
 import Settings from "./components/Settings";
@@ -172,6 +173,11 @@ export default function App() {
   // The ⌘-shortcut dispatcher, for the same reason: one listener over the
   // registry every control binds itself into.
   useShortcutKeys();
+
+  // And the arrow keys over whichever list is on screen. Three listeners over
+  // one keydown, each standing aside from what the others claim — the division
+  // between them is pinned in keyDivision.test.tsx.
+  useSelectionKeys();
 
   // Each shortcut is handed the very function its visible control calls, so the
   // two cannot come to mean different things. Declared up here, above the early

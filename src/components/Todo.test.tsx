@@ -24,12 +24,16 @@ vi.mock("../konami", () => konami);
 vi.mock("./IssueRow", () => ({
   default: ({
     issue,
+    selected,
     onSelect,
   }: {
     issue: { key: string };
+    selected?: boolean;
     onSelect: (i: unknown) => void;
   }) => (
-    <li>
+    // `aria-current` is what the real row marks the selection with, so the
+    // assertions here read the same attribute the app does.
+    <li aria-current={selected ? "true" : undefined}>
       <button onClick={() => onSelect(issue)}>{issue.key}</button>
     </li>
   ),
@@ -64,7 +68,7 @@ import { setFunMode, setShowIssueTypeIcons } from "../settings";
 import { apiMock, issueSummary, resetApiMock } from "../test-support/api";
 import { setTodoSort } from "../todoSort";
 import { setIgnoredStatuses } from "../todoStatuses";
-import { ShortcutKeys } from "../test-support/shortcuts";
+import { AllKeys } from "../test-support/shortcuts";
 import Todo from "./Todo";
 
 const ISSUES = [
@@ -76,9 +80,10 @@ function renderTodo() {
   const onLogged = vi.fn();
   render(
     <>
-      {/* The app mounts the dispatcher once, in `App`; a screen on its own has
-          to bring it, or its keys go into a registry nobody listens over. */}
-      <ShortcutKeys />
+      {/* The app mounts its key listeners once, in `App`; a screen on its own
+          has to bring them, or its keys go into registries nobody listens
+          over. */}
+      <AllKeys />
       <Todo site="https://example.atlassian.net" onLogged={onLogged} />
     </>,
   );
@@ -237,6 +242,85 @@ describe("sorting", () => {
     await screen.findByRole("button", { name: "ABC-2" });
 
     expect(screen.queryByTitle(/issue type/)).toBeNull();
+  });
+});
+
+describe("walking the list with the arrow keys", () => {
+  /** The row the keyboard is on, by its key. */
+  function selected() {
+    const row = document.querySelector('li[aria-current="true"]');
+    return row?.textContent ?? null;
+  }
+
+  function arrow(key: "ArrowDown" | "ArrowUp") {
+    fireEvent.keyDown(document.body, { key });
+  }
+
+  it("starts on the first row", async () => {
+    apiMock.todoIssues.mockResolvedValue(ISSUES);
+    renderTodo();
+    await screen.findByRole("button", { name: "ABC-1" });
+
+    await act(async () => arrow("ArrowDown"));
+
+    // The fixture arrives as [ABC-2, ABC-1] and an unsorted list keeps Jira's
+    // order, so the first row is ABC-2.
+    expect(selected()).toBe("ABC-2");
+  });
+
+  it("walks down the list and back up", async () => {
+    apiMock.todoIssues.mockResolvedValue(ISSUES);
+    renderTodo();
+    await screen.findByRole("button", { name: "ABC-1" });
+
+    await act(async () => arrow("ArrowDown"));
+    await act(async () => arrow("ArrowDown"));
+    expect(selected()).toBe("ABC-1");
+
+    await act(async () => arrow("ArrowUp"));
+    expect(selected()).toBe("ABC-2");
+  });
+
+  it("opens the selected issue on Enter", async () => {
+    apiMock.todoIssues.mockResolvedValue(ISSUES);
+    renderTodo();
+    await screen.findByRole("button", { name: "ABC-1" });
+    await act(async () => arrow("ArrowDown"));
+
+    await act(async () => {
+      fireEvent.keyDown(document.body, { key: "Enter" });
+    });
+
+    expect(screen.getByText("viewing ABC-2")).toBeDefined();
+  });
+
+  it("walks the order on screen, not the order Jira sent", async () => {
+    // The scope reads the *sorted* list. Reading the unsorted one would have ↓
+    // land somewhere other than the row below.
+    apiMock.todoIssues.mockResolvedValue(ISSUES);
+    renderTodo();
+    await screen.findByRole("button", { name: "ABC-1" });
+    // Sort by key descending, so the first row is no longer ABC-1.
+    await userEvent.click(screen.getByRole("button", { name: /Issue/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Issue/ }));
+
+    await act(async () => arrow("ArrowDown"));
+
+    const first = document.querySelector("li:not(.todo-columns) button");
+    expect(selected()).toBe(first?.textContent);
+  });
+
+  it("stays on the same issue when the list is re-sorted under it", async () => {
+    // The whole reason rows are identified rather than counted.
+    apiMock.todoIssues.mockResolvedValue(ISSUES);
+    renderTodo();
+    await screen.findByRole("button", { name: "ABC-1" });
+    await act(async () => arrow("ArrowDown"));
+    const held = selected();
+
+    await userEvent.click(screen.getByRole("button", { name: /Issue/ }));
+
+    expect(selected()).toBe(held);
   });
 });
 

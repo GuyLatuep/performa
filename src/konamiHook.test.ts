@@ -138,6 +138,24 @@ describe("useKonamiCode", () => {
     expect(onEntered).toHaveBeenCalledTimes(1);
   });
 
+  it("still hears the code while a list moves its selection on the arrows", () => {
+    // The one interaction worth proving twice. Row selection calls
+    // preventDefault on every arrow press, and this watcher must go on
+    // observing them — six of the ten keys in the code are arrows.
+    //
+    // Suppressing selection for the length of a konami prefix is not the
+    // alternative: that means counting forward through the code, which is the
+    // exact trap the rolling window in `konami.ts` exists to avoid.
+    const { onEntered } = watch();
+    document.body.addEventListener("keydown", (e) => {
+      if (e.key.startsWith("Arrow")) e.preventDefault();
+    });
+
+    press(KONAMI_CODE);
+
+    expect(onEntered).toHaveBeenCalledTimes(1);
+  });
+
   it("stops listening once it unmounts", () => {
     const { onEntered, unmount } = watch();
 

@@ -1,4 +1,5 @@
 import { Circle, Play, Star } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { IssueSummary } from "../api";
 import { priorityClass, shortStatus } from "../issueLabels";
@@ -15,18 +16,42 @@ export default function IssueRow({
   site,
   pinned,
   lastPinned = false,
+  selected = false,
   onSelect,
 }: {
   issue: IssueSummary;
   site: string;
   pinned: boolean;
   lastPinned?: boolean;
+  /** The keyboard is on this row. Optional and false by default, so the issue
+   *  picker — where there is no selection to be on — is unaffected. */
+  selected?: boolean;
   onSelect: (issue: IssueSummary) => void;
 }) {
   const activeTimer = useTimer();
   const isRunning = activeTimer?.issueKey === issue.key;
+
+  // Nothing calls `.focus()` on a row — it holds four buttons of its own and the
+  // focus ring around the lot of them would compete with the selection wash for
+  // the same meaning — so keeping it in view is this component's job.
+  const row = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (selected) row.current?.scrollIntoView({ block: "nearest" });
+  }, [selected]);
+
   return (
-    <li className={lastPinned ? "pinned-last" : undefined}>
+    <li
+      ref={row}
+      className={
+        [lastPinned && "pinned-last", selected && "selected"]
+          .filter(Boolean)
+          .join(" ") || undefined
+      }
+      // Not `role="option"`: an option may hold no focusable descendants and
+      // this row holds four. `aria-current` is the house idiom for "the one
+      // you are on" — the nav rows already use it.
+      aria-current={selected ? "true" : undefined}
+    >
       <button
         className={`icon pin-toggle${pinned ? " pinned" : ""}`}
         title={pinned ? `Unpin ${issue.key}` : `Pin ${issue.key} to top`}

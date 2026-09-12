@@ -5,6 +5,7 @@ import "./test-support/dom";
 import { AllKeys } from "./test-support/shortcuts";
 import { clearForward, useBackTarget } from "./back";
 import { useShortcut } from "./shortcuts";
+import { clearSelection, selectedRow, useSelectionScope } from "./selection";
 
 // Two window listeners share one keydown: `back.ts` answers the navigation
 // chords, `shortcuts.ts` the catalogue. Each stands aside from what the other
@@ -19,15 +20,19 @@ vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(async () => () => {}),
 }));
 
-/** A screen with a way back and a shifted-arrow shortcut, under both listeners. */
+/** A screen with a way back, a shifted-arrow shortcut and a list — so all three
+ *  listeners have something to claim. */
 function Screen({
   back,
   prevPeriod,
+  open = () => {},
 }: {
   back: () => void;
   prevPeriod: () => void;
+  open?: (row: string) => void;
 }) {
   useBackTarget({ label: "Todo", back });
+  useSelectionScope({ id: "todo", rows: ["a", "b"], open });
   const prevKeys = useShortcut("prevPeriod", prevPeriod);
   return (
     <>
@@ -49,6 +54,7 @@ beforeEach(() => {
 
 afterEach(() => {
   clearForward();
+  clearSelection();
   vi.unstubAllGlobals();
   document.body.innerHTML = "";
 });
@@ -94,5 +100,52 @@ describe("a shifted arrow against a plain one", () => {
     expect(press("[", { shiftKey: true })).toBe(true);
     expect(back).not.toHaveBeenCalled();
     expect(prevPeriod).not.toHaveBeenCalled();
+  });
+});
+
+describe("a bare arrow against a chorded one", () => {
+  /** Press without the primary modifier. */
+  function bare(key: string, mods: Partial<KeyboardEventInit> = {}) {
+    return fireEvent.keyDown(document.body, { key, ...mods });
+  }
+
+  it("gives a bare ArrowDown to the list", () => {
+    const prevPeriod = vi.fn();
+    render(<Screen back={vi.fn()} prevPeriod={prevPeriod} />);
+
+    bare("ArrowDown");
+
+    expect(selectedRow()?.rowId).toBe("a");
+    expect(prevPeriod).not.toHaveBeenCalled();
+  });
+
+  it("gives ⌘⇧← to the catalogue and leaves the selection alone", () => {
+    const prevPeriod = vi.fn();
+    render(<Screen back={vi.fn()} prevPeriod={prevPeriod} />);
+
+    press("ArrowLeft", { shiftKey: true });
+
+    expect(prevPeriod).toHaveBeenCalledTimes(1);
+    expect(selectedRow()).toBeNull();
+  });
+
+  it("gives ⌘← to the navigation layer and leaves the selection alone", () => {
+    const back = vi.fn();
+    render(<Screen back={back} prevPeriod={vi.fn()} />);
+
+    press("ArrowLeft");
+
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(selectedRow()).toBeNull();
+  });
+
+  it("opens the selected row on a bare Enter", () => {
+    const open = vi.fn();
+    render(<Screen back={vi.fn()} prevPeriod={vi.fn()} open={open} />);
+    bare("ArrowDown");
+
+    bare("Enter");
+
+    expect(open).toHaveBeenCalledWith("a");
   });
 });

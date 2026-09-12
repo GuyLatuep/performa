@@ -1444,6 +1444,27 @@ main {
   background: var(--hair-strong);
   opacity: 0.5;
 }
+/* The row the keyboard is on. A third treatment, because the two obvious ones
+   are taken: --accent-tint is what an unread mention wears, and the accent
+   outline is the focus ring. Nothing calls .focus() on a row — it holds four
+   buttons of its own, and a ring around the lot of them would compete with this
+   wash to mean the same thing — so this is the only thing saying where the
+   arrow keys are.
+
+   A wash plus a bar rather than a wash alone: at the one-step-from-nothing
+   contrast a selected row needs, a fill this quiet is easy to miss on a long
+   list, and the bar is what the eye catches while scrolling. */
+.issue-list li.selected {
+  background: var(--fill-tertiary);
+}
+.issue-list li.selected::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--accent-text);
+}
+
 /* Inline issue-key button (timesheet / missing worklog rows). */
 .key-link {
   background: none;

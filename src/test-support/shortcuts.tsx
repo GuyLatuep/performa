@@ -1,4 +1,5 @@
 import { useBackGestures } from "../back";
+import { useSelectionKeys } from "../selection";
 import { useShortcutKeys } from "../shortcuts";
 
 /**
@@ -14,15 +15,20 @@ export function ShortcutKeys() {
 }
 
 /**
- * Both window listeners, mounted the way `App` mounts them.
+ * Every window key listener, mounted the way `App` mounts them.
  *
- * The navigation chords and the shortcut catalogue are separate handlers over
- * the same keydown, and a chord one of them claims is a chord the other stands
- * aside from. Where that division matters — a shifted arrow against a plain
- * one — only a test with both up can see it.
+ * The navigation chords, the shortcut catalogue and the list arrows are three
+ * separate handlers over one keydown, and a press one of them claims is a press
+ * the others stand aside from. Where that division matters — a shifted arrow
+ * against a chorded one against a bare one — only a test with all three up can
+ * see it.
+ *
+ * Add any future listener here too: a harness missing one turns a real collision
+ * into a passing test.
  */
 export function AllKeys() {
   useBackGestures();
   useShortcutKeys();
+  useSelectionKeys();
   return null;
 }

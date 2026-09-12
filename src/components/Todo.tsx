@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, invalidateCachedReads, IssueSummary } from "../api";
 import { clearForward } from "../back";
 import { useShortcut } from "../shortcuts";
+import { useRowSelected, useSelectionScope } from "../selection";
 import { usePinnedIssues } from "../pins";
 import { useIgnoredStatuses } from "../todoStatuses";
 import IssueRow from "./IssueRow";
@@ -23,6 +24,9 @@ interface Props {
   /** A worklog was filed from the opened issue — refresh what depends on it. */
   onLogged: () => void;
 }
+
+/** This list's name in the selection registry. */
+const SCOPE = "todo";
 
 // Todo tab: everything waiting on the user — escalations they raised that are
 // back in their court, plus every open issue assigned to them. Most urgent
@@ -84,6 +88,25 @@ export default function Todo({ site, onLogged }: Props) {
   // Unbound while the list is loading, so the key disappears along with the
   // button rather than queueing a second read behind the first.
   const refreshKeys = useShortcut("refresh", reload, issues !== null);
+
+  /** The rows as they are on screen. Hoisted out of the JSX because the arrow
+   *  keys have to walk the *sorted* order — reading the unsorted `issues` here
+   *  would have ↓ land somewhere other than the row below. */
+  const shown = sortIssues(issues ?? [], sort);
+  const openIssue = useCallback((issue: IssueSummary) => {
+    clearForward();
+    setOpened(issue);
+  }, []);
+
+  useSelectionScope({
+    id: SCOPE,
+    rows: shown.map((i) => i.key),
+    // Enter opens the issue, which on this tab means reading it in the app.
+    open: (key) => {
+      const issue = shown.find((i) => i.key === key);
+      if (issue) openIssue(issue);
+    },
+  });
 
   if (opened) {
     return (
@@ -198,22 +221,29 @@ export default function Todo({ site, onLogged }: Props) {
               <span />
             </li>
           )}
-          {sortIssues(issues ?? [], sort).map((issue) => (
-            <IssueRow
+          {shown.map((issue) => (
+            <TodoRow
               key={issue.key}
               issue={issue}
               site={site}
               pinned={pinnedKeys.has(issue.key)}
-              onSelect={(issue) => {
-                clearForward();
-                setOpened(issue);
-              }}
+              onSelect={openIssue}
             />
           ))}
         </ul>
       </section>
     </div>
   );
+}
+
+/** One row, told whether the keyboard is on it.
+ *
+ *  A wrapper rather than a prop threaded from the list, so the subscription is
+ *  the row's own: moving the selection re-renders the two rows it concerns and
+ *  leaves the other hundred and ninety-eight alone. */
+function TodoRow(props: Parameters<typeof IssueRow>[0]) {
+  const selected = useRowSelected(SCOPE, props.issue.key);
+  return <IssueRow {...props} selected={selected} />;
 }
 
 /** The name of a sortable column, and the click that reorders the list by it.
