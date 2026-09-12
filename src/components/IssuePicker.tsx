@@ -129,7 +129,7 @@ export default function IssuePicker({
       {error && <p className="error">{error}</p>}
       {searching && <p className="muted">Searching…</p>}
 
-      <ul className="issue-list">
+      <ul className="issue-list" aria-label="Matching issues">
         {showPinned &&
           pinnedIssues.map((issue, i) => (
             <PickerRow

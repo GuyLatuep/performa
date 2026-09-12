@@ -200,6 +200,7 @@ export default function Todo({ site, onLogged }: Props) {
         )}
         <ul
           className={`issue-list todo-list${typeIcons ? "" : " no-type-icons"}`}
+          aria-label="Issues waiting on me"
         >
           {issues && issues.length > 0 && (
             // Column header. Inside the scroll container so it shares the row

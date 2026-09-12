@@ -13,6 +13,7 @@ import { api, CredentialsMeta, IssueSummary } from "./api";
 import { clearForward, useBackGestures } from "./back";
 import { useSelectionKeys } from "./selection";
 import { clearIssueRequest, useRequestedIssue } from "./issueRequest";
+import { claimSearchesFor } from "./savedSearches";
 import IssueView from "./components/IssueView";
 import SearchResults from "./components/SearchResults";
 import { clearSearchRequest, useRequestedSearch } from "./searchRequest";
@@ -166,6 +167,15 @@ export default function App() {
     if (!mentionsAccount) return;
     startMentionsPolling(mentionsAccount);
     return stopMentionsPolling;
+  }, [mentionsAccount]);
+
+  // A saved search names a field by the name *this* site spells it with, so the
+  // set belongs to the account rather than to the machine: on another Jira the
+  // palette would otherwise offer searches for fields that site has never heard
+  // of. Claimed beside the mentions inbox, which belongs to an account for the
+  // same kind of reason.
+  useEffect(() => {
+    if (mentionsAccount) claimSearchesFor(mentionsAccount);
   }, [mentionsAccount]);
 
   // A single choke point for "which view is the user in" — covers every way

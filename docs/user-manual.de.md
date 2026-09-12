@@ -135,6 +135,16 @@ darunter — und **↓** wechselt vom Ende der einen an den Anfang der nächsten
 Im Suchfeld von **Log work** bewegen die Pfeile die Ergebnisse, während du
 weitertippst; so findest und wählst du einen Vorgang ohne die Maus.
 
+Die ausgewählte Zeile wird einem Screenreader vorgelesen, sobald sie sich
+bewegt.
+
+> **Die Pfeile sind eine Abkürzung, nicht der einzige Weg.** Jede Aktion, die
+> eine ausgewählte Zeile anbietet — anpinnen, in Jira öffnen, Timer starten,
+> bearbeiten, erneut erfassen — ist auch eine Schaltfläche in dieser Zeile, mit
+> **Tab** erreichbar und mit **Enter** oder **Leertaste** auszulösen. Die
+> Zeilenkürzel hängen genau an diesen Schaltflächen: das Abzeichen, das du beim
+> Halten von ⌘ siehst, sitzt auf der Schaltfläche, die die Taste drückt.
+
 ### Auf das wirken, was vor dir liegt
 
 Dasselbe Verb behält überall dieselbe Taste; worauf es wirkt, ist die Zeile, auf

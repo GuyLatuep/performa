@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addSavedSearch,
+  claimSearchesFor,
   clearSavedSearches,
   getSavedSearches,
   removeSavedSearch,
@@ -166,5 +167,50 @@ describe("a half-written entry in storage", () => {
     expect(
       fresh.getSavedSearches().map((s: { name: string }) => s.name),
     ).toEqual(["Good"]);
+  });
+});
+
+describe("whose searches these are", () => {
+  // A search names a field by the name *that* site spells it with, so it means
+  // nothing on another one. The same shape as `claimMentionsFor`.
+
+  it("keeps them when the same account signs back in", () => {
+    claimSearchesFor("site-a|me");
+    addSavedSearch(PLANT);
+
+    claimSearchesFor("site-a|me");
+
+    expect(getSavedSearches()).toHaveLength(1);
+  });
+
+  it("drops them for a different account", () => {
+    // Otherwise the palette offers "Search by Plant number" on a site that has
+    // never heard of the field, and the search fails naming a field the reader
+    // did not choose.
+    claimSearchesFor("site-a|me");
+    addSavedSearch(PLANT);
+
+    claimSearchesFor("site-b|me");
+
+    expect(getSavedSearches()).toEqual([]);
+  });
+
+  it("drops them for a different person on the same site", () => {
+    claimSearchesFor("site-a|me");
+    addSavedSearch(PLANT);
+
+    claimSearchesFor("site-a|somebody-else");
+
+    expect(getSavedSearches()).toEqual([]);
+  });
+
+  it("leaves the new owner a clean slate to write on", () => {
+    claimSearchesFor("site-a|me");
+    addSavedSearch(PLANT);
+    claimSearchesFor("site-b|me");
+
+    addSavedSearch({ ...PLANT, name: "Customer ref" });
+
+    expect(getSavedSearches().map((s) => s.name)).toEqual(["Customer ref"]);
   });
 });

@@ -49,6 +49,11 @@ const MENTIONS_LOOKBACK_DAYS: u32 = 14;
 // JQL-escaped) — just a cap on how much a corrupt settings entry can push into
 // one query.
 const MAX_IGNORED_PROJECTS: usize = 200;
+// The same bound for the projects a saved search leaves out, and for the same
+// reason: every one of them widens the query, and the JQL goes out as a URL
+// parameter — a list long enough is a 414 the reader cannot trace back to a
+// settings screen.
+const MAX_EXCLUDED_PROJECTS: usize = 200;
 const MAX_IGNORED_STATUSES: usize = 100;
 const MAX_STATUS_NAME_CHARS: usize = 255;
 
@@ -299,6 +304,31 @@ fn checked_comment_text(text: &str) -> Result<&str, String> {
     Ok(trimmed)
 }
 
+/// The projects one of the palette's searches leaves out.
+///
+/// Sanitised rather than validated, the way [`checked_status_names`] is: these
+/// come from a settings screen whose checkboxes can only produce real keys, so
+/// anything else is a corrupt stored value rather than a user's mistake, and
+/// refusing the whole search over one bad entry helps nobody. A blank one used
+/// to reach the JQL as `project NOT IN ("")`, which Jira rejects — so that
+/// search failed on every run, permanently, with nothing to say why.
+fn checked_excluded_projects(keys: Vec<String>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for key in keys {
+        let key = key.trim();
+        if checked_project_key(key).is_err() {
+            continue;
+        }
+        if !out.iter().any(|kept| kept == key) {
+            out.push(key.to_string());
+        }
+        if out.len() >= MAX_EXCLUDED_PROJECTS {
+            break;
+        }
+    }
+    out
+}
+
 /// What one of the palette's searches is looking for.
 ///
 /// Blank comes back as `Ok("")` rather than an error: the palette calls on every
@@ -510,9 +540,10 @@ async fn search_field(
     if field.is_empty() || field.chars().count() > MAX_FIELD_NAME_CHARS {
         return Err("that search names no field to look in".into());
     }
+    let excluded = checked_excluded_projects(excluded_projects);
     let s = session(&state).await?;
     Ok(s.client
-        .field_search(field, term, exact, &excluded_projects)
+        .field_search(field, term, exact, &excluded)
         .await?
         .into())
 }
@@ -1200,6 +1231,50 @@ mod tests {
         let start = state.generation();
         state.bump_generation();
         assert_ne!(state.generation(), start);
+    }
+
+    #[test]
+    fn a_search_term_is_bounded_but_a_blank_one_is_not_an_error() {
+        assert_eq!(checked_search_term("  DE_1979  "), Ok("DE_1979"));
+        // The palette submits on every Enter; an empty box is a search nobody
+        // ran rather than a mistake worth a message.
+        assert_eq!(checked_search_term("   "), Ok(""));
+        // Too long *is* said out loud: an empty result there would read as
+        // "Jira found nothing", which sends the reader looking in the wrong
+        // place.
+        assert!(checked_search_term(&"a".repeat(MAX_SEARCH_TERM_CHARS + 1)).is_err());
+        // Characters, not bytes, like every other bound here.
+        assert!(checked_search_term(&"ä".repeat(MAX_SEARCH_TERM_CHARS)).is_ok());
+    }
+
+    #[test]
+    fn excluded_projects_are_sanitised_rather_than_refused() {
+        // The settings checkboxes can only produce real keys, so anything else
+        // is a corrupt stored value — and failing the whole search over one bad
+        // entry helps nobody.
+        assert_eq!(
+            checked_excluded_projects(vec!["O2C".into(), "  DEV  ".into()]),
+            vec!["O2C".to_string(), "DEV".to_string()]
+        );
+        // A blank one used to reach the JQL as `project NOT IN ("")`, which Jira
+        // rejects — so that search failed on every run, permanently.
+        assert!(checked_excluded_projects(vec!["".into(), "  ".into()]).is_empty());
+        assert!(checked_excluded_projects(vec!["a".into()]).is_empty());
+        assert!(checked_excluded_projects(vec!["has space".into()]).is_empty());
+    }
+
+    #[test]
+    fn excluded_projects_are_deduped_and_capped() {
+        assert_eq!(
+            checked_excluded_projects(vec!["DEV".into(), "DEV".into(), "O2C".into()]),
+            vec!["DEV".to_string(), "O2C".to_string()]
+        );
+        // Every one of them widens the query, and the JQL goes out as a URL
+        // parameter.
+        let many: Vec<String> = (0..MAX_EXCLUDED_PROJECTS + 50)
+            .map(|i| format!("PR{i}"))
+            .collect();
+        assert_eq!(checked_excluded_projects(many).len(), MAX_EXCLUDED_PROJECTS);
     }
 
     #[test]

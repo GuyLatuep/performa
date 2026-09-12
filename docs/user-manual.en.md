@@ -132,6 +132,14 @@ The Start tab has two lists — the due issues and the reminders under them — 
 In the **Log work** search box the arrows move through the results while you go
 on typing, so an issue can be found and picked without touching the mouse.
 
+The selected row is read out to a screen reader as it moves.
+
+> **The arrows are a shortcut, not the only way through.** Every action a
+> selected row offers — pin, open in Jira, start its timer, edit, log again — is
+> also a button in that row, reachable with **Tab** and pressed with **Enter** or
+> **Space**. The row shortcuts are bound to those very buttons: the badge you see
+> when you hold ⌘ sits on the button the key presses.
+
 ### Acting on what you are looking at
 
 The same verb keeps the same key everywhere; what it acts on is whichever row

@@ -112,7 +112,7 @@ function DueSection({
       {issues?.length === 0 && !error && (
         <p className="muted empty">Nothing due soon.</p>
       )}
-      <ul className="issue-list">
+      <ul className="issue-list" aria-label="Issues due soon">
         {issues?.map((issue) => (
           <DueRow
             key={issue.key}

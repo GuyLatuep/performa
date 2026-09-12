@@ -31,6 +31,8 @@ export interface SavedSearch {
 }
 
 const KEY = "performa-saved-searches";
+/** Which account these were written for — see [`claimSearchesFor`]. */
+const OWNER_KEY = "performa-saved-searches-owner";
 
 function read(): SavedSearch[] {
   try {
@@ -143,6 +145,25 @@ export function updateSavedSearch(
       return clean ? { ...clean, id } : s;
     }),
   );
+}
+
+/**
+ * Bind the stored searches to `account`, dropping them if they were written for
+ * somebody else.
+ *
+ * A search names a field by the name *that site* spells it with, so it means
+ * nothing on another one: signing into a second Jira would otherwise leave the
+ * palette offering "Search by Plant number" for a field that site has never
+ * heard of, and the search would fail with a message about a missing field the
+ * reader never chose. Signing back into the same account keeps everything.
+ *
+ * The same shape, and the same reasoning, as `claimMentionsFor`.
+ */
+export function claimSearchesFor(account: string): void {
+  if (localStorage.getItem(OWNER_KEY) === account) return;
+  localStorage.removeItem(KEY);
+  localStorage.setItem(OWNER_KEY, account);
+  store.set([]);
 }
 
 /** Forget them all. For tests, whose localStorage outlives one of them. */

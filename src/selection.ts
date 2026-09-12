@@ -54,6 +54,12 @@ export function selectedRow(): Anchor | null {
   return store.get();
 }
 
+/** Where the selection is, as a hook. For the announcer, which has to re-read
+ *  the row each time it moves. */
+export function useSelectedRow(): Anchor | null {
+  return store.use();
+}
+
 /** Whether this row is the selected one. A boolean, so a moved selection
  *  re-renders the two rows it concerns and no others. */
 export function useRowSelected(scopeId: string, rowId: RowId): boolean {

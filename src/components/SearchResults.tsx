@@ -133,7 +133,10 @@ export default function SearchResults({
             Nothing found for {describeSearch(search)}.
           </p>
         )}
-        <ul className="issue-list todo-list no-type-icons">
+        <ul
+          className="issue-list todo-list no-type-icons"
+          aria-label="Search results"
+        >
           {(issues ?? []).map((issue) => (
             <ResultRow
               key={issue.key}
