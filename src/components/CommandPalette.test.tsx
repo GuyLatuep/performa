@@ -413,6 +413,19 @@ describe("the searches", () => {
     expect(screen.getByText("no search")).toBeDefined();
   });
 
+  it("keeps Tab inside the sheet while it asks", async () => {
+    saveOne();
+    await pick("Plant number");
+    const field = screen.getByLabelText("Search by Plant number");
+
+    await userEvent.keyboard("{Tab}");
+
+    // Nowhere to go: Tab means "take the highlighted action" in the list step,
+    // and the asking step has no list, so letting the browser have it would walk
+    // focus out to the screen behind the sheet with the prompt still up.
+    expect(document.activeElement).toBe(field);
+  });
+
   it("searches with the term, carrying the definition along", async () => {
     saveOne();
     await pick("Plant number");

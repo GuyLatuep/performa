@@ -286,6 +286,26 @@ describe("going forward", () => {
     expect(forward).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps only the last twenty steps out", () => {
+    // Each step is a closure over the screen it would restore, so an unbounded
+    // stack retains trees the reader left long ago. The bound drops from the far
+    // end: the oldest step is the one least likely to still mean anything.
+    const oldest = vi.fn();
+    register("oldest", true, oldest);
+    goBack();
+    // Each register replaces the slot, so this is twenty more steps out on top
+    // of the first one — one over the bound.
+    for (let i = 0; i < 20; i++) {
+      register(`hop-${i}`, true, vi.fn());
+      goBack();
+    }
+
+    expect(forwardDepth()).toBe(20);
+    for (let i = 0; i < 20; i++) goForward();
+    expect(goForward()).toBe(false);
+    expect(oldest).not.toHaveBeenCalled();
+  });
+
   it("stacks hops, coming back out of them newest first", () => {
     const first = vi.fn();
     const second = vi.fn();

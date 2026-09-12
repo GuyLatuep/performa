@@ -370,8 +370,16 @@ function useBinding(
  *  One predicate decides both, which is the point — a badge offering a key that
  *  will not fire is worse than no badge. */
 function covered(node: HTMLElement): boolean {
-  const overlay = document.querySelector(OVERLAY_SELECTOR);
-  return overlay !== null && !overlay.contains(node);
+  // The *last* overlay in the document, not the first. Overlays here are
+  // siblings rather than nestings — `main.tsx` renders the app, then the badge
+  // layer, then the palette, then the close guard — so every App-owned modal
+  // comes earlier in the document than those. Asking the first one would have a
+  // later overlay's own controls test as covered: their badges would vanish and
+  // their chords go dead, which is exactly what this function promises cannot
+  // happen. Last is topmost for a flat set like this one.
+  const all = document.querySelectorAll(OVERLAY_SELECTOR);
+  const top = all[all.length - 1];
+  return top !== undefined && !top.contains(node);
 }
 
 /** The one keydown listener over the registry. Mounted once, in App. */

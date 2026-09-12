@@ -742,7 +742,7 @@ pub fn build_search_jql(query: &str) -> String {
     if is_issue_key(trimmed) {
         return format!("key = \"{}\"", trimmed.to_uppercase());
     }
-    let esc = escape_jql(trimmed);
+    let esc = escape_jql_text(trimmed);
     format!("(summary ~ \"{esc}*\" OR text ~ \"{esc}\") ORDER BY updated DESC")
 }
 
@@ -752,7 +752,7 @@ pub fn build_search_jql(query: &str) -> String {
 /// key as a key, this takes the term at its word: somebody who asked to search
 /// for text means the text.
 pub fn build_text_jql(term: &str) -> String {
-    let esc = escape_jql(term.trim());
+    let esc = escape_jql_text(term.trim());
     format!("(summary ~ \"{esc}*\" OR text ~ \"{esc}\") ORDER BY updated DESC")
 }
 
@@ -912,6 +912,40 @@ pub fn is_issue_key(s: &str) -> bool {
 
 pub(super) fn escape_jql(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+/// Characters Jira's text index reserves.
+///
+/// `&` and `|` are listed singly although Lucene only reserves them doubled:
+/// escaping a lone one changes nothing about what it matches, and looking for
+/// pairs would be a parser for no gain.
+const LUCENE_RESERVED: &[char] = &[
+    '+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\', '/', '&', '|',
+];
+
+/// Escape a value on its way into a `~` clause.
+///
+/// [`escape_jql`] makes a value safe for the JQL *parser*, which is all a `=` or
+/// an `IN` needs: the quoted literal is consumed as a name and read no further.
+/// `~` is different — Jira hands the right-hand side on to its text index, where
+/// another set of characters is reserved. So `C++`, `(draft)` and `a:b` came back
+/// as `400 … Unable to parse text query`: not a leak, but a flat failure on
+/// ordinary input, explained in the text index's vocabulary rather than the
+/// app's.
+///
+/// Escaped for the index first and for the parser second, because the backslashes
+/// this adds have themselves to survive the parser. A wildcard the caller appends
+/// afterwards stays a wildcard, which is the point of doing it here rather than
+/// on the finished clause.
+pub(super) fn escape_jql_text(s: &str) -> String {
+    let mut escaped = String::with_capacity(s.len());
+    for c in s.chars() {
+        if LUCENE_RESERVED.contains(&c) {
+            escaped.push('\\');
+        }
+        escaped.push(c);
+    }
+    escape_jql(&escaped)
 }
 
 // ----- Small shared helpers -----
@@ -1382,17 +1416,56 @@ mod tests {
     #[test]
     fn text_jql_takes_a_key_as_text() {
         // Unlike the picker's builder, which reads a key as a key: somebody who
-        // asked to search for text means the text.
+        // asked to search for text means the text. The hyphen arrives escaped
+        // because the text index reserves it, which is a spelling rather than a
+        // change of meaning.
         let jql = build_text_jql("ABC-1");
-        assert!(jql.contains(r#"summary ~ "ABC-1*""#), "{jql}");
+        assert!(jql.contains(r##"summary ~ "ABC\\-1*""##), "{jql}");
         assert!(!jql.starts_with("key ="), "{jql}");
     }
 
     #[test]
+    fn a_text_search_survives_the_characters_lucene_reserves() {
+        // These came back as `400 … Unable to parse text query` — not a leak,
+        // but a flat failure on ordinary input.
+        for term in ["C++", "(draft)", "a:b", "*", "a-b", "50%~", "x && y"] {
+            let jql = build_text_jql(term);
+            // Every reserved character carries a backslash by the time it is in
+            // the clause, doubled so it survives the JQL parser on the way.
+            for c in term.chars().filter(|c| LUCENE_RESERVED.contains(c)) {
+                assert!(jql.contains(&format!("\\\\{c}")), "{c} unescaped in {jql}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_wildcard_stays_a_wildcard() {
+        // Escaping happens to the term, not to the clause — otherwise the `*`
+        // this appends would be escaped along with it and match a literal star.
+        let jql = build_text_jql("pump");
+        assert!(jql.contains(r#"summary ~ "pump*""#), "{jql}");
+    }
+
+    #[test]
+    fn an_exact_clause_keeps_the_plainer_escaper() {
+        // `=` compares a literal: only the JQL parser has to survive it, and
+        // backslashing `-` there would look for a name nobody has.
+        assert_eq!(escape_jql("O2C-1"), "O2C-1");
+        assert!(escape_jql_text("O2C-1").contains("\\-"));
+    }
+
+    #[test]
     fn search_jql_escapes_user_text() {
+        // The property that matters: a quote in the term cannot close the string
+        // it sits in, so nothing after it is read as JQL. Both escapers run here
+        // now — the text index reserves the quote and the backslash too — so the
+        // assertion is about what the term cannot do rather than about the exact
+        // number of backslashes.
         let jql = build_search_jql(r#"quo"te \ back"#);
-        assert!(jql.contains(r#"quo\"te \\ back"#));
-        assert!(!jql.contains(r#" "quo""#));
+        assert!(!jql.contains(r#" "quo""#), "{jql}");
+        // Every quote in the clause is either a delimiter or escaped; none is
+        // left bare in the middle of a value.
+        assert!(!jql.contains(r#"quo"te"#), "{jql}");
     }
 
     #[test]

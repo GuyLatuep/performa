@@ -15,7 +15,7 @@ use futures_util::{stream, StreamExt};
 
 use super::types::*;
 use super::{
-    adf_to_text, escape_jql, format_rfc3339_local, parse_jira_ts, JiraClient, MAX_INFLIGHT,
+    adf_to_text, escape_jql_text, format_rfc3339_local, parse_jira_ts, JiraClient, MAX_INFLIGHT,
 };
 
 /// How many issues each candidate search may return. Neither net is a precise
@@ -137,8 +137,11 @@ impl JiraClient {
              OR reporter = currentUser()) ORDER BY updated DESC"
         );
         let text_jql = format!(
+            // `~`, so the name goes through the text index's escaper too: a
+            // hyphen is reserved there, and "Jean-Luc" would otherwise take the
+            // whole mentions scan down with a parse error.
             "comment ~ \"{}\" AND updated >= \"-{lookback_days}d\" ORDER BY updated DESC",
-            escape_jql(display_name)
+            escape_jql_text(display_name)
         );
         let involved = self.search_issues_dated_page(&involved_jql, CANDIDATE_LIMIT);
 

@@ -341,6 +341,21 @@ describe("the guards", () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
+  it("goes by the topmost overlay, not the first one in the page", () => {
+    // Two overlays at once is the ordinary case, not a corner: App's own modals
+    // render before the palette does, so a control inside the palette always has
+    // an earlier overlay sitting in the document beside it. Asking the first one
+    // would find the control outside it and call it covered — killing the chords
+    // of the sheet the reader is actually looking at.
+    const run = vi.fn();
+    render(<Probe run={run} inModal />);
+    document.body.prepend(overlay());
+
+    press("2");
+
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
   it("stops listening once the dispatcher unmounts", () => {
     const run = vi.fn();
     const { unmount } = render(<Probe run={run} />);

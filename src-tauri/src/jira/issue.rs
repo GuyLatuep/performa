@@ -272,10 +272,14 @@ impl JiraClient {
             ));
         };
         let named = jql_field(id);
-        let esc = super::escape_jql(term.trim());
+        // Two escapers, because the two operators consume their value
+        // differently: `=` compares a literal, which only the JQL parser has to
+        // survive, while `~` hands it on to the text index, where another set of
+        // characters is reserved.
         let mut jql = if exact {
-            format!("{named} = \"{esc}\"")
+            format!("{named} = \"{}\"", super::escape_jql(term.trim()))
         } else {
+            let esc = super::escape_jql_text(term.trim());
             format!("({named} ~ \"{esc}*\" OR {named} ~ \"{esc}\")")
         };
         if !excluded_projects.is_empty() {

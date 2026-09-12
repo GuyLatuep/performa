@@ -74,6 +74,16 @@ export function useBackTarget(target: BackTarget, active = true): void {
  *  which is the whole point — the thunk is what re-mounts one. */
 const redo: (() => void)[] = [];
 
+/**
+ * How many steps forward are kept.
+ *
+ * A bound rather than a preference: each entry is a closure over the screen it
+ * would restore, so an unbounded stack is unbounded retention of trees the
+ * reader left long ago. Nobody presses forward twenty times, and the oldest
+ * entries are the ones least likely to still mean anything.
+ */
+const MAX_REDO = 20;
+
 /** How many steps forward are available. For tests and for anything that wants
  *  to know whether a forward press would do anything. */
 export function forwardDepth(): number {
@@ -95,8 +105,11 @@ export function goBack(): boolean {
   target.back();
   // Read before `back` runs and pushed after: the thunk closes over the state
   // the screen was in, which `back` is in the middle of changing.
-  if (forward) redo.push(forward);
-  else clearForward();
+  if (forward) {
+    redo.push(forward);
+    // Oldest first, so the most recent step out stays the next step back in.
+    if (redo.length > MAX_REDO) redo.splice(0, redo.length - MAX_REDO);
+  } else clearForward();
   return true;
 }
 

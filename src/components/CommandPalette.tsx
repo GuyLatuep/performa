@@ -109,6 +109,15 @@ export default function CommandPalette() {
         setAsking(null);
         setQuery("");
         setActive(0);
+      } else if (e.key === "Tab") {
+        // Swallowed. The list step gives Tab a job — it takes the highlighted
+        // action, the way a completion does — and the asking step has no list to
+        // take anything from, so the browser's own job is all that would be left:
+        // move focus to the next thing in the document, which is behind the
+        // sheet. A modal that lets Tab walk out from under it leaves the reader
+        // typing into a screen they cannot see, with a prompt still up. The
+        // field is the only stop in here, so holding still is the whole fix.
+        e.preventDefault();
       }
       return;
     }
