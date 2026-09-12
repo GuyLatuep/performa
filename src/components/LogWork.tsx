@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useState } from "react";
 import { api, IssueSummary } from "../api";
-import { useBackTarget } from "../back";
+import { clearForward, useBackTarget } from "../back";
 import { logInfo } from "../log";
 import { formatDuration } from "../time";
 import IssueHistory from "./IssueHistory";
@@ -52,12 +52,17 @@ export default function LogWork({
     else setSelected(null);
   }, [onBack, selected, initialIssue]);
 
+  const forward = useCallback(() => {
+    if (selected) setSelected(selected);
+  }, [selected]);
+
   useBackTarget(
-    { label: cameFrom ?? "the issue picker", back },
+    { label: cameFrom ?? "the issue picker", back, forward },
     selected !== null,
   );
 
   function selectIssue(issue: IssueSummary) {
+    clearForward();
     // Billability shouldn't leak from the previous entry.
     patch({ nonBillable: false });
     setSelected(issue);

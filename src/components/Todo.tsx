@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, invalidateCachedReads, IssueSummary } from "../api";
+import { clearForward } from "../back";
 import { usePinnedIssues } from "../pins";
 import { useIgnoredStatuses } from "../todoStatuses";
 import IssueRow from "./IssueRow";
@@ -85,6 +86,7 @@ export default function Todo({ site, onLogged }: Props) {
         issue={opened}
         site={site}
         backLabel="Todo"
+        onForward={() => setOpened(opened)}
         onBack={() => {
           setOpened(null);
           // The issue may have been moved out of this list while it was open;
@@ -196,7 +198,10 @@ export default function Todo({ site, onLogged }: Props) {
               issue={issue}
               site={site}
               pinned={pinnedKeys.has(issue.key)}
-              onSelect={setOpened}
+              onSelect={(issue) => {
+                clearForward();
+                setOpened(issue);
+              }}
             />
           ))}
         </ul>

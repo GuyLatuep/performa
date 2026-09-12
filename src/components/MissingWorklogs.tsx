@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, MissingWorklog } from "../api";
-import { useBackTarget } from "../back";
+import { clearForward, useBackTarget } from "../back";
 import { timeAgo, toDateInput, toTimeInput } from "../time";
 import {
   ignoreMissing,
@@ -62,7 +62,13 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
   }
 
   const closeForm = useCallback(() => setLogging(null), []);
-  useBackTarget({ label: "the list", back: closeForm }, logging !== null);
+  const reopenForm = useCallback(() => {
+    if (logging) setLogging(logging);
+  }, [logging]);
+  useBackTarget(
+    { label: "the list", back: closeForm, forward: reopenForm },
+    logging !== null,
+  );
 
   if (logging) {
     return (
@@ -109,7 +115,10 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
           item={item}
           site={site}
           actionTitle={`Log work on ${item.logKey}`}
-          onAction={() => setLogging(item)}
+          onAction={() => {
+            clearForward();
+            setLogging(item);
+          }}
           showLogTarget
           onIgnore={() => ignoreMissing(item)}
         />

@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { api, CredentialsMeta, IssueSummary } from "./api";
-import { useBackGestures } from "./back";
+import { clearForward, useBackGestures } from "./back";
 import { logInfo } from "./log";
 import Settings from "./components/Settings";
 import Start from "./components/Start";
@@ -160,6 +160,8 @@ export default function App() {
   // each one individually.
   useEffect(() => {
     if (signedIn) logInfo(`view: ${tab}`);
+    // Leaving for another tab leaves the trail the redo stack described.
+    clearForward();
   }, [signedIn, tab]);
 
   // The mouse's back button, for whichever screen is currently offering a way
@@ -244,6 +246,9 @@ export default function App() {
 
   /** Open the log-work tab, optionally with an issue preselected. */
   function openLogTab(issue: IssueSummary | null) {
+    // A visit to the log tab from the log tab changes no tab, so the effect
+    // above would not see it.
+    clearForward();
     setLogIssue(issue);
     setLogOrigin(issue ? tab : null);
     setLogVisit((v) => v + 1);
@@ -328,7 +333,13 @@ export default function App() {
             >
               Handbook
             </button>
-            <button className="link" onClick={() => setShowAbout(true)}>
+            <button
+              className="link"
+              onClick={() => {
+                clearForward();
+                setShowAbout(true);
+              }}
+            >
               About
             </button>
             {confirmSignOut ? (

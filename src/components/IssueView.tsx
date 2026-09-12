@@ -1,5 +1,5 @@
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   api,
@@ -9,7 +9,7 @@ import {
   LinkedItem,
   Transition,
 } from "../api";
-import { useBackTarget } from "../back";
+import { clearForward, useBackTarget } from "../back";
 import { OfferedTransition } from "../transitions";
 import { useIssueFieldConfig } from "../issueFieldNames";
 import { logInfo } from "../log";
@@ -28,6 +28,8 @@ interface Props {
   site: string;
   /** Back to the list this issue was opened from. */
   onBack: () => void;
+  /** Open it again, for a forward gesture that undoes `onBack`. */
+  onForward?: () => void;
   backLabel: string;
   /** A worklog was filed here — refresh what depends on it. */
   onLogged: () => void;
@@ -39,6 +41,7 @@ export default function IssueView({
   issue,
   site,
   onBack,
+  onForward,
   backLabel,
   onLogged,
 }: Props) {
@@ -131,12 +134,16 @@ export default function IssueView({
    *  deeper. Ignored when it is already the open one — a link cannot point at
    *  its own issue, but a stale detail could still be showing one. */
   const openLinked = useCallback(
-    (item: LinkedItem) =>
+    (item: LinkedItem) => {
+      // A detour of its own: whatever was backed out of before is not on the
+      // way forward from here any more.
+      clearForward();
       setTrail((t) =>
         (t[t.length - 1] ?? issue).key === item.key
           ? t
           : [...t, { key: item.key, summary: item.summary }],
-      ),
+      );
+    },
     [issue],
   );
 
@@ -161,11 +168,22 @@ export default function IssueView({
     }
   }, [screen, cameFrom, onBack]);
 
+  /** The way back in to whichever of those three `back` would take — read at
+   *  the moment it is pressed, so the two always describe the same step. */
+  const forward = useMemo<(() => void) | undefined>(() => {
+    if (screen) return () => setScreen(screen);
+    if (cameFrom) {
+      const left = trail[trail.length - 1];
+      return () => setTrail((t) => [...t, left]);
+    }
+    return onForward;
+  }, [screen, cameFrom, trail, onForward]);
+
   /** Where that step lands, named. The screen sits *on* the issue, so backing
    *  out of it returns to the issue itself. */
   const backTo = screen ? open.key : (cameFrom?.key ?? backLabel);
 
-  useBackTarget({ label: backTo, back });
+  useBackTarget({ label: backTo, back, forward });
 
   return (
     <div className="panel issue-view">
@@ -194,9 +212,11 @@ export default function IssueView({
           transitions={transitions}
           error={workflowError}
           busy={moving}
-          onPick={(entry) =>
-            entry.mode === "screen" ? setScreen(entry) : runMove(entry)
-          }
+          onPick={(entry) => {
+            clearForward();
+            if (entry.mode === "screen") setScreen(entry);
+            else runMove(entry);
+          }}
         />
       </div>
       {moveError && <p className="error">{moveError}</p>}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { IssueSummary, Mention } from "../api";
+import { clearForward } from "../back";
 import IssueView from "./IssueView";
 import { recordEvent } from "../achievements";
 import AchievementToast from "./AchievementToast";
@@ -127,7 +128,10 @@ export default function Mentions({ site, onLogged }: Props) {
           item={item}
           site={site}
           unread={unread.has(mentionId(item))}
-          onOpen={setOpened}
+          onOpen={(issue) => {
+            clearForward();
+            setOpened(issue);
+          }}
         />
       ))}
     </div>

@@ -20,17 +20,24 @@ const events = vi.hoisted(() => {
 });
 vi.mock("@tauri-apps/api/event", () => ({ listen: events.listen }));
 
-import { NAVIGATE_BACK, useBackGestures, useBackTarget } from "./back";
+import {
+  clearForward,
+  NAVIGATE_BACK,
+  NAVIGATE_FORWARD,
+  useBackGestures,
+  useBackTarget,
+} from "./back";
 
 // The registry itself is covered in back.test.ts; this file is about the
 // listener over it — which presses reach it, and when it stays out of the way.
 
-/** Mount the listener with a target behind it, handing back its spy. */
+/** Mount the listener with a target behind it, handing back its spies. */
 function listen_() {
   const back = vi.fn();
-  renderHook(() => useBackTarget({ label: "Todo", back }));
+  const forward = vi.fn();
+  renderHook(() => useBackTarget({ label: "Todo", back, forward }));
   renderHook(() => useBackGestures());
-  return { back };
+  return { back, forward };
 }
 
 /** Press at `target`, so it bubbles to the window listener with the target a
@@ -73,6 +80,7 @@ function overlay(className: string, role?: string) {
 afterEach(() => {
   document.body.innerHTML = "";
   events.reset();
+  clearForward();
 });
 
 /** Let the subscription to Rust settle — `listen` is a round trip. */
@@ -102,7 +110,7 @@ describe("useBackGestures", () => {
     ["middle", 1, 4],
     ["right", 2, 2],
     ["forward", 4, 16],
-  ])("ignores the %s button", (_label, button, buttons) => {
+  ])("does not go back on the %s button", (_label, button, buttons) => {
     const { back } = listen_();
 
     pressMouse(button, buttons);
@@ -173,7 +181,7 @@ describe("useBackGestures", () => {
     expect(back).not.toHaveBeenCalled();
   });
 
-  it("unsubscribes from the swipe once it unmounts", async () => {
+  it("unsubscribes from both swipes once it unmounts", async () => {
     const { unmount } = renderHook(() => useBackGestures());
     await subscribed();
     // Cleared here rather than between tests: the automatic cleanup unmounts
@@ -182,7 +190,8 @@ describe("useBackGestures", () => {
 
     unmount();
 
-    expect(events.unlisten).toHaveBeenCalledTimes(1);
+    // One each for the two directions.
+    expect(events.unlisten).toHaveBeenCalledTimes(2);
   });
 
   it.each([
@@ -265,6 +274,39 @@ describe("useBackGestures", () => {
     pressKey("Escape");
 
     expect(back).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the mouse's forward button", () => pressMouse(4, 16)],
+    ["⌘]", () => pressKey("]", { metaKey: true })],
+    ["⌘→", () => pressKey("ArrowRight", { metaKey: true })],
+    ["⌥→", () => pressKey("ArrowRight", { altKey: true })],
+  ])("re-enters on %s", (_label, press) => {
+    const { back, forward } = listen_();
+    pressKey("Escape"); // something to come forward from
+
+    press();
+
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(forward).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-enters on the forward swipe", async () => {
+    const { forward } = listen_();
+    await subscribed();
+    await act(async () => events.fire(NAVIGATE_BACK));
+
+    await act(async () => events.fire(NAVIGATE_FORWARD));
+
+    expect(forward).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing forward when nothing has been backed out of", () => {
+    const { forward } = listen_();
+
+    pressMouse(4, 16);
+
+    expect(forward).not.toHaveBeenCalled();
   });
 
   it("stops the webview taking the press for a history navigation of its own", () => {

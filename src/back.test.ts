@@ -1,12 +1,17 @@
 /** @vitest-environment happy-dom */
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import "./test-support/dom";
 import {
   backTarget,
+  clearForward,
+  forwardDepth,
   goBack,
+  goForward,
   isBackButton,
   isBackShortcut,
+  isForwardButton,
+  isForwardShortcut,
   useBackTarget,
 } from "./back";
 
@@ -22,11 +27,15 @@ function press(button: number, buttons = BUTTONS[button] ?? 0) {
 /** The DOM's `MouseEvent.buttons` bits, by button number. */
 const BUTTONS: Record<number, number> = { 0: 1, 1: 4, 2: 2, 3: 8, 4: 16 };
 
+// The redo stack is module-level and outlives a test, which is the whole
+// point of it — so each one starts from empty deliberately.
+beforeEach(clearForward);
+
 /** Register a target, handing back its spy and a way to toggle `active`. */
-function register(label = "Todo", active = true) {
+function register(label = "Todo", active = true, forward?: () => void) {
   const back = vi.fn();
   const view = renderHook(
-    ({ on }: { on: boolean }) => useBackTarget({ label, back }, on),
+    ({ on }: { on: boolean }) => useBackTarget({ label, back, forward }, on),
     { initialProps: { on: active } },
   );
   return { back, ...view };
@@ -56,6 +65,25 @@ describe("isBackButton", () => {
     // `buttons` carries every button down, so reading it alone would take this
     // for a back press. Which button was *pressed* is what `button` says.
     expect(isBackButton(press(0, 1 | 8))).toBe(false);
+  });
+});
+
+describe("isForwardButton", () => {
+  it("is true for the standard forward button", () => {
+    expect(isForwardButton(press(4))).toBe(true);
+  });
+
+  it("is true for it on a pre-2025 WebKit, which called it the middle one", () => {
+    expect(isForwardButton(press(1, 16))).toBe(true);
+  });
+
+  it.each([
+    ["left", 0],
+    ["middle", 1],
+    ["right", 2],
+    ["back", 3],
+  ])("is false for the %s button", (_label, button) => {
+    expect(isForwardButton(press(button))).toBe(false);
   });
 });
 
@@ -164,5 +192,97 @@ describe("the registered target", () => {
     outgoing.unmount();
 
     expect(backTarget()?.label).toBe("Mentions");
+  });
+});
+
+describe("isForwardShortcut", () => {
+  function key(k: string, mods: Partial<KeyboardEventInit> = {}) {
+    return new KeyboardEvent("keydown", { key: k, ...mods });
+  }
+
+  it.each([
+    ["⌘]", "]", { metaKey: true }],
+    ["⌘→", "ArrowRight", { metaKey: true }],
+    ["⌥→", "ArrowRight", { altKey: true }],
+  ])("is true for %s", (_label, k, mods) => {
+    expect(isForwardShortcut(key(k, mods))).toBe(true);
+  });
+
+  it("is false for the back chords", () => {
+    expect(isForwardShortcut(key("[", { metaKey: true }))).toBe(false);
+    expect(isForwardShortcut(key("ArrowLeft", { metaKey: true }))).toBe(false);
+  });
+
+  it("is false for ⌃⌘→, which belongs to Spaces", () => {
+    expect(
+      isForwardShortcut(key("ArrowRight", { metaKey: true, ctrlKey: true })),
+    ).toBe(false);
+  });
+});
+
+describe("going forward", () => {
+  it("does nothing when nothing has been backed out of", () => {
+    expect(goForward()).toBe(false);
+  });
+
+  it("re-enters what was just left", () => {
+    const forward = vi.fn();
+    register("PERF-1", true, forward);
+
+    goBack();
+
+    expect(forwardDepth()).toBe(1);
+    expect(goForward()).toBe(true);
+    expect(forward).toHaveBeenCalledTimes(1);
+  });
+
+  it("spends the step, so a second press does nothing", () => {
+    const forward = vi.fn();
+    register("PERF-1", true, forward);
+    goBack();
+
+    goForward();
+    goForward();
+
+    expect(forward).toHaveBeenCalledTimes(1);
+  });
+
+  it("stacks hops, coming back out of them newest first", () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    register("one", true, first).unmount();
+    goBack();
+    // The second screen registers where the first was.
+    register("two", true, second);
+    goBack();
+
+    goForward();
+
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+  });
+
+  it("forgets everything when a hop cannot be re-entered", () => {
+    // A forward press must not skip the step it cannot redo and re-enter the
+    // one below, which is a view the user left two navigations ago.
+    const deeper = vi.fn();
+    register("deeper", true, deeper).unmount();
+    goBack();
+    register("no way in"); // no forward
+    goBack();
+
+    expect(forwardDepth()).toBe(0);
+    expect(goForward()).toBe(false);
+  });
+
+  it("forgets everything a new navigation invalidates", () => {
+    const forward = vi.fn();
+    register("PERF-1", true, forward);
+    goBack();
+
+    clearForward();
+
+    expect(forwardDepth()).toBe(0);
+    expect(forward).not.toHaveBeenCalled();
   });
 });

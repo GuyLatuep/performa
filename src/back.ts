@@ -20,6 +20,14 @@ export interface BackTarget {
   label: string;
   /** Leave this view. The same function the visible Back button calls. */
   back: () => void;
+  /** Re-enter it, undoing exactly the step `back` takes. Read at the moment
+   *  back is pressed, so a screen that leaves by several different routes can
+   *  offer the matching way in for whichever one it just took.
+   *
+   *  Omitted where re-entering is not something anybody reaches for; backing
+   *  out of such a screen empties the redo stack rather than leaving a
+   *  forward press to skip the hop that cannot be redone. */
+  forward?: () => void;
 }
 
 /** The mounted screen's own box, so re-registering is not needed every time
@@ -59,11 +67,43 @@ export function useBackTarget(target: BackTarget, active = true): void {
   }, [active]);
 }
 
+/** Ways back in to what has been backed out of, deepest last.
+ *
+ *  Module-level, like the slot above: it outlives the screens it refers to,
+ *  which is the whole point — the thunk is what re-mounts one. */
+const redo: (() => void)[] = [];
+
+/** How many steps forward are available. For tests and for anything that wants
+ *  to know whether a forward press would do anything. */
+export function forwardDepth(): number {
+  return redo.length;
+}
+
+/** Drop the redo stack. Any *new* navigation invalidates it: going somewhere
+ *  else and then forward would otherwise re-enter a view from a trail the user
+ *  has already left. */
+export function clearForward(): void {
+  redo.length = 0;
+}
+
 /** Go back, if there is anywhere to go. True when something happened. */
 export function goBack(): boolean {
   const target = backTarget();
   if (!target) return false;
+  const { forward } = target;
   target.back();
+  // Read before `back` runs and pushed after: the thunk closes over the state
+  // the screen was in, which `back` is in the middle of changing.
+  if (forward) redo.push(forward);
+  else clearForward();
+  return true;
+}
+
+/** Re-enter the last view backed out of. True when something happened. */
+export function goForward(): boolean {
+  const forward = redo.pop();
+  if (!forward) return false;
+  forward();
   return true;
 }
 
@@ -82,6 +122,11 @@ export function goBack(): boolean {
  */
 export function isBackButton(e: MouseEvent): boolean {
   return e.button === 3 || (e.button === 1 && (e.buttons & 8) !== 0);
+}
+
+/** The same, one button along — bit 16 rather than bit 8. */
+export function isForwardButton(e: MouseEvent): boolean {
+  return e.button === 4 || (e.button === 1 && (e.buttons & 16) !== 0);
 }
 
 /** Anything overlaying the page: every modal in the app is a `.modal-backdrop`
@@ -111,6 +156,13 @@ export function isBackShortcut(e: KeyboardEvent): boolean {
   return e.altKey && e.key === "ArrowLeft";
 }
 
+/** The other direction, spelled the three matching ways. */
+export function isForwardShortcut(e: KeyboardEvent): boolean {
+  if (e.ctrlKey) return false;
+  if (e.metaKey) return e.key === "]" || e.key === "ArrowRight";
+  return e.altKey && e.key === "ArrowRight";
+}
+
 /** Where the keys are somebody else's: `⌘←` goes to the start of the line and
  *  Escape closes whatever the box has open, and taking either would be taking
  *  it out of the writer's hands. The same guard, and the same reason, as
@@ -128,6 +180,9 @@ function typingIn(target: EventTarget | null): boolean {
  *  `src-tauri/src/gestures.rs`. */
 export const NAVIGATE_BACK = "navigate-back";
 
+/** And towards the left. */
+export const NAVIGATE_FORWARD = "navigate-forward";
+
 /** The back gesture itself. Mounted once, in App.
  *
  *  Two sources, because a mouse's back button is not one thing. Windows hands
@@ -143,41 +198,48 @@ export const NAVIGATE_BACK = "navigate-back";
 export function useBackGestures(): void {
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
-      if (!isBackButton(e)) return;
-      // Chromium treats the button as a history navigation of its own unless
-      // this is called. There is no history here to navigate, but a webview
-      // deciding otherwise would be hard to see and harder to debug.
+      const back = isBackButton(e);
+      if (!back && !isForwardButton(e)) return;
+      // Chromium treats these buttons as a history navigation of its own
+      // unless this is called. There is no history here to navigate, but a
+      // webview deciding otherwise would be hard to see and harder to debug.
       e.preventDefault();
       if (overlayOpen()) return;
-      goBack();
+      if (back) goBack();
+      else goForward();
     };
     const onKeyDown = (e: KeyboardEvent) => {
       // Somebody nearer the key has already dealt with it — the pickers close
       // their suggestion lists on Escape, and that Escape is theirs, not a
       // request to leave the view they are being typed into.
       if (e.defaultPrevented) return;
-      if (e.key !== "Escape" && !isBackShortcut(e)) return;
+      const back = e.key === "Escape" || isBackShortcut(e);
+      if (!back && !isForwardShortcut(e)) return;
       if (typingIn(e.target) || overlayOpen()) return;
       e.preventDefault();
-      goBack();
+      if (back) goBack();
+      else goForward();
     };
 
     window.addEventListener("mousedown", onMouseDown);
     window.addEventListener("keydown", onKeyDown);
 
-    let unlisten: (() => void) | undefined;
+    const unlisten: (() => void)[] = [];
     let gone = false;
-    listen(NAVIGATE_BACK, () => {
-      if (!overlayOpen()) goBack();
-    }).then((fn) => {
-      // Subscribing is a round trip to Rust, and a fast unmount can beat it.
-      if (gone) fn();
-      else unlisten = fn;
-    });
+    const subscribe = (name: string, run: () => void) =>
+      listen(name, () => {
+        if (!overlayOpen()) run();
+      }).then((fn) => {
+        // Subscribing is a round trip to Rust, and a fast unmount can beat it.
+        if (gone) fn();
+        else unlisten.push(fn);
+      });
+    subscribe(NAVIGATE_BACK, goBack);
+    subscribe(NAVIGATE_FORWARD, goForward);
 
     return () => {
       gone = true;
-      unlisten?.();
+      unlisten.forEach((fn) => fn());
       window.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("keydown", onKeyDown);
     };

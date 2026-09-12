@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
 import type { LinkedItem } from "../api";
-import { backTarget, goBack } from "../back";
+import { backTarget, clearForward, goBack, goForward } from "../back";
 
 vi.mock("../api", async () => {
   const { apiModule } = await import("../test-support/api");
@@ -65,6 +65,9 @@ import {
 import IssueView from "./IssueView";
 
 const ISSUE = issueSummary({ key: "ABC-1", summary: "Replace the pump" });
+
+// The redo stack is module-level and deliberately outlives its screens.
+beforeEach(clearForward);
 
 function renderView(props: Partial<Parameters<typeof IssueView>[0]> = {}) {
   const handlers = { onBack: vi.fn(), onLogged: vi.fn() };
@@ -225,6 +228,47 @@ describe("following a link", () => {
 
     expect(await screen.findByText("facts for ABC-1")).toBeDefined();
     expect(onBack).not.toHaveBeenCalled();
+  });
+
+  it("comes forward down the trail again", async () => {
+    // Backing out of a detour and changing your mind is the one thing forward
+    // is for; the hop it re-enters has to be the one that was just left.
+    renderView();
+    await screen.findByText("links for ABC-1");
+    await userEvent.click(
+      screen.getByRole("button", { name: "follow to ABC-2" }),
+    );
+    await screen.findByRole("button", { name: /Back to ABC-1/ });
+    await act(async () => {
+      goBack();
+    });
+    await screen.findByText("facts for ABC-1");
+
+    await act(async () => {
+      goForward();
+    });
+
+    expect(await screen.findByText("facts for ABC-2")).toBeDefined();
+  });
+
+  it("drops the way forward when a new detour is taken instead", async () => {
+    // ABC-2 is not on the way forward from a trail that went somewhere else.
+    renderView();
+    await screen.findByText("links for ABC-1");
+    await userEvent.click(
+      screen.getByRole("button", { name: "follow to ABC-2" }),
+    );
+    await screen.findByRole("button", { name: /Back to ABC-1/ });
+    await act(async () => {
+      goBack();
+    });
+    await screen.findByText("links for ABC-1");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "follow to ABC-2" }),
+    );
+
+    expect(goForward()).toBe(false);
   });
 
   it("steps back up the trail rather than leaving the view", async () => {

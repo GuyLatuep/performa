@@ -1,5 +1,5 @@
 /** @vitest-environment happy-dom */
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
@@ -28,19 +28,30 @@ vi.mock("./IssueRow", () => ({
     </li>
   ),
 }));
+// The way back *in* outlives the view that offered it — it is what a forward
+// gesture calls once the view is gone — so it is caught here rather than left
+// on a button that unmounts with it.
+const wayForward = vi.hoisted(() => ({
+  run: undefined as (() => void) | undefined,
+}));
 vi.mock("./IssueView", () => ({
   default: ({
     issue,
     onBack,
+    onForward,
   }: {
     issue: { key: string };
     onBack: () => void;
-  }) => (
-    <div>
-      <p>viewing {issue.key}</p>
-      <button onClick={onBack}>back</button>
-    </div>
-  ),
+    onForward?: () => void;
+  }) => {
+    wayForward.run = onForward;
+    return (
+      <div>
+        <p>viewing {issue.key}</p>
+        <button onClick={onBack}>back</button>
+      </div>
+    );
+  },
 }));
 
 import { setFunMode, setShowIssueTypeIcons } from "../settings";
@@ -234,6 +245,18 @@ describe("opening an issue", () => {
 
     expect(apiMock.invalidateCachedReads).toHaveBeenCalled();
     await waitFor(() => expect(apiMock.todoIssues).toHaveBeenCalledTimes(2));
+  });
+
+  it("offers the way back in, for a forward gesture", async () => {
+    apiMock.todoIssues.mockResolvedValue(ISSUES);
+    renderTodo();
+    await userEvent.click(await screen.findByRole("button", { name: "ABC-1" }));
+    await userEvent.click(screen.getByRole("button", { name: "back" }));
+    expect(screen.queryByText("viewing ABC-1")).toBeNull();
+
+    await act(async () => wayForward.run?.());
+
+    expect(screen.getByText("viewing ABC-1")).toBeDefined();
   });
 });
 
