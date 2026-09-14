@@ -92,7 +92,7 @@ export function buildMonthGrid(
   // Only days that got a column count towards a total: a weekend booking is
   // always shown (it earned its column above), so nothing is silently dropped
   // here — this only guards against a total nobody can see the source of.
-  const shown = new Set(columns.map((c) => c.date));
+  const shown = new Set(columns.map((column) => column.date));
 
   const rows = new Map<string, MonthRow>();
   const dayTotals = new Map<string, number>();
@@ -133,7 +133,7 @@ export function buildMonthGrid(
 /** The order to pin: the issues with the most time on top, and issue key as a
  *  tiebreak so two rows that add up the same don't swap places at random. */
 export function rowOrderOf(grid: MonthGrid): string[] {
-  return grid.rows.map((r) => r.issueKey);
+  return grid.rows.map((row) => row.issueKey);
 }
 
 /** Rows in `pinned` order, with anything the pin doesn't know about — an issue
@@ -163,8 +163,8 @@ function orderRows(rows: MonthRow[], pinned?: string[]): MonthRow[] {
 const THIN_HOURS = 3;
 const FULL_HOURS = 6;
 
-export function dayTone(seconds: number, col: MonthColumn): string {
-  if (col.future || col.weekend) return "";
+export function dayTone(seconds: number, column: MonthColumn): string {
+  if (column.future || column.weekend) return "";
   const hours = seconds / 3600;
   if (hours > FULL_HOURS) return " tone-full";
   if (hours >= THIN_HOURS) return " tone-part";
@@ -183,6 +183,5 @@ export function decimalHours(seconds: number): string {
  *  The month is fetched a week at a time and the weeks overlap at their edges,
  *  so the same worklog can arrive in two chunks. */
 export function dedupeEntries(entries: WorklogEntry[]): WorklogEntry[] {
-  const byId = new Map(entries.map((e) => [e.id, e]));
-  return [...byId.values()];
+  return [...new Map(entries.map((entry) => [entry.id, entry])).values()];
 }
