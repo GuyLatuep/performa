@@ -19,11 +19,10 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
+use super::adf::{adf_doc, adf_to_text};
+use super::stamps::{format_rfc3339_local, parse_jira_ts};
 use super::types::*;
-use super::{
-    adf_doc, adf_to_text, format_rfc3339_local, parse_jira_ts, split_billable, JiraClient,
-    COMMENT_PAGE_LIMIT,
-};
+use super::{split_billable, JiraClient, COMMENT_PAGE_LIMIT};
 
 /// Enough names to choose from without turning the picker into a list to be
 /// read; a longer query is the way to narrow it.
@@ -277,15 +276,15 @@ impl JiraClient {
         // survive, while `~` hands it on to the text index, where another set of
         // characters is reserved.
         let mut jql = if exact {
-            format!("{named} = \"{}\"", super::escape_jql(term.trim()))
+            format!("{named} = \"{}\"", super::jql::escape_jql(term.trim()))
         } else {
-            let esc = super::escape_jql_text(term.trim());
+            let esc = super::jql::escape_jql_text(term.trim());
             format!("({named} ~ \"{esc}*\" OR {named} ~ \"{esc}\")")
         };
         if !excluded_projects.is_empty() {
             let keys: Vec<String> = excluded_projects
                 .iter()
-                .map(|k| format!("\"{}\"", super::escape_jql(k)))
+                .map(|k| format!("\"{}\"", super::jql::escape_jql(k)))
                 .collect();
             jql.push_str(&format!(" AND project NOT IN ({})", keys.join(", ")));
         }
@@ -690,7 +689,7 @@ fn jql_field(id: &str) -> String {
         Some(num) if !num.is_empty() && num.chars().all(|c| c.is_ascii_digit()) => {
             format!("cf[{num}]")
         }
-        _ => format!("\"{}\"", super::escape_jql(id)),
+        _ => format!("\"{}\"", super::jql::escape_jql(id)),
     }
 }
 
