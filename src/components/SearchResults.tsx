@@ -51,12 +51,7 @@ export default function SearchResults({
     const run =
       search.kind === "text"
         ? api.searchText(search.term)
-        : api.searchField(
-            search.search.field,
-            search.term,
-            search.search.exact,
-            search.search.excludedProjects,
-          );
+        : api.searchJql(search.search.jql, search.term);
     run.then(
       (result) => {
         if (!cancelled) setFound(result);

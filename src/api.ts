@@ -437,16 +437,12 @@ export const api = {
   },
 
   /** One of the user's own searches. The definition is theirs, held in settings;
-   *  this hands it over and the JQL is built on the Rust side as all of it is. */
-  searchField(
-    field: string,
-    term: string,
-    exact: boolean,
-    excludedProjects: string[],
-  ): Promise<SearchResults> {
+   *  this hands over its JQL and the term, and the term is escaped into the
+   *  query on the Rust side. */
+  searchJql(jql: string, term: string): Promise<SearchResults> {
     return logged(
-      `search_field(field=${JSON.stringify(field)}, term=${JSON.stringify(term)}, exact=${exact})`,
-      () => invoke("search_field", { field, term, exact, excludedProjects }),
+      `search_jql(jql=${JSON.stringify(jql)}, term=${JSON.stringify(term)})`,
+      () => invoke("search_jql", { jql, term }),
       found,
     );
   },

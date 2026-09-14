@@ -130,10 +130,10 @@ function searchActions(): ActionSpec[] {
     id: `search.${search.id}`,
     name: `Search by ${search.name}`,
     group: "Search",
-    keywords: `find ${search.field}`,
+    keywords: "find",
     prompt: {
       title: `Search by ${search.name}`,
-      placeholder: search.field,
+      placeholder: search.name,
       parse: (typed) => typed.trim() || null,
       submit: (term) => requestFieldSearch(search, term),
     },

@@ -3166,81 +3166,31 @@ section.issue-fact .issue-description {
 }
 
 /* ---------- Saved searches ----------
-   A table, not a stack of forms. Each search is four small decisions, and a
-   labelled block for every one of them repeated the same four words down the
-   screen; one header row names the columns once and a search becomes one line.
+   A table, not a stack of forms: one header row names the columns once and a
+   search becomes one line — a name and the JQL it runs.
 
    Fixed tracks rather than `auto`, so every row's controls line up with the
-   header and with each other — a name long enough to widen its own column would
-   otherwise shunt the three pickers out of alignment with the labels above. */
+   header and with each other. The query gets the room: it is the long one. */
 .search-grid {
   display: grid;
-  grid-template-columns:
-    minmax(7rem, 1fr) minmax(8rem, 1fr) minmax(8rem, 1fr)
-    auto auto;
+  grid-template-columns: minmax(7rem, 1fr) minmax(12rem, 3fr) auto;
   gap: var(--sp-2) var(--sp-3);
-  /* The controls sit at the top of their row: the project list is three lines
-     tall and the rest are one, and centring them would leave the name input
-     floating in the middle of nothing. */
+  /* The controls sit at the top of their row: the query box is two lines tall
+     and the name one, and centring would leave the name floating. */
   align-items: start;
 }
 
-/* The header labels are the one thing that *is* centred on its column, for the
-   two narrow ones where the control is a checkbox or a button. */
-.search-grid > .field-label:nth-child(4) {
-  text-align: center;
-}
-
-/* The checkbox is its own column, so it carries no label of its own and sits
-   under the one in the header. The extra top margin is optical: a checkbox is
-   smaller than an input and lines up with the text inside it rather than with
-   its box. */
-.search-grid > input[type="checkbox"] {
-  justify-self: center;
-  margin-top: 11px;
-}
-
-/* The projects to leave out: a scrolling box of checkboxes, capped so that a site
-   with twenty projects costs the same height as one with two. A hairline rather
-   than a fill, because it is a container inside a row rather than a control of
-   its own. */
-.project-exclude {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 5.5rem;
-  overflow-y: auto;
-  /* Never sideways: a long project name is cut below, not scrolled to. */
-  overflow-x: hidden;
-  padding: var(--sp-1) var(--sp-2);
-  border: 1px solid var(--hair);
-  border-radius: var(--r-control);
-}
-/* The rows inside are dense: this is a list to scan, not a form to fill in, and
-   the 44px target a standalone checkbox carries would fit two of them in the
-   box. */
-.project-exclude .checkbox {
-  min-height: 0;
+/* A query is code, so it reads as code: fixed-width, and resizable downwards
+   only, since sideways would push the grid out of line. */
+.search-grid > .search-jql {
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  /* Both halves of letting the name be the thing that gives way: a flex item
-     will not shrink past its content without this, so the label would push its
-     own box wider than the column instead. */
+  resize: vertical;
   min-width: 0;
 }
-/* The tick keeps its size. It is a 22px circle in a column narrower than some
-   project names, and a flex item shrinks by default — which drew it as an
-   ellipse and cost it the one thing its shape says. */
-.project-exclude .checkbox input {
-  flex: none;
-}
-/* The name is what gives way, to an ellipsis. The full one is on the row's
-   tooltip, since a cut name is still enough to recognise but not always enough
-   to be sure by. */
-.project-exclude .checkbox span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* JQL with nowhere to put the term: the Rust side will refuse to run it. */
+.search-grid > .search-jql[aria-invalid="true"] {
+  border-color: var(--danger);
 }
 
 /* The row's last cell: the ✕ on a saved search, Add on the blank one. */

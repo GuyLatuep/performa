@@ -34,9 +34,7 @@ function page(issues: ReturnType<typeof issueSummary>[], hasMore = false) {
 const PLANT_SEARCH: SavedSearch = {
   id: "s1",
   name: "Plant number",
-  field: "Plant-No.",
-  exact: false,
-  excludedProjects: ["DEV"],
+  jql: 'project != DEV AND "Plant-No." ~ %SEARCHTERM%',
 };
 
 const PLANT: SearchRequest = {
@@ -82,21 +80,19 @@ afterEach(() => {
 
 describe("running the search", () => {
   it("hands the backend the whole definition, not just the term", async () => {
-    apiMock.searchField.mockResolvedValue(page([]));
+    apiMock.searchJql.mockResolvedValue(page([]));
 
     renderResults();
 
     await act(async () => {});
-    expect(apiMock.searchField).toHaveBeenCalledWith(
-      "Plant-No.",
+    expect(apiMock.searchJql).toHaveBeenCalledWith(
+      'project != DEV AND "Plant-No." ~ %SEARCHTERM%',
       "DE_1979",
-      false,
-      ["DEV"],
     );
   });
 
   it("says it is searching before anything arrives", () => {
-    apiMock.searchField.mockReturnValue(new Promise(() => {}));
+    apiMock.searchJql.mockReturnValue(new Promise(() => {}));
 
     renderResults();
 
@@ -104,7 +100,7 @@ describe("running the search", () => {
   });
 
   it("lists what came back, with a count", async () => {
-    apiMock.searchField.mockResolvedValue(
+    apiMock.searchJql.mockResolvedValue(
       page([issueSummary({ key: "ABC-1" }), issueSummary({ key: "ABC-2" })]),
     );
 
@@ -117,7 +113,7 @@ describe("running the search", () => {
   });
 
   it("names the plant in its empty state, so it is clear what found nothing", async () => {
-    apiMock.searchField.mockResolvedValue(page([]));
+    apiMock.searchJql.mockResolvedValue(page([]));
 
     renderResults();
 
@@ -127,7 +123,7 @@ describe("running the search", () => {
   });
 
   it("quotes the term for a text search instead", async () => {
-    apiMock.searchField.mockResolvedValue(page([]));
+    apiMock.searchJql.mockResolvedValue(page([]));
 
     apiMock.searchText.mockResolvedValue(page([]));
     renderResults({ kind: "text", term: "broken pump" });
@@ -139,7 +135,7 @@ describe("running the search", () => {
     // A full page is not proof there is nothing after it, and these searches
     // keep closed issues on purpose — so a plant with years of history reaches
     // the limit as a matter of course.
-    apiMock.searchField.mockResolvedValue(
+    apiMock.searchJql.mockResolvedValue(
       page([issueSummary({ key: "ABC-1" })], true),
     );
 
@@ -151,9 +147,7 @@ describe("running the search", () => {
   });
 
   it("says nothing of the sort when that was all of them", async () => {
-    apiMock.searchField.mockResolvedValue(
-      page([issueSummary({ key: "ABC-1" })]),
-    );
+    apiMock.searchJql.mockResolvedValue(page([issueSummary({ key: "ABC-1" })]));
 
     renderResults();
 
@@ -165,7 +159,7 @@ describe("running the search", () => {
     // The plant field has to be text-searchable for the wildcard to work. If it
     // is not, Jira says so and the reader should see that rather than "nothing
     // found".
-    apiMock.searchField.mockRejectedValue(
+    apiMock.searchJql.mockRejectedValue(
       new Error("Field 'Plant-No.' does not support the ~ operator"),
     );
 
@@ -177,7 +171,7 @@ describe("running the search", () => {
 
 describe("the results themselves", () => {
   it("are walked with the arrow keys, being an ordinary issue list", async () => {
-    apiMock.searchField.mockResolvedValue(
+    apiMock.searchJql.mockResolvedValue(
       page([issueSummary({ key: "ABC-1" }), issueSummary({ key: "ABC-2" })]),
     );
     renderResults();
@@ -193,9 +187,7 @@ describe("the results themselves", () => {
   });
 
   it("open the issue on Enter", async () => {
-    apiMock.searchField.mockResolvedValue(
-      page([issueSummary({ key: "ABC-1" })]),
-    );
+    apiMock.searchJql.mockResolvedValue(page([issueSummary({ key: "ABC-1" })]));
     renderResults();
     await screen.findByText("ABC-1");
     await act(async () => {
@@ -210,7 +202,7 @@ describe("the results themselves", () => {
   });
 
   it("open the issue when one is clicked", async () => {
-    apiMock.searchField.mockResolvedValue(
+    apiMock.searchJql.mockResolvedValue(
       page([issueSummary({ key: "ABC-1", summary: "Replace the pump" })]),
     );
     renderResults();
@@ -226,7 +218,7 @@ describe("leaving the results", () => {
   // Escape, ⌘[, the mouse's back button and the swipe all did nothing here.
 
   it("registers one, named for the tab underneath", async () => {
-    apiMock.searchField.mockResolvedValue(page([]));
+    apiMock.searchJql.mockResolvedValue(page([]));
 
     renderResults();
 
@@ -235,7 +227,7 @@ describe("leaving the results", () => {
   });
 
   it("clears the search, so the tab comes back", async () => {
-    apiMock.searchField.mockResolvedValue(page([]));
+    apiMock.searchJql.mockResolvedValue(page([]));
     renderResults();
     await act(async () => {});
 
@@ -249,7 +241,7 @@ describe("leaving the results", () => {
   it("runs the same search again on the way forward", async () => {
     // Re-entering results means the search as it was — the request carries its
     // own copy of the definition, not whatever the settings have since become.
-    apiMock.searchField.mockResolvedValue(page([]));
+    apiMock.searchJql.mockResolvedValue(page([]));
     renderResults();
     await act(async () => {});
     await act(async () => {

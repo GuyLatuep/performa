@@ -3,53 +3,96 @@ import { claimStoredFor, persisted } from "./persist";
 /**
  * Searches the user has built for themselves.
  *
- * Which fields are worth searching is a property of the Jira site, not of this
- * app — one site keeps a plant number, another a customer reference, another
- * neither — so the app ships none and offers the means to describe them. Each
- * one then appears in the command palette as "Search by <name>".
+ * What is worth searching is a property of the Jira site, not of this app — one
+ * site keeps a plant number, another a customer reference, another neither — so
+ * the app ships none and offers the means to describe them. Each one then
+ * appears in the command palette as "Search by <name>".
  */
 export interface SavedSearch {
   /** Stable for the life of the search, so the palette's action id is too. */
   id: string;
   /** What it is called, and what the palette offers: "Search by Plant number". */
   name: string;
-  /** The field to look in, as the site spells it. Resolved to a field id on the
-   *  Rust side, since a name in JQL has to be exact and an id cannot be. */
-  field: string;
   /**
-   * Match the whole value rather than part of it.
+   * The JQL it runs, with [`SEARCH_TERM_PLACEHOLDER`] where the palette's term
+   * goes: `project in (CTS, DEV) AND "Plant no." ~ %SEARCHTERM%`.
    *
-   * Off — "like" — is the common case and the more forgiving: the term is
-   * wildcarded, so `DE_1979` finds `DE_1979_03` as well. On is for fields whose
-   * values are whole things in themselves, where a partial match would drag in
-   * every neighbour sharing an opening.
+   * The term is put in on the Rust side, escaped, so the query is the user's but
+   * what gets typed into the palette can never rewrite it.
    */
-  exact: boolean;
-  /** Project keys to leave out. For the projects that hold the same field for
-   *  something else, or that nobody searching this field cares about. */
-  excludedProjects: string[];
+  jql: string;
+}
+
+/** Where the palette's term goes in a search's JQL. Mirrors
+ *  `SEARCH_TERM_PLACEHOLDER` in `src-tauri/src/jira/jql.rs`. */
+export const SEARCH_TERM_PLACEHOLDER = "%SEARCHTERM%";
+
+/** Does this JQL say where the term goes? Case-insensitive, as the Rust side is.
+ *  One that does not is refused there when it runs. */
+export function hasSearchTerm(jql: string): boolean {
+  return jql.toUpperCase().includes(SEARCH_TERM_PLACEHOLDER);
 }
 
 const KEY = "performa-saved-searches";
 /** Which account these were written for — see [`claimSearchesFor`]. */
 const OWNER_KEY = "performa-saved-searches-owner";
 
+/** `"a"`, escaped for a JQL string. */
+function quoted(s: string): string {
+  return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * The JQL a search from before searches were written as JQL stands for.
+ *
+ * Those named a field, a whole-value switch and projects to leave out, and the
+ * Rust side built this same query from them — so rewriting them keeps every
+ * search the user already had, finding what it found. The one difference is that
+ * the field is now named rather than looked up by id; the name came from the
+ * site's own catalogue, so it is spelled the way the site spells it.
+ */
+function legacyJql(field: string, exact: boolean, excluded: string[]): string {
+  const f = quoted(field.trim());
+  const p = SEARCH_TERM_PLACEHOLDER;
+  const match = exact ? `${f} = ${p}` : `(${f} ~ "${p}*" OR ${f} ~ ${p})`;
+  const leftOut =
+    excluded.length > 0
+      ? ` AND project NOT IN (${excluded.map(quoted).join(", ")})`
+      : "";
+  return `${match}${leftOut} ORDER BY updated DESC`;
+}
+
+/** One stored entry as a search, or null when it is not one. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function fromStored(s: any): SavedSearch | null {
+  if (!s || typeof s.id !== "string" || typeof s.name !== "string") return null;
+  const name = s.name.trim();
+  if (name === "") return null;
+  if (typeof s.jql === "string") {
+    const jql = s.jql.trim();
+    return jql === "" ? null : { id: s.id, name, jql };
+  }
+  if (
+    typeof s.field === "string" &&
+    s.field.trim() !== "" &&
+    typeof s.exact === "boolean" &&
+    Array.isArray(s.excludedProjects) &&
+    s.excludedProjects.every((p: unknown) => typeof p === "string")
+  ) {
+    return {
+      id: s.id,
+      name,
+      jql: legacyJql(s.field, s.exact, s.excludedProjects),
+    };
+  }
+  return null;
+}
+
 const store = persisted<SavedSearch[]>(KEY, (stored) =>
-  // Anything half-written is dropped rather than repaired: a search missing
-  // its field would offer the palette an entry that cannot run.
+  // Anything half-written is dropped rather than repaired: a search missing its
+  // JQL would offer the palette an entry that cannot run.
   Array.isArray(stored)
-    ? stored.filter(
-        (s): s is SavedSearch =>
-          !!s &&
-          typeof s.id === "string" &&
-          typeof s.name === "string" &&
-          s.name.trim() !== "" &&
-          typeof s.field === "string" &&
-          s.field.trim() !== "" &&
-          typeof s.exact === "boolean" &&
-          Array.isArray(s.excludedProjects) &&
-          s.excludedProjects.every((p: unknown) => typeof p === "string"),
-      )
+    ? stored.map(fromStored).filter((s): s is SavedSearch => s !== null)
     : [],
 );
 
@@ -85,18 +128,21 @@ function freshId(): string {
  * A search worth storing, or null.
  *
  * The one rule both mutators go through, because `read()` above enforces the
- * same one on the way back in: a search with no name or no field is dropped when
+ * same one on the way back in: a search with no name or no JQL is dropped when
  * it is next loaded. Writing one is therefore not "saving an incomplete search",
  * it is deleting a search on a delay — which is what made clearing the name box
  * to retype it a way to lose the whole thing.
+ *
+ * JQL without the placeholder is still stored: refusing it would snap the box
+ * back mid-edit, and the settings screen marks it instead.
  */
 function sanitise(
   search: Omit<SavedSearch, "id">,
 ): Omit<SavedSearch, "id"> | null {
   const name = search.name.trim();
-  const field = search.field.trim();
-  if (name === "" || field === "") return null;
-  return { ...search, name, field };
+  const jql = search.jql.trim();
+  if (name === "" || jql === "") return null;
+  return { name, jql };
 }
 
 /** Add one, and hand back what it was given an id of. */
@@ -119,9 +165,9 @@ export function removeSavedSearch(id: string): void {
  *
  * Unknown ids are ignored rather than appended — an update to something that has
  * been deleted is not a new search. A patch that would leave it without a name or
- * a field is ignored too, for the reason on `sanitise`: storing that is a
- * deletion the user did not ask for and would not see until the next launch.
- * Removing a search is what the ✕ is for.
+ * JQL is ignored too, for the reason on `sanitise`: storing that is a deletion
+ * the user did not ask for and would not see until the next launch. Removing a
+ * search is what the ✕ is for.
  */
 export function updateSavedSearch(
   id: string,
@@ -140,10 +186,10 @@ export function updateSavedSearch(
  * Bind the stored searches to `account`, dropping them if they were written for
  * somebody else.
  *
- * A search names a field by the name *that site* spells it with, so it means
- * nothing on another one: signing into a second Jira would otherwise leave the
- * palette offering "Search by Plant number" for a field that site has never
- * heard of, and the search would fail with a message about a missing field the
+ * A search's JQL names fields and projects the way *that site* spells them, so
+ * it means nothing on another one: signing into a second Jira would otherwise
+ * leave the palette offering "Search by Plant number" for a field that site has
+ * never heard of, and the search would fail with a message about a field the
  * reader never chose. Signing back into the same account keeps everything.
  *
  * The same shape, and the same reasoning, as `claimMentionsFor`.

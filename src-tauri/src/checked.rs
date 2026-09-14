@@ -13,11 +13,6 @@ use std::collections::BTreeMap;
 // JQL-escaped) — just a cap on how much a corrupt settings entry can push into
 // one query.
 const MAX_IGNORED_PROJECTS: usize = 200;
-// The same bound for the projects a saved search leaves out, and for the same
-// reason: every one of them widens the query, and the JQL goes out as a URL
-// parameter — a list long enough is a 414 the reader cannot trace back to a
-// settings screen.
-const MAX_EXCLUDED_PROJECTS: usize = 200;
 const MAX_IGNORED_STATUSES: usize = 100;
 const MAX_STATUS_NAME_CHARS: usize = 255;
 
@@ -35,6 +30,11 @@ const MAX_FIELD_NAME_CHARS: usize = 100;
 // for. Generous, because a term is somebody's sentence — Jira's own comment
 // bound is two orders larger again.
 const MAX_SEARCH_TERM_CHARS: usize = 500;
+
+// How long a saved search's JQL may be. It goes out as a URL parameter along
+// with the term, so the cap keeps a pasted wall of JQL from turning into a 414
+// nobody can trace back to settings.
+const MAX_SEARCH_JQL_CHARS: usize = 2_000;
 
 // Jira rejects a comment body over 32767 characters with an unhelpful error.
 // Refusing it here means the user is told what is wrong while their text is
@@ -132,31 +132,6 @@ pub fn comment_text(text: &str) -> Result<&str, String> {
     Ok(trimmed)
 }
 
-/// The projects one of the palette's searches leaves out.
-///
-/// Sanitised rather than validated, the way [`status_names`] is: these come
-/// from a settings screen whose checkboxes can only produce real keys, so
-/// anything else is a corrupt stored value rather than a user's mistake, and
-/// refusing the whole search over one bad entry helps nobody. A blank one
-/// would reach the JQL as `project NOT IN ("")`, which Jira rejects — so that
-/// search would fail on every run, permanently, with nothing to say why.
-pub fn excluded_projects(keys: Vec<String>) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
-    for key in keys {
-        let key = key.trim();
-        if project_key(key).is_err() {
-            continue;
-        }
-        if !out.iter().any(|kept| kept == key) {
-            out.push(key.to_string());
-        }
-        if out.len() >= MAX_EXCLUDED_PROJECTS {
-            break;
-        }
-    }
-    out
-}
-
 /// What one of the palette's searches is looking for.
 ///
 /// Blank comes back as `Ok("")` rather than an error: the palette calls on every
@@ -175,13 +150,20 @@ pub fn search_term(term: &str) -> Result<&str, String> {
     Ok(trimmed)
 }
 
-/// The field one of the user's own searches looks in.
-pub fn search_field(field: &str) -> Result<&str, String> {
-    let field = field.trim();
-    if field.is_empty() || field.chars().count() > MAX_FIELD_NAME_CHARS {
-        return Err("that search names no field to look in".into());
+/// The JQL one of the user's own searches runs. Written by the user, so its
+/// grammar is theirs to get right and Jira's to judge; this only bounds it.
+pub fn search_jql(jql: &str) -> Result<&str, String> {
+    let jql = jql.trim();
+    if jql.is_empty() {
+        return Err("that search has no JQL to run".into());
     }
-    Ok(field)
+    if jql.chars().count() > MAX_SEARCH_JQL_CHARS {
+        return Err(format!(
+            "that search's JQL is too long ({} characters; the most is {MAX_SEARCH_JQL_CHARS})",
+            jql.chars().count()
+        ));
+    }
+    Ok(jql)
 }
 
 /// What the comment box's mention picker asks for, or `None` when there is
@@ -338,10 +320,13 @@ mod tests {
     }
 
     #[test]
-    fn a_search_names_a_field_to_look_in() {
-        assert_eq!(search_field("  Summary "), Ok("Summary"));
-        assert!(search_field("   ").is_err());
-        assert!(search_field(&"x".repeat(MAX_FIELD_NAME_CHARS + 1)).is_err());
+    fn a_search_has_jql_to_run() {
+        assert_eq!(
+            search_jql("  summary ~ %SEARCHTERM% "),
+            Ok("summary ~ %SEARCHTERM%")
+        );
+        assert!(search_jql("   ").is_err());
+        assert!(search_jql(&"x".repeat(MAX_SEARCH_JQL_CHARS + 1)).is_err());
     }
 
     #[test]
@@ -363,36 +348,6 @@ mod tests {
         );
         assert!(link("ABC-1", "ABC-2", "Blocks", "sideways").is_err());
         assert!(link("ABC-1", "ABC-2", "  ", "inward").is_err());
-    }
-
-    #[test]
-    fn excluded_projects_are_sanitised_rather_than_refused() {
-        // The settings checkboxes can only produce real keys, so anything else
-        // is a corrupt stored value — and failing the whole search over one bad
-        // entry helps nobody.
-        assert_eq!(
-            excluded_projects(vec!["O2C".into(), "  DEV  ".into()]),
-            vec!["O2C".to_string(), "DEV".to_string()]
-        );
-        // A blank one would reach the JQL as `project NOT IN ("")`, which Jira
-        // rejects — so that search would fail on every run, permanently.
-        assert!(excluded_projects(vec!["".into(), "  ".into()]).is_empty());
-        assert!(excluded_projects(vec!["a".into()]).is_empty());
-        assert!(excluded_projects(vec!["has space".into()]).is_empty());
-    }
-
-    #[test]
-    fn excluded_projects_are_deduped_and_capped() {
-        assert_eq!(
-            excluded_projects(vec!["DEV".into(), "DEV".into(), "O2C".into()]),
-            vec!["DEV".to_string(), "O2C".to_string()]
-        );
-        // Every one of them widens the query, and the JQL goes out as a URL
-        // parameter.
-        let many: Vec<String> = (0..MAX_EXCLUDED_PROJECTS + 50)
-            .map(|i| format!("PR{i}"))
-            .collect();
-        assert_eq!(excluded_projects(many).len(), MAX_EXCLUDED_PROJECTS);
     }
 
     #[test]

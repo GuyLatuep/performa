@@ -164,30 +164,28 @@ async fn search_text(state: State<'_, AppState>, term: String) -> Result<SearchR
         .into())
 }
 
-/// One of the user's own searches: their field, their term, their exclusions.
+/// One of the user's own searches, written as JQL with a placeholder for the
+/// term.
 ///
-/// The definition lives in the webview because it is the user's to write; this
-/// side is handed it and turns it into JQL, which is still the only place JQL is
-/// built.
+/// The one command that runs JQL the webview supplies. That is safe to allow
+/// because the query is the signed-in user's own, run with their own account,
+/// against a read-only endpoint — nothing it can say reaches further than
+/// Jira's search already lets them. The term is the part that is not theirs to
+/// have written, so it is escaped into the query here.
 #[tauri::command]
-async fn search_field(
+async fn search_jql(
     state: State<'_, AppState>,
-    field: String,
+    jql: String,
     term: String,
-    exact: bool,
-    excluded_projects: Vec<String>,
 ) -> Result<SearchResults, String> {
     let term = checked::search_term(&term)?;
     if term.is_empty() {
         return Ok((Vec::new(), false).into());
     }
-    let field = checked::search_field(&field)?;
-    let excluded = checked::excluded_projects(excluded_projects);
+    let jql = jira::fill_search_template(checked::search_jql(&jql)?, term)?;
+    log::info!("saved search: jql = {jql}");
     let s = state.session().await?;
-    Ok(s.client
-        .field_search(field, term, exact, &excluded)
-        .await?
-        .into())
+    Ok(s.client.search_issues_rows(&jql).await?.into())
 }
 
 /// Issues assigned to the current user with a due date between 7 days ago and
@@ -712,7 +710,7 @@ pub fn run() {
             current_user,
             search_issues,
             search_text,
-            search_field,
+            search_jql,
             due_issues,
             todo_issues,
             jira_projects,

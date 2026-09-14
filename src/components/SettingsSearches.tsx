@@ -1,10 +1,11 @@
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { api, ProjectSummary } from "../api";
 import {
   addSavedSearch,
+  hasSearchTerm,
   removeSavedSearch,
   SavedSearch,
+  SEARCH_TERM_PLACEHOLDER,
   updateSavedSearch,
   useSavedSearches,
 } from "../savedSearches";
@@ -12,143 +13,108 @@ import {
 /**
  * The searches the user builds for themselves.
  *
- * Which fields are worth searching is a property of the Jira site, not of this
- * app, so none are shipped: a site with a plant number wants one search and a
- * site with a customer reference wants another. Each one written here shows up in
- * the command palette as "Search by <name>".
+ * What is worth searching is a property of the Jira site, not of this app, so
+ * none are shipped: a site with a plant number wants one search and a site with
+ * a customer reference wants another. Each one written here shows up in the
+ * command palette as "Search by <name>".
  *
- * Laid out as a table rather than a stack of forms. Each search is four small
- * decisions, and giving every one of them its own labelled block repeated the
- * same four words down the screen and pushed the second search out of sight. One
- * header row names the columns once; a search is then one line, and the blank
- * line at the bottom is how another is added.
+ * A search is a name and a JQL query with a placeholder where the typed term
+ * goes. JQL rather than a form of pickers because it says everything a search
+ * could want — which projects, which fields, which order — in the language the
+ * user already writes filters in on the site.
+ *
+ * Laid out as a table: one header row names the columns once, a search is then
+ * one line, and the blank line at the bottom is how another is added.
  */
 export default function SettingsSearches() {
   const searches = useSavedSearches();
-  // Reference data, held for the life of the process by `memo` in api.ts — so
-  // reopening this tab costs nothing.
-  const [fields, setFields] = useState<string[] | null>(null);
-  const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([api.jiraFieldNames(), api.jiraProjects()]).then(
-      ([f, p]) => {
-        if (!cancelled) {
-          setFields(f);
-          setProjects(p);
-        }
-      },
-      (err) => {
-        if (!cancelled) setError(String(err));
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   return (
     <div className="field-block">
       <span className="field-label">Searches in the command palette</span>
-      {error && <p className="error">{error}</p>}
 
       <div className="search-grid">
         <span className="field-label">Name</span>
-        <span className="field-label">Field</span>
-        <span className="field-label">Exclude projects</span>
-        <span className="field-label">Whole value</span>
+        <span className="field-label">JQL</span>
         <span />
 
         {searches.map((search) => (
-          <SearchRow
-            key={search.id}
-            search={search}
-            fields={fields}
-            projects={projects}
-          />
+          <SearchRow key={search.id} search={search} />
         ))}
 
-        <NewSearch fields={fields} projects={projects} />
+        <NewSearch />
       </div>
 
       <span className="hint">
         Each one becomes “Search by …” in the palette (⌘P); searching plain text
-        is always offered and needs no setting up. Leave{" "}
-        <strong>Whole value</strong> unticked to match anything starting with
-        what you type — DE_1979 then also finds DE_1979_03.
+        is always offered and needs no setting up. Write{" "}
+        <code>{SEARCH_TERM_PLACEHOLDER}</code> where the text you type goes — on
+        its own it is quoted for you, as in{" "}
+        <code>"Plant no." ~ {SEARCH_TERM_PLACEHOLDER}</code>; inside quotes it
+        leaves the rest of the string alone, so{" "}
+        <code>"{SEARCH_TERM_PLACEHOLDER}*"</code> matches anything starting with
+        it.
       </span>
     </div>
   );
 }
 
-/** One saved search, editable in place. Every change applies as it is made, the
- *  way the rest of this screen's settings do — except the name; see below. */
-function SearchRow({
-  search,
-  fields,
-  projects,
-}: {
-  search: SavedSearch;
-  fields: string[] | null;
-  projects: ProjectSummary[] | null;
-}) {
-  /**
-   * The name while it is being typed.
-   *
-   * The one control here that is not written through on every keystroke. A
-   * search with no name is dropped when the list is next read, so persisting
-   * mid-edit means select-all-and-retype — an ordinary way to rename something —
-   * leaves the app one quit away from losing the search. Held here instead and
-   * committed when the box is left.
-   *
-   * The label is deliberately built from the *stored* name rather than this one,
-   * so a screen reader is not re-announcing the field on every letter.
-   */
-  const [name, setName] = useState(search.name);
-  useEffect(() => setName(search.name), [search.name]);
-  const commitName = () => {
-    updateSavedSearch(search.id, { name });
-    // An empty box is refused by the store, so put back what it still holds
-    // rather than leaving the input disagreeing with the list.
-    setName((typed) => (typed.trim() === "" ? search.name : typed));
+/**
+ * A text box that holds its value until it is left.
+ *
+ * Neither control here writes through on every keystroke. A search with no name
+ * or no JQL is dropped when the list is next read, so persisting mid-edit means
+ * select-all-and-retype — an ordinary way to change something — leaves the app
+ * one quit away from losing the search. Held here instead and committed on blur
+ * or Enter.
+ */
+function useCommitted(
+  stored: string,
+  commit: (value: string) => void,
+): {
+  value: string;
+  onChange: (e: { target: { value: string } }) => void;
+  onBlur: () => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
+} {
+  const [value, setValue] = useState(stored);
+  useEffect(() => setValue(stored), [stored]);
+  return {
+    value,
+    onChange: (e) => setValue(e.target.value),
+    onBlur: () => {
+      commit(value);
+      // An empty box is refused by the store, so put back what it still holds
+      // rather than leaving the input disagreeing with the list.
+      setValue((typed) => (typed.trim() === "" ? stored : typed));
+    },
+    onKeyDown: (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.currentTarget.blur();
+      }
+    },
   };
+}
+
+/** One saved search, editable in place. The labels are built from the *stored*
+ *  name, so a screen reader is not re-announcing the field on every letter. */
+function SearchRow({ search }: { search: SavedSearch }) {
+  const name = useCommitted(search.name, (value) =>
+    updateSavedSearch(search.id, { name: value }),
+  );
+  const jql = useCommitted(search.jql, (value) =>
+    updateSavedSearch(search.id, { jql: value }),
+  );
 
   return (
     <>
       <input
         type="text"
         aria-label={`Name of the ${search.name} search`}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={commitName}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-        }}
+        {...name}
       />
-      <FieldPicker
-        label={`Field the ${search.name} search looks in`}
-        fields={fields}
-        value={search.field}
-        onChange={(field) => updateSavedSearch(search.id, { field })}
-      />
-      <ProjectPicker
-        label={`Projects the ${search.name} search leaves out`}
-        projects={projects}
-        excluded={search.excludedProjects}
-        onChange={(excludedProjects) =>
-          updateSavedSearch(search.id, { excludedProjects })
-        }
-      />
-      <input
-        type="checkbox"
-        aria-label={`Match the whole ${search.name} value`}
-        checked={search.exact}
-        onChange={(e) =>
-          updateSavedSearch(search.id, { exact: e.target.checked })
-        }
-      />
+      <JqlBox label={`JQL the ${search.name} search runs`} {...jql} />
       <button
         className="icon danger-icon"
         title={`Remove the ${search.name} search`}
@@ -162,27 +128,17 @@ function SearchRow({
 
 /** The blank line at the bottom. Kept apart from the saved ones so a
  *  half-written search is not in the palette while it is being written. */
-function NewSearch({
-  fields,
-  projects,
-}: {
-  fields: string[] | null;
-  projects: ProjectSummary[] | null;
-}) {
+function NewSearch() {
   const [name, setName] = useState("");
-  const [field, setField] = useState("");
-  const [exact, setExact] = useState(false);
-  const [excluded, setExcluded] = useState<string[]>([]);
+  const [jql, setJql] = useState("");
 
-  const ready = name.trim() !== "" && field !== "";
+  const ready = name.trim() !== "" && hasSearchTerm(jql);
 
   function add() {
     if (!ready) return;
-    addSavedSearch({ name, field, exact, excludedProjects: excluded });
+    addSavedSearch({ name, jql });
     setName("");
-    setField("");
-    setExact(false);
-    setExcluded([]);
+    setJql("");
   }
 
   return (
@@ -194,23 +150,19 @@ function NewSearch({
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
-      <FieldPicker
-        label="Field to search"
-        fields={fields}
-        value={field}
-        onChange={setField}
-      />
-      <ProjectPicker
-        label="Leave these projects out"
-        projects={projects}
-        excluded={excluded}
-        onChange={setExcluded}
-      />
-      <input
-        type="checkbox"
-        aria-label="Match the whole value"
-        checked={exact}
-        onChange={(e) => setExact(e.target.checked)}
+      <JqlBox
+        label="JQL to run"
+        placeholder={`project in (CTS, DEV) AND "Plant no." ~ ${SEARCH_TERM_PLACEHOLDER} ORDER BY created ASC`}
+        value={jql}
+        onChange={(e) => setJql(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add();
+          }
+        }}
+        // Blank is not yet a mistake here; only JQL that forgot the term is.
+        invalid={jql.trim() !== "" && !hasSearchTerm(jql)}
       />
       <button
         type="button"
@@ -224,93 +176,39 @@ function NewSearch({
   );
 }
 
-/** The site's fields, by name. The name is what is stored: it is what the user
- *  recognises, and the Rust side resolves it to an id before it builds any JQL,
- *  which is what keeps an exact spelling from mattering. */
-function FieldPicker({
-  label,
-  fields,
-  value,
-  onChange,
-}: {
-  label: string;
-  fields: string[] | null;
-  value: string;
-  onChange: (field: string) => void;
-}) {
-  return (
-    <select
-      aria-label={label}
-      value={value}
-      disabled={fields === null}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {/* Only while nothing is chosen. On a saved search it would be an option
-          to un-choose the field, which the store refuses — leaving the select
-          snapping back to a value the user had just cleared. */}
-      {value === "" && (
-        <option value="">
-          {fields === null ? "Loading fields…" : "Pick a field…"}
-        </option>
-      )}
-      {/* A field that has since been renamed or removed on the site would
-          otherwise vanish from its own search, silently. */}
-      {value !== "" && !fields?.includes(value) && (
-        <option value={value}>{value} (not on this site)</option>
-      )}
-      {fields?.map((name) => (
-        <option key={name} value={name}>
-          {name}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 /**
- * Which projects to leave out.
- *
- * Checkboxes in a box that scrolls, rather than a `select multiple`: choosing
- * several from one of those needs a held modifier, which is a thing people either
- * know or silently cannot do. The box is capped at about three rows, so a site
- * with twenty projects costs the same height as one with two — which is what this
- * setting being the tallest thing on the screen was about.
+ * The query box. Marked when the JQL has nowhere to put the term, since that
+ * search would find the same issues whatever is typed — the Rust side refuses to
+ * run it, and saying so here is sooner.
  */
-function ProjectPicker({
+function JqlBox({
   label,
-  projects,
-  excluded,
-  onChange,
+  value,
+  invalid = !hasSearchTerm(value),
+  ...rest
 }: {
   label: string;
-  projects: ProjectSummary[] | null;
-  excluded: string[];
-  onChange: (keys: string[]) => void;
+  value: string;
+  placeholder?: string;
+  invalid?: boolean;
+  onChange: (e: { target: { value: string } }) => void;
+  onBlur?: () => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }) {
-  if (projects === null) return <span className="muted">Loading…</span>;
   return (
-    <div className="project-exclude" role="group" aria-label={label}>
-      {projects.map((p) => (
-        // The name is cut to the column's width, so the whole of it lives on the
-        // tooltip — a cut name is enough to recognise, not always enough to be
-        // sure by.
-        <label className="checkbox" key={p.key} title={`${p.key} · ${p.name}`}>
-          <input
-            type="checkbox"
-            checked={excluded.includes(p.key)}
-            onChange={() =>
-              onChange(
-                excluded.includes(p.key)
-                  ? excluded.filter((k) => k !== p.key)
-                  : [...excluded, p.key],
-              )
-            }
-          />
-          <span>
-            {p.key} · {p.name}
-          </span>
-        </label>
-      ))}
-    </div>
+    <textarea
+      className="search-jql"
+      aria-label={label}
+      aria-invalid={invalid}
+      title={
+        invalid
+          ? `Needs ${SEARCH_TERM_PLACEHOLDER} where the term goes`
+          : undefined
+      }
+      rows={2}
+      spellCheck={false}
+      value={value}
+      {...rest}
+    />
   );
 }

@@ -160,7 +160,7 @@ const METHOD_NAMES = [
   "currentUser",
   "searchIssues",
   "searchText",
-  "searchField",
+  "searchJql",
   "dueIssues",
   "todoIssues",
   "jiraProjects",
@@ -210,7 +210,7 @@ function defaultAnswers(): Partial<Record<MethodName, unknown>> {
   return {
     searchIssues: [],
     searchText: [],
-    searchField: [],
+    searchJql: [],
     dueIssues: [],
     todoIssues: [],
     listWorklogs: [],

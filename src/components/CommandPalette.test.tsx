@@ -333,12 +333,7 @@ describe("the searches", () => {
 
   /** One of the user's own searches, as the Settings tab would have written it. */
   function saveOne(name = "Plant number") {
-    addSavedSearch({
-      name,
-      field: "Plant-No.",
-      exact: false,
-      excludedProjects: [],
-    });
+    addSavedSearch({ name, jql: '"Plant-No." ~ %SEARCHTERM%' });
   }
 
   async function pick(query: string) {

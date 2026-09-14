@@ -5,21 +5,31 @@ import {
   claimSearchesFor,
   clearSavedSearches,
   getSavedSearches,
+  hasSearchTerm,
   removeSavedSearch,
   updateSavedSearch,
 } from "./savedSearches";
 
 const PLANT = {
   name: "Plant number",
-  field: "Plant-No.",
-  exact: false,
-  excludedProjects: [] as string[],
+  jql: 'project in (CTS, DEV) AND "Plant-No." ~ %SEARCHTERM%',
 };
 
 beforeEach(() => {
   localStorage.clear();
   clearSavedSearches();
 });
+
+/** The store as a fresh launch would read it from `raw`. */
+async function loadedFrom(raw: unknown) {
+  localStorage.setItem("performa-saved-searches", JSON.stringify(raw));
+  // `vi.resetModules` rather than a query-string import: a computed import
+  // specifier makes Vite warn that it cannot analyse it, and the module
+  // registry is what actually needs clearing.
+  vi.resetModules();
+  const fresh = await import("./savedSearches");
+  return fresh.getSavedSearches();
+}
 
 describe("adding one", () => {
   it("keeps what it was given and hands back an id", () => {
@@ -30,16 +40,19 @@ describe("adding one", () => {
     expect(getSavedSearches()).toHaveLength(1);
   });
 
-  it("trims the name, which is what the palette draws", () => {
-    const added = addSavedSearch({ ...PLANT, name: "  Plant number  " });
+  it("trims the name and the JQL", () => {
+    const added = addSavedSearch({
+      name: "  Plant number  ",
+      jql: `  ${PLANT.jql}  `,
+    });
 
-    expect(added?.name).toBe("Plant number");
+    expect(added).toMatchObject(PLANT);
   });
 
   it.each([
     ["no name", { ...PLANT, name: "" }],
     ["a name of only space", { ...PLANT, name: "   " }],
-    ["no field to look in", { ...PLANT, field: "" }],
+    ["no JQL to run", { ...PLANT, jql: "  " }],
   ])("refuses one with %s", (_label, bad) => {
     // A search missing either would put an entry in the palette that cannot run.
     expect(addSavedSearch(bad)).toBeNull();
@@ -64,17 +77,32 @@ describe("adding one", () => {
   });
 });
 
+describe("the placeholder", () => {
+  it("is found whatever its case", () => {
+    expect(hasSearchTerm("summary ~ %searchterm%")).toBe(true);
+    expect(hasSearchTerm("summary ~ %SEARCHTERM%")).toBe(true);
+    expect(hasSearchTerm("project = DEV")).toBe(false);
+  });
+});
+
 describe("changing one", () => {
   it("patches only what it is given", () => {
     const added = addSavedSearch(PLANT)!;
 
-    updateSavedSearch(added.id, { exact: true });
+    updateSavedSearch(added.id, { jql: "summary ~ %SEARCHTERM%" });
 
     expect(getSavedSearches()[0]).toMatchObject({
       name: "Plant number",
-      field: "Plant-No.",
-      exact: true,
+      jql: "summary ~ %SEARCHTERM%",
     });
+  });
+
+  it("keeps the JQL it had when a patch would empty it", () => {
+    const added = addSavedSearch(PLANT)!;
+
+    updateSavedSearch(added.id, { jql: "" });
+
+    expect(getSavedSearches()[0].jql).toBe(PLANT.jql);
   });
 
   it("leaves the others alone", () => {
@@ -143,35 +171,98 @@ describe("what was stored last time", () => {
 
 describe("a half-written entry in storage", () => {
   it("is dropped rather than repaired", async () => {
-    // One missing its field would offer the palette an entry that cannot run.
-    localStorage.setItem(
-      "performa-saved-searches",
-      JSON.stringify([
-        {
-          id: "a",
-          name: "Good",
-          field: "Plant-No.",
-          exact: false,
-          excludedProjects: [],
-        },
-        { id: "b", name: "No field", exact: false, excludedProjects: [] },
-        { id: "c", field: "Plant-No.", exact: false, excludedProjects: [] },
-      ]),
-    );
-    // `vi.resetModules` rather than a query-string import: a computed import
-    // specifier makes Vite warn that it cannot analyse it, and the module
-    // registry is what actually needs clearing.
-    vi.resetModules();
-    const fresh = await import("./savedSearches");
+    // One missing its JQL would offer the palette an entry that cannot run.
+    const loaded = await loadedFrom([
+      { id: "a", name: "Good", jql: "summary ~ %SEARCHTERM%" },
+      { id: "b", name: "No JQL" },
+      { id: "c", name: "Blank JQL", jql: "  " },
+      { id: "d", jql: "summary ~ %SEARCHTERM%" },
+    ]);
 
-    expect(
-      fresh.getSavedSearches().map((s: { name: string }) => s.name),
-    ).toEqual(["Good"]);
+    expect(loaded.map((s) => s.name)).toEqual(["Good"]);
+  });
+});
+
+describe("a search written before searches were JQL", () => {
+  // Those named a field, a whole-value switch and projects to leave out. They
+  // are rewritten as the query the Rust side used to build from them, so nobody
+  // loses a search to the change.
+
+  it("becomes a wildcarded and a plain match on its field", async () => {
+    const [search] = await loadedFrom([
+      {
+        id: "a",
+        name: "Plant number",
+        field: "Plant-No.",
+        exact: false,
+        excludedProjects: [],
+      },
+    ]);
+
+    expect(search).toEqual({
+      id: "a",
+      name: "Plant number",
+      jql: '("Plant-No." ~ "%SEARCHTERM%*" OR "Plant-No." ~ %SEARCHTERM%) ORDER BY updated DESC',
+    });
+  });
+
+  it("matches the whole value when it did", async () => {
+    const [search] = await loadedFrom([
+      {
+        id: "a",
+        name: "Order",
+        field: "Order no.",
+        exact: true,
+        excludedProjects: [],
+      },
+    ]);
+
+    expect(search.jql).toBe('"Order no." = %SEARCHTERM% ORDER BY updated DESC');
+  });
+
+  it("keeps leaving its projects out", async () => {
+    const [search] = await loadedFrom([
+      {
+        id: "a",
+        name: "Plant number",
+        field: "Plant-No.",
+        exact: true,
+        excludedProjects: ["O2C", "DEV"],
+      },
+    ]);
+
+    expect(search.jql).toBe(
+      '"Plant-No." = %SEARCHTERM% AND project NOT IN ("O2C", "DEV") ORDER BY updated DESC',
+    );
+  });
+
+  it("quotes a field name that has quotes of its own", async () => {
+    const [search] = await loadedFrom([
+      {
+        id: "a",
+        name: "Odd",
+        field: 'Say "hi"',
+        exact: true,
+        excludedProjects: [],
+      },
+    ]);
+
+    expect(search.jql).toBe(
+      '"Say \\"hi\\"" = %SEARCHTERM% ORDER BY updated DESC',
+    );
+  });
+
+  it("is still dropped when it had no field", async () => {
+    const loaded = await loadedFrom([
+      { id: "a", name: "No field", exact: false, excludedProjects: [] },
+    ]);
+
+    expect(loaded).toEqual([]);
   });
 });
 
 describe("whose searches these are", () => {
-  // A search names a field by the name *that* site spells it with, so it means
+  // A search's JQL names fields the way *that* site spells them, so it means
   // nothing on another one. The same shape as `claimMentionsFor`.
 
   it("keeps them when the same account signs back in", () => {
@@ -184,9 +275,6 @@ describe("whose searches these are", () => {
   });
 
   it("drops them for a different account", () => {
-    // Otherwise the palette offers "Search by Plant number" on a site that has
-    // never heard of the field, and the search fails naming a field the reader
-    // did not choose.
     claimSearchesFor("site-a|me");
     addSavedSearch(PLANT);
 

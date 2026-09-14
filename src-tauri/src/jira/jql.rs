@@ -1,11 +1,16 @@
 //! Building the JQL the app sends, and the escaping that keeps user text out
 //! of the query's grammar.
 //!
-//! The webview never supplies raw JQL: it hands over a term, a key or a
-//! settings value, and every query is assembled here. Two escapers do that
-//! work — [`escape_jql`] for the JQL parser and [`escape_jql_text`] for the
-//! text index behind a `~` clause — and which one a clause needs is a property
-//! of the clause, so both live beside the builders that pick between them.
+//! The webview supplies raw JQL in exactly one place: a saved search, whose
+//! query the user wrote themselves in settings ([`fill_search_template`]). Even
+//! there the *term* typed into the palette never reaches the query unescaped —
+//! it is put in place of the placeholder here. Everywhere else the webview hands
+//! over a term, a key or a settings value, and the query is assembled here.
+//!
+//! Two escapers do that work — [`escape_jql`] for the JQL parser and
+//! [`escape_jql_text`] for the text index behind a `~` clause — and which one a
+//! clause needs is a property of the clause, so both live beside the builders
+//! that pick between them.
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -34,6 +39,109 @@ pub fn build_search_jql(query: &str) -> String {
 pub fn build_text_jql(term: &str) -> String {
     let esc = escape_jql_text(term.trim());
     format!("(summary ~ \"{esc}*\" OR text ~ \"{esc}\") ORDER BY updated DESC")
+}
+
+/// What a saved search's JQL writes where the palette's term goes.
+pub const SEARCH_TERM_PLACEHOLDER: &str = "%SEARCHTERM%";
+
+/// A saved search's JQL with the term put in place of every
+/// [`SEARCH_TERM_PLACEHOLDER`] (matched case-insensitively).
+///
+/// The query is the user's own, but the term is whatever was typed into the
+/// palette, so it goes in escaped — and how depends on where the placeholder sits:
+///
+/// - **Bare** (`"Plant no." ~ %SEARCHTERM%`): the term becomes a whole quoted
+///   string, so writing the placeholder needs no quoting knowledge at all.
+/// - **Inside a string** (`"Plant no." ~ "%SEARCHTERM%*"`): only the term's
+///   characters are escaped, for that string's quote, so the text around the
+///   placeholder — a wildcard, most usefully — stays what the user wrote.
+///
+/// And depending on the operator in front of it: after `~` or `!~` the term is
+/// escaped for the text index as well ([`escape_jql_text`]), since that is where
+/// the value goes next; anywhere else it is a literal ([`escape_jql`]), where a
+/// backslashed `-` would look for a value nobody has.
+///
+/// A query with no placeholder is refused rather than run: it would return the
+/// same issues whatever was typed, which reads as a search that ignores its term.
+pub fn fill_search_template(template: &str, term: &str) -> Result<String, String> {
+    let mut out = String::with_capacity(template.len() + term.len() * 2);
+    // The quote character and the byte offset of the string we are inside, if any.
+    let mut string: Option<(char, usize)> = None;
+    let mut filled = false;
+    let mut chars = template.char_indices().peekable();
+
+    while let Some((i, c)) = chars.next() {
+        let at_placeholder = template
+            .get(i..i + SEARCH_TERM_PLACEHOLDER.len())
+            .is_some_and(|s| s.eq_ignore_ascii_case(SEARCH_TERM_PLACEHOLDER));
+        if at_placeholder {
+            let clause_start = string.map_or(i, |(_, open)| open);
+            let text = template[..clause_start].trim_end().ends_with('~');
+            let escaped_for_index = if text {
+                lucene_escaped(term)
+            } else {
+                term.to_string()
+            };
+            match string {
+                Some((quote, _)) => out.push_str(&escaped_in(&escaped_for_index, quote)),
+                None => {
+                    out.push('"');
+                    out.push_str(&escaped_in(&escaped_for_index, '"'));
+                    out.push('"');
+                }
+            }
+            filled = true;
+            // Skip the rest of the placeholder; it is all ASCII, one char per byte.
+            for _ in 1..SEARCH_TERM_PLACEHOLDER.len() {
+                chars.next();
+            }
+            continue;
+        }
+
+        out.push(c);
+        match string {
+            Some(_) if c == '\\' => {
+                // An escaped character inside a string cannot close it.
+                if let Some((_, next)) = chars.next() {
+                    out.push(next);
+                }
+            }
+            Some((quote, _)) if c == quote => string = None,
+            None if c == '"' || c == '\'' => string = Some((c, i)),
+            _ => {}
+        }
+    }
+
+    if !filled {
+        return Err(format!(
+            "this search's JQL has no {SEARCH_TERM_PLACEHOLDER} to put the search term in"
+        ));
+    }
+    Ok(out)
+}
+
+/// `s` with Lucene's reserved characters backslashed, not yet safe for the parser.
+fn lucene_escaped(s: &str) -> String {
+    let mut escaped = String::with_capacity(s.len());
+    for c in s.chars() {
+        if LUCENE_RESERVED.contains(&c) {
+            escaped.push('\\');
+        }
+        escaped.push(c);
+    }
+    escaped
+}
+
+/// `s` made safe to sit inside a JQL string delimited by `quote`.
+fn escaped_in(s: &str, quote: char) -> String {
+    let mut escaped = String::with_capacity(s.len());
+    for c in s.chars() {
+        if c == '\\' || c == quote {
+            escaped.push('\\');
+        }
+        escaped.push(c);
+    }
+    escaped
 }
 
 /// The todo tab's JQL: everything the current user is expected to act on.
@@ -269,9 +377,9 @@ mod tests {
     }
 
     #[test]
-    fn text_search_is_not_a_field_search() {
-        // A field search names its field and is built in `issue.rs`, where the
-        // catalogue is; this builder is the one that searches everything.
+    fn text_search_looks_in_every_text_field() {
+        // A saved search names its own fields in its JQL; this builder is the
+        // one that searches everything.
         let jql = build_text_jql("pump");
         assert!(jql.contains("summary ~"), "{jql}");
         assert!(jql.contains("text ~"), "{jql}");
@@ -331,6 +439,80 @@ mod tests {
         // Every quote in the clause is either a delimiter or escaped; none is
         // left bare in the middle of a value.
         assert!(!jql.contains(r#"quo"te"#), "{jql}");
+    }
+
+    #[test]
+    fn a_bare_placeholder_becomes_a_quoted_term() {
+        let jql = fill_search_template(
+            r#"project in (CTS, DEV, SD) AND "Plant Number[Short text]" ~ %SEARCHTERM% Order by created ASC"#,
+            "DE_1979",
+        )
+        .expect("filled");
+        assert_eq!(
+            jql,
+            r#"project in (CTS, DEV, SD) AND "Plant Number[Short text]" ~ "DE_1979" Order by created ASC"#
+        );
+    }
+
+    #[test]
+    fn a_placeholder_inside_a_string_keeps_the_wildcard_around_it() {
+        let jql = fill_search_template(r#"summary ~ "%SEARCHTERM%*""#, "pump").expect("filled");
+        assert_eq!(jql, r#"summary ~ "pump*""#);
+    }
+
+    #[test]
+    fn the_placeholder_is_matched_whatever_its_case_and_however_often() {
+        let jql = fill_search_template(
+            r#"(cf[101] ~ "%searchterm%*" OR cf[101] ~ %SearchTerm%)"#,
+            "x",
+        )
+        .expect("filled");
+        assert_eq!(jql, r#"(cf[101] ~ "x*" OR cf[101] ~ "x")"#);
+    }
+
+    #[test]
+    fn a_term_cannot_close_the_string_it_is_put_in() {
+        // The property that matters, in every position a placeholder can take:
+        // nothing after the quote is read as JQL.
+        for template in [
+            "summary ~ %SEARCHTERM%",
+            r#"summary ~ "%SEARCHTERM%""#,
+            "key = %SEARCHTERM%",
+        ] {
+            let jql = fill_search_template(template, r#"a" OR project = X"#).expect("filled");
+            assert!(!jql.contains(r#"a" OR"#), "{template} → {jql}");
+        }
+        // A single-quoted string is closed by the other quote.
+        let jql =
+            fill_search_template("key = '%SEARCHTERM%'", "a' OR project = X").expect("filled");
+        assert_eq!(jql, r"key = 'a\' OR project = X'");
+    }
+
+    #[test]
+    fn only_a_text_clause_escapes_for_the_index() {
+        let text = fill_search_template("summary ~ %SEARCHTERM%", "O2C-1").expect("filled");
+        assert_eq!(text, r#"summary ~ "O2C\\-1""#);
+        let not_text = fill_search_template("summary !~ %SEARCHTERM%", "O2C-1").expect("filled");
+        assert_eq!(not_text, r#"summary !~ "O2C\\-1""#);
+        // `=` compares a literal: a backslashed `-` would look for a value
+        // nobody has.
+        let exact =
+            fill_search_template(r#""Plant no." = "%SEARCHTERM%""#, "O2C-1").expect("filled");
+        assert_eq!(exact, r#""Plant no." = "O2C-1""#);
+    }
+
+    #[test]
+    fn a_placeholder_text_in_the_query_itself_is_not_confused_by_escaped_quotes() {
+        // The escaped quote does not end the string, so the placeholder after it
+        // is still inside one and is not quoted a second time.
+        let jql = fill_search_template(r#"summary ~ "say \"%SEARCHTERM%""#, "hi").expect("filled");
+        assert_eq!(jql, r#"summary ~ "say \"hi""#);
+    }
+
+    #[test]
+    fn a_query_without_the_placeholder_is_refused() {
+        let err = fill_search_template("project = DEV", "pump").unwrap_err();
+        assert!(err.contains(SEARCH_TERM_PLACEHOLDER), "{err}");
     }
 
     #[test]
