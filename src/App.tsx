@@ -13,7 +13,6 @@ import { clearForward, useBackGestures } from "./back";
 import { HANDBOOK_URL, openExternal } from "./external";
 import { useSelectionKeys } from "./selection";
 import { clearIssueRequest, useRequestedIssue } from "./issueRequest";
-import { claimSearchesFor } from "./savedSearches";
 import IssueView from "./components/IssueView";
 import SearchResults from "./components/SearchResults";
 import { clearSearchRequest, useRequestedSearch } from "./searchRequest";
@@ -26,33 +25,18 @@ import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
 import TimerBar from "./components/TimerBar";
 import MissingWorklogs from "./components/MissingWorklogs";
-import { playCheer, playFanfare } from "./fun";
-import {
-  getAchievementState,
-  isMilestoneLog,
-  recordEvent,
-} from "./achievements";
-import { onWorklogFiled } from "./worklogEvents";
+import { useAccountWatchers } from "./accountWatchers";
+import { useCelebration } from "./celebration";
 import AchievementToast from "./components/AchievementToast";
-import { useFunMode, useTimesheetView } from "./settings";
+import { useTimesheetView } from "./settings";
 import About from "./components/About";
 import Confetti from "./components/Confetti";
 import Mentions from "./components/Mentions";
 import UpdateNotice from "./components/UpdateNotice";
 import WhatsNew from "./components/WhatsNew";
 import Blockmark from "./components/Blockmark";
-import {
-  refreshMissing,
-  startMissingPolling,
-  stopMissingPolling,
-  useMissing,
-  useMissingUnseenCount,
-} from "./missing";
-import {
-  startMentionsPolling,
-  stopMentionsPolling,
-  useMentionsUnreadCount,
-} from "./mentions";
+import { refreshMissing, useMissing, useMissingUnseenCount } from "./missing";
+import { useMentionsUnreadCount } from "./mentions";
 import "./App.css";
 
 type Tab = "start" | "todo" | "log" | "timesheet" | "missing" | "mentions";
@@ -90,11 +74,6 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   // Issue picked on the start tab, opened directly in the log-work form.
   const [logIssue, setLogIssue] = useState<IssueSummary | null>(null);
-  /** Bumped to fire a burst of confetti, with the size it should be. */
-  const [confetti, setConfetti] = useState(0);
-  const [confettiPieces, setConfettiPieces] = useState(0);
-  /** Titles earned but not yet shown. */
-  const [awards, setAwards] = useState<string[]>([]);
   // Counts entries into the log tab. Used as LogWork's key so every visit
   // remounts it: the component keeps the picked issue in its own state, which
   // a changed `initialIssue` alone would not clear — least of all when it
@@ -116,20 +95,14 @@ export default function App() {
   const missingItems = useMissing();
   const missingUnseen = useMissingUnseenCount();
   const mentionsUnread = useMentionsUnreadCount();
-  const funMode = useFunMode();
+  const { confetti, confettiPieces, awards } = useCelebration();
   // Read here rather than inside the tab: which view the timesheet is on
   // decides how wide the content column may run, and the cap lives on it.
   const timesheetView = useTimesheetView();
   const mentionsArrived = useArrival(mentionsUnread);
   const missingArrived = useArrival(missingUnseen);
 
-  // The badge on the app icon, which is the only indication that survives the
-  // window being behind something else. Both inboxes feed it: it counts what
-  // is waiting, not which tab it is waiting in.
-  const waiting = mentionsUnread + missingUnseen;
-  useEffect(() => {
-    api.setBadge(waiting > 0 ? waiting : null);
-  }, [waiting]);
+  useAccountWatchers(creds);
 
   async function refreshStatus() {
     try {
@@ -147,32 +120,7 @@ export default function App() {
     refreshStatus();
   }, []);
 
-  // Watch for unlogged activity in the background while signed in.
   const signedIn = !!creds;
-  useEffect(() => {
-    if (!signedIn) return;
-    startMissingPolling();
-    return stopMissingPolling;
-  }, [signedIn]);
-
-  // Same for @-mentions — the tab badge has to be right before it is opened.
-  // Keyed on the account rather than on `signedIn`: read and notified state
-  // belongs to whoever's inbox it was collected from.
-  const mentionsAccount = creds ? `${creds.site}|${creds.email}` : null;
-  useEffect(() => {
-    if (!mentionsAccount) return;
-    startMentionsPolling(mentionsAccount);
-    return stopMentionsPolling;
-  }, [mentionsAccount]);
-
-  // A saved search names a field by the name *this* site spells it with, so the
-  // set belongs to the account rather than to the machine: on another Jira the
-  // palette would otherwise offer searches for fields that site has never heard
-  // of. Claimed beside the mentions inbox, which belongs to an account for the
-  // same kind of reason.
-  useEffect(() => {
-    if (mentionsAccount) claimSearchesFor(mentionsAccount);
-  }, [mentionsAccount]);
 
   // A single choke point for "which view is the user in" — covers every way
   // a tab can change (nav click, start-tab shortcuts) without instrumenting
@@ -230,27 +178,6 @@ export default function App() {
     missing: useShortcut("tabMissing", () => showTab("missing")),
     mentions: useShortcut("tabMentions", () => showTab("mentions")),
   };
-
-  // The celebrating, kept apart from the refreshing: this one needs to know
-  // what was logged, which `api.logWork` announces.
-  useEffect(
-    () =>
-      onWorklogFiled((worklog) => {
-        if (!funMode) return;
-        const earned = recordEvent({
-          kind: "logged",
-          date: worklog.date,
-          time: worklog.time,
-        });
-        // Rarer and louder every tenth time, counted after this one landed.
-        if (isMilestoneLog(getAchievementState().loggedCount)) playFanfare();
-        else playCheer();
-        setConfettiPieces(confettiFor(worklog.timeSpentSeconds));
-        setConfetti((c) => c + 1);
-        if (earned.length > 0) setAwards(earned);
-      }),
-    [funMode],
-  );
 
   if (!loaded) {
     return <div className="loading">Loading…</div>;
@@ -541,16 +468,3 @@ function useArrival(count: number): boolean {
  *  catch the eye on the way back to the window, short enough that it is over
  *  before it becomes the blinking tab again. */
 const ARRIVAL_MS = 6000;
-
-/**
- * How much confetti a worklog is worth.
- *
- * A quarter of an hour gets a handful and a full day gets the cannon, on a
- * curve rather than a straight line — the difference between fifteen minutes
- * and an hour should be visible, and the difference between seven hours and
- * eight need not be.
- */
-function confettiFor(seconds: number): number {
-  const hours = Math.max(0, seconds) / 3600;
-  return Math.round(20 + 130 * Math.min(1, Math.sqrt(hours / 8)));
-}
