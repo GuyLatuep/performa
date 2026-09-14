@@ -1,4 +1,4 @@
-import { createStore } from "./store";
+import { persisted } from "./persist";
 
 // One-off announcements: shown the first time a user reaches the app after an
 // update introduced something they have to know about, then never again.
@@ -16,17 +16,9 @@ export const TODO_FILTER_NOTICE = "todo-filter-2026-08";
 export const ISSUE_VIEW_NOTICE = "issue-view-2026-08";
 export const KEYBOARD_NOTICE = "keyboard-2026-09";
 
-function readSeen(): string[] {
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(SEEN_KEY) ?? "[]");
-    if (!Array.isArray(raw)) return [];
-    return raw.filter((s): s is string => typeof s === "string");
-  } catch {
-    return [];
-  }
-}
-
-const store = createStore<string[]>(readSeen());
+const store = persisted<string[]>(SEEN_KEY, (stored) =>
+  Array.isArray(stored) ? stored.filter((s) => typeof s === "string") : [],
+);
 
 /** Whether the notice is still owed to this user. */
 export function useNoticePending(id: string): boolean {
@@ -36,8 +28,5 @@ export function useNoticePending(id: string): boolean {
 export function dismissNotice(id: string): void {
   const seen = store.get();
   if (seen.includes(id)) return;
-  // A fresh array — the store compares with Object.is.
-  const next = [...seen, id];
-  localStorage.setItem(SEEN_KEY, JSON.stringify(next));
-  store.set(next);
+  store.save([...seen, id]);
 }

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { api } from "./api";
+import { readStored } from "./persist";
 import { createStore } from "./store";
 
 // Jira's issue-type icons, resolved to data URLs and kept by their Jira URL.
@@ -23,19 +24,17 @@ const LIMIT = 30;
 type IconCache = Record<string, string>;
 
 function read(): IconCache {
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(KEY) ?? "{}");
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-    return Object.fromEntries(
-      Object.entries(raw as Record<string, unknown>).filter(
-        (entry): entry is [string, string] => typeof entry[1] === "string",
-      ),
-    );
-  } catch {
-    return {};
-  }
+  const stored = readStored(KEY);
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+  return Object.fromEntries(
+    Object.entries(stored as Record<string, unknown>).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
 }
 
+// Not a `persisted` store: this one's write is allowed to fail (see below),
+// which is the opposite of the write-through every other store wants.
 const store = createStore<IconCache>(read());
 
 function remember(url: string, dataUrl: string): void {

@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { LOG_LEVELS, LogLevel } from "./log";
-import { createStore } from "./store";
+import { persistedText } from "./persist";
 
 // Local app settings (nothing secret — credentials live in the OS keychain).
 // Daily work hours and the weekend toggle power the timesheet charts.
@@ -17,24 +17,24 @@ const DEFAULT_LOG_LEVEL: LogLevel = "error";
 /** Working days per week used for the weekly target. */
 export const WORKDAYS_PER_WEEK = 5;
 
-function readHours(): number {
-  const raw = localStorage.getItem(HOURS_KEY);
+const hoursStore = persistedText<number>(HOURS_KEY, (raw) => {
   const n = raw === null ? NaN : parseFloat(raw);
   return Number.isFinite(n) && n > 0 && n <= 24 ? n : DEFAULT_DAILY_HOURS;
-}
-
-const hoursStore = createStore<number>(readHours());
-const weekendsStore = createStore<boolean>(
-  localStorage.getItem(WEEKENDS_KEY) === "true",
+});
+const weekendsStore = persistedText<boolean>(
+  WEEKENDS_KEY,
+  (raw) => raw === "true",
 );
-const funModeStore = createStore<boolean>(
-  localStorage.getItem(FUN_MODE_KEY) === "true",
+const funModeStore = persistedText<boolean>(
+  FUN_MODE_KEY,
+  (raw) => raw === "true",
 );
 // On unless it has been turned off — the icons are the default look of a list,
 // and anyone who has never opened the setting should see them. That is why this
 // one reads for "false" rather than for "true" like the toggles above.
-const typeIconsStore = createStore<boolean>(
-  localStorage.getItem(TYPE_ICONS_KEY) !== "false",
+const typeIconsStore = persistedText<boolean>(
+  TYPE_ICONS_KEY,
+  (raw) => raw !== "false",
 );
 
 export function getDailyHours(): number {
@@ -43,8 +43,7 @@ export function getDailyHours(): number {
 
 export function setDailyHours(hours: number): void {
   if (!Number.isFinite(hours) || hours <= 0 || hours > 24) return;
-  localStorage.setItem(HOURS_KEY, String(hours));
-  hoursStore.set(hours);
+  hoursStore.save(hours);
 }
 
 export function useDailyHours(): number {
@@ -56,22 +55,18 @@ export function getShowWeekends(): boolean {
 }
 
 export function setShowWeekends(value: boolean): void {
-  localStorage.setItem(WEEKENDS_KEY, String(value));
-  weekendsStore.set(value);
+  weekendsStore.save(value);
 }
 
 export function useShowWeekends(): boolean {
   return weekendsStore.use();
 }
 
-function readLogLevel(): LogLevel {
-  const raw = localStorage.getItem(LOG_LEVEL_KEY);
-  return (LOG_LEVELS as readonly string[]).includes(raw ?? "")
+const logLevelStore = persistedText<LogLevel>(LOG_LEVEL_KEY, (raw) =>
+  (LOG_LEVELS as readonly string[]).includes(raw ?? "")
     ? (raw as LogLevel)
-    : DEFAULT_LOG_LEVEL;
-}
-
-const logLevelStore = createStore<LogLevel>(readLogLevel());
+    : DEFAULT_LOG_LEVEL,
+);
 
 // Rust owns the actual log file and filtering, so every level change (and
 // the persisted choice at each launch) has to be mirrored over to it.
@@ -85,8 +80,7 @@ export function getLogLevel(): LogLevel {
 }
 
 export function setLogLevel(level: LogLevel): void {
-  localStorage.setItem(LOG_LEVEL_KEY, level);
-  logLevelStore.set(level);
+  logLevelStore.save(level);
   syncLogLevel(level);
 }
 
@@ -99,8 +93,7 @@ export function getFunMode(): boolean {
 }
 
 export function setFunMode(on: boolean): void {
-  localStorage.setItem(FUN_MODE_KEY, String(on));
-  funModeStore.set(on);
+  funModeStore.save(on);
 }
 
 export function useFunMode(): boolean {
@@ -112,8 +105,7 @@ export function getShowIssueTypeIcons(): boolean {
 }
 
 export function setShowIssueTypeIcons(on: boolean): void {
-  localStorage.setItem(TYPE_ICONS_KEY, String(on));
-  typeIconsStore.set(on);
+  typeIconsStore.save(on);
 }
 
 export function useShowIssueTypeIcons(): boolean {
@@ -128,8 +120,9 @@ export function useShowIssueTypeIcons(): boolean {
  *  and the week is the view that reads on any of them. */
 export type TimesheetView = "week" | "month";
 
-const timesheetViewStore = createStore<TimesheetView>(
-  localStorage.getItem(TIMESHEET_VIEW_KEY) === "month" ? "month" : "week",
+const timesheetViewStore = persistedText<TimesheetView>(
+  TIMESHEET_VIEW_KEY,
+  (raw) => (raw === "month" ? "month" : "week"),
 );
 
 export function getTimesheetView(): TimesheetView {
@@ -137,8 +130,7 @@ export function getTimesheetView(): TimesheetView {
 }
 
 export function setTimesheetView(view: TimesheetView): void {
-  localStorage.setItem(TIMESHEET_VIEW_KEY, view);
-  timesheetViewStore.set(view);
+  timesheetViewStore.save(view);
 }
 
 export function useTimesheetView(): TimesheetView {

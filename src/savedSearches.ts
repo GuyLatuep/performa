@@ -1,4 +1,4 @@
-import { createStore } from "./store";
+import { claimStoredFor, persisted } from "./persist";
 
 /**
  * Searches the user has built for themselves.
@@ -34,35 +34,24 @@ const KEY = "performa-saved-searches";
 /** Which account these were written for — see [`claimSearchesFor`]. */
 const OWNER_KEY = "performa-saved-searches-owner";
 
-function read(): SavedSearch[] {
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(KEY) ?? "[]");
-    if (!Array.isArray(raw)) return [];
-    // Anything half-written is dropped rather than repaired: a search missing
-    // its field would offer the palette an entry that cannot run.
-    return raw.filter(
-      (s): s is SavedSearch =>
-        !!s &&
-        typeof s.id === "string" &&
-        typeof s.name === "string" &&
-        s.name.trim() !== "" &&
-        typeof s.field === "string" &&
-        s.field.trim() !== "" &&
-        typeof s.exact === "boolean" &&
-        Array.isArray(s.excludedProjects) &&
-        s.excludedProjects.every((p: unknown) => typeof p === "string"),
-    );
-  } catch {
-    return [];
-  }
-}
-
-const store = createStore<SavedSearch[]>(read());
-
-function save(next: SavedSearch[]): void {
-  localStorage.setItem(KEY, JSON.stringify(next));
-  store.set(next);
-}
+const store = persisted<SavedSearch[]>(KEY, (stored) =>
+  // Anything half-written is dropped rather than repaired: a search missing
+  // its field would offer the palette an entry that cannot run.
+  Array.isArray(stored)
+    ? stored.filter(
+        (s): s is SavedSearch =>
+          !!s &&
+          typeof s.id === "string" &&
+          typeof s.name === "string" &&
+          s.name.trim() !== "" &&
+          typeof s.field === "string" &&
+          s.field.trim() !== "" &&
+          typeof s.exact === "boolean" &&
+          Array.isArray(s.excludedProjects) &&
+          s.excludedProjects.every((p: unknown) => typeof p === "string"),
+      )
+    : [],
+);
 
 export function getSavedSearches(): SavedSearch[] {
   return store.get();
@@ -117,12 +106,12 @@ export function addSavedSearch(
   const clean = sanitise(search);
   if (!clean) return null;
   const added: SavedSearch = { ...clean, id: freshId() };
-  save([...store.get(), added]);
+  store.save([...store.get(), added]);
   return added;
 }
 
 export function removeSavedSearch(id: string): void {
-  save(store.get().filter((s) => s.id !== id));
+  store.save(store.get().filter((s) => s.id !== id));
 }
 
 /**
@@ -138,7 +127,7 @@ export function updateSavedSearch(
   id: string,
   patch: Partial<Omit<SavedSearch, "id">>,
 ): void {
-  save(
+  store.save(
     store.get().map((s) => {
       if (s.id !== id) return s;
       const clean = sanitise({ ...s, ...patch });
@@ -160,13 +149,10 @@ export function updateSavedSearch(
  * The same shape, and the same reasoning, as `claimMentionsFor`.
  */
 export function claimSearchesFor(account: string): void {
-  if (localStorage.getItem(OWNER_KEY) === account) return;
-  localStorage.removeItem(KEY);
-  localStorage.setItem(OWNER_KEY, account);
-  store.set([]);
+  if (claimStoredFor(OWNER_KEY, account, [KEY])) store.set([]);
 }
 
 /** Forget them all. For tests, whose localStorage outlives one of them. */
 export function clearSavedSearches(): void {
-  save([]);
+  store.save([]);
 }

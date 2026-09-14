@@ -1,4 +1,4 @@
-import { createStore } from "./store";
+import { persisted } from "./persist";
 
 // One-off awards for things worth noticing. Modelled on ./notices: a set of
 // ids, each earned once and never again — which is what separates an
@@ -149,27 +149,20 @@ export function isMilestoneLog(loggedCount: number): boolean {
 
 // ----- Persistence -----
 
-function read(): AchievementState {
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(KEY) ?? "null");
-    if (!raw || typeof raw !== "object" || Array.isArray(raw))
-      return EMPTY_STATE;
-    const c = raw as Partial<AchievementState>;
-    return {
-      earned: Array.isArray(c.earned)
-        ? c.earned.filter((id): id is string => typeof id === "string")
-        : [],
-      lastLoggedDate:
-        typeof c.lastLoggedDate === "string" ? c.lastLoggedDate : "",
-      streak: typeof c.streak === "number" ? c.streak : 0,
-      loggedCount: typeof c.loggedCount === "number" ? c.loggedCount : 0,
-    };
-  } catch {
+const store = persisted<AchievementState>(KEY, (stored) => {
+  if (!stored || typeof stored !== "object" || Array.isArray(stored))
     return EMPTY_STATE;
-  }
-}
-
-const store = createStore<AchievementState>(read());
+  const c = stored as Partial<AchievementState>;
+  return {
+    earned: Array.isArray(c.earned)
+      ? c.earned.filter((id): id is string => typeof id === "string")
+      : [],
+    lastLoggedDate:
+      typeof c.lastLoggedDate === "string" ? c.lastLoggedDate : "",
+    streak: typeof c.streak === "number" ? c.streak : 0,
+    loggedCount: typeof c.loggedCount === "number" ? c.loggedCount : 0,
+  };
+});
 
 export function getAchievementState(): AchievementState {
   return store.get();
@@ -182,7 +175,6 @@ export function getAchievementState(): AchievementState {
  */
 export function recordEvent(event: AchievementEvent): string[] {
   const { state, earned } = award(store.get(), event);
-  localStorage.setItem(KEY, JSON.stringify(state));
-  store.set(state);
+  store.save(state);
   return earned.map((id) => ACHIEVEMENTS[id]);
 }
