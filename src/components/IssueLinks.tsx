@@ -1,10 +1,12 @@
 import { ExternalLink, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openExternal } from "../external";
 import { api, IssueSummary, LinkedItem, LinkRelation } from "../api";
 import { useDismissOnOutside } from "../dismiss";
 import { logInfo } from "../log";
 import { useShortcut } from "../shortcuts";
+import { typeaheadKey, useTypeahead } from "../typeahead";
+import OptionList from "./OptionList";
 
 /** The work items this issue is linked to, and a way to link another one.
  *
@@ -250,40 +252,24 @@ function IssuePicker({
   exclude: string;
 }) {
   const [query, setQuery] = useState("");
-  const [matches, setMatches] = useState<IssueSummary[]>([]);
-  const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
   useDismissOnOutside(box, () => setOpen(false), open);
 
-  // Debounced like the mention and user pickers: a search per keystroke is a
-  // Jira request per keystroke.
-  useEffect(() => {
-    if (!open || query.trim() === "") {
-      setMatches([]);
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      api.searchIssues(query).then(
-        (found) => {
-          if (cancelled) return;
-          setMatches(
-            found.filter((i) => i.key.toUpperCase() !== exclude.toUpperCase()),
-          );
-          setActive(0);
-        },
-        // A failed search leaves the list empty rather than the form broken —
-        // the banner above already carries anything worth saying.
-        () => !cancelled && setMatches([]),
-      );
-    }, 250);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [query, open, exclude]);
+  const search = useCallback(
+    (text: string) =>
+      api
+        .searchIssues(text)
+        .then((found) =>
+          found.filter((i) => i.key.toUpperCase() !== exclude.toUpperCase()),
+        ),
+    [exclude],
+  );
+  const issues = useTypeahead(
+    open && query.trim() !== "" ? query : null,
+    search,
+  );
 
   function choose(issue: IssueSummary) {
     onChoose(issue);
@@ -292,20 +278,9 @@ function IssuePicker({
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (!open || matches.length === 0) return;
-    if (e.key === "ArrowDown") {
+    if (!open) return;
+    if (typeaheadKey(e.key, { ...issues, choose, close: () => setOpen(false) }))
       e.preventDefault();
-      setActive((i) => (i + 1) % matches.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActive((i) => (i - 1 + matches.length) % matches.length);
-    } else if (e.key === "Enter" || e.key === "Tab") {
-      e.preventDefault();
-      choose(matches[active] ?? matches[0]);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      setOpen(false);
-    }
   }
 
   // Once an issue is picked the box shows it instead of a query, for the
@@ -343,26 +318,17 @@ function IssuePicker({
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
       />
-      {open && matches.length > 0 && (
-        <ul className="mention-picker" role="listbox">
-          {matches.map((issue, i) => (
-            <li key={issue.key}>
-              <button
-                role="option"
-                aria-selected={i === active}
-                className={`mention-option${i === active ? " active" : ""}`}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  choose(issue);
-                }}
-                onMouseEnter={() => setActive(i)}
-              >
-                <span className="mention-name">{issue.key}</span>
-                <span className="mention-sub">{issue.summary}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+      {open && issues.matches.length > 0 && (
+        <OptionList
+          options={issues.matches.map((issue) => ({
+            key: issue.key,
+            name: issue.key,
+            sub: issue.summary,
+          }))}
+          active={issues.active}
+          onHover={issues.setActive}
+          onChoose={(i) => choose(issues.matches[i])}
+        />
       )}
     </div>
   );
