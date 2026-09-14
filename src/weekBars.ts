@@ -1,6 +1,6 @@
 import { WorklogEntry } from "./api";
 import { WORKDAYS_PER_WEEK } from "./settings";
-import { toDateInput } from "./time";
+import { atMidnight, toDateInput } from "./time";
 
 // The arithmetic behind the week chart: seven days bucketed from a week's
 // worklogs, scaled against the daily target, and summed into the progress
@@ -34,30 +34,25 @@ export interface WeekBars {
   pct: number;
 }
 
-/**
- * Bucket one week's worklogs into per-day columns.
- *
- * `start` is the week's Monday (yyyy-MM-dd), parsed as *local* midnight — a
- * bare date string would be read as UTC and shift the whole week west of
- * Greenwich.
- */
+/** Bucket one week's worklogs into per-day columns. `start` is the week's
+ *  Monday (yyyy-MM-dd). */
 export function weekBars(
   start: string,
   entries: WorklogEntry[],
   { dayTarget, showWeekends }: { dayTarget: number; showWeekends: boolean },
 ): WeekBars {
-  const startDate = new Date(start + "T00:00:00");
-  const allDays: DayBar[] = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(startDate);
-    d.setDate(startDate.getDate() + i);
+  const monday = atMidnight(start);
+  const allDays: DayBar[] = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(monday);
+    day.setDate(monday.getDate() + index);
     return {
-      date: toDateInput(d),
-      label: d.toLocaleDateString(undefined, { weekday: "short" }),
+      date: toDateInput(day),
+      label: day.toLocaleDateString(undefined, { weekday: "short" }),
       seconds: 0,
     };
   });
 
-  const byDate = new Map(allDays.map((d) => [d.date, d]));
+  const byDate = new Map(allDays.map((day) => [day.date, day]));
   for (const entry of entries) {
     const day = byDate.get(entry.date);
     if (day) day.seconds += entry.timeSpentSeconds;
@@ -66,17 +61,18 @@ export function weekBars(
   // Weekends are hidden by default, but a weekend day with logged time is
   // always shown so no bar silently disappears.
   const days = allDays.filter(
-    (d, i) => i < WORKDAYS_PER_WEEK || showWeekends || d.seconds > 0,
+    (day, index) =>
+      index < WORKDAYS_PER_WEEK || showWeekends || day.seconds > 0,
   );
 
   const weekTarget = dayTarget * WORKDAYS_PER_WEEK;
-  const total = allDays.reduce((sum, d) => sum + d.seconds, 0);
+  const total = allDays.reduce((sum, day) => sum + day.seconds, 0);
 
   return {
     days,
     // The 1 is a floor, not a fallback: with no target and no time logged,
     // every height divides by this.
-    scaleMax: Math.max(dayTarget, ...days.map((d) => d.seconds), 1),
+    scaleMax: Math.max(dayTarget, ...days.map((day) => day.seconds), 1),
     total,
     pct: weekTarget > 0 ? total / weekTarget : 0,
   };

@@ -1,36 +1,26 @@
+/** Seconds in each unit a Jira-style duration can name. */
+const UNIT_SECONDS: Record<string, number> = {
+  w: 5 * 8 * 3600, // Jira default working week
+  d: 8 * 3600, // Jira default working day
+  h: 3600,
+  m: 60,
+};
+
 /** Parse a Jira-style duration ("1h 30m", "45m", "2h", "1.5h") into seconds.
  *  Decimal commas ("0,25h") are accepted as well.
  *  Returns null if nothing parseable is found. */
 export function parseDuration(input: string): number | null {
   const text = input.trim().toLowerCase().replace(/,/g, ".");
-  if (!text) return null;
-
-  let seconds = 0;
-  let matched = false;
-  const re = /(\d+(?:\.\d+)?)\s*([wdhm])/g;
-  const unit: Record<string, number> = {
-    w: 5 * 8 * 3600, // Jira default working week
-    d: 8 * 3600, // Jira default working day
-    h: 3600,
-    m: 60,
-  };
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    matched = true;
-    seconds += parseFloat(m[1]) * unit[m[2]];
-  }
-
-  // Bare number ⇒ interpret as hours.
-  if (!matched) {
-    const n = parseFloat(text);
-    if (!Number.isNaN(n)) {
-      seconds = n * 3600;
-      matched = true;
-    }
-  }
-
-  if (!matched || seconds <= 0) return null;
-  return Math.round(seconds);
+  const parts = [...text.matchAll(/(\d+(?:\.\d+)?)\s*([wdhm])/g)];
+  const seconds = parts.length
+    ? parts.reduce(
+        (sum, [, amount, unit]) =>
+          sum + parseFloat(amount) * UNIT_SECONDS[unit],
+        0,
+      )
+    : // Bare number ⇒ interpret as hours.
+      parseFloat(text) * 3600;
+  return seconds > 0 ? Math.round(seconds) : null;
 }
 
 /** Format seconds as a compact "1h 30m" string. */
@@ -39,20 +29,20 @@ export function formatDuration(seconds: number): string {
   // Round to whole minutes first, then split — rounding the remainder
   // independently would turn 3,590s into "60m" instead of "1h".
   const totalMinutes = Math.round(seconds / 60);
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
   const parts: string[] = [];
-  if (h) parts.push(`${h}h`);
-  if (m) parts.push(`${m}m`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
   return parts.join(" ") || "0m";
 }
 
 /** Local date as yyyy-MM-dd. */
-export function toDateInput(d: Date): string {
-  const y = d.getFullYear();
-  const mo = String(d.getMonth() + 1).padStart(2, "0");
-  const da = String(d.getDate()).padStart(2, "0");
-  return `${y}-${mo}-${da}`;
+export function toDateInput(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function today(): string {
@@ -60,37 +50,38 @@ export function today(): string {
 }
 
 /** Local time-of-day as HH:mm. */
-export function toTimeInput(d: Date): string {
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
+export function toTimeInput(date: Date): string {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
 }
 
 export function nowTime(): string {
   return toTimeInput(new Date());
 }
 
-/** yyyy-MM-dd for the Monday of the week containing `d`. */
-export function startOfWeek(d: Date): string {
-  const copy = new Date(d);
-  const day = (copy.getDay() + 6) % 7; // Monday = 0
-  copy.setDate(copy.getDate() - day);
-  return toDateInput(copy);
+/** yyyy-MM-dd for the Monday of the week containing `date`. */
+export function startOfWeek(date: Date): string {
+  const monday = new Date(date);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); // Monday = 0
+  return toDateInput(monday);
+}
+
+/** The local Date at midnight of a yyyy-MM-dd. The `T00:00:00` is what makes
+ *  it local: a bare "yyyy-MM-dd" is read as UTC and lands on the day before
+ *  everywhere west of Greenwich. */
+export function atMidnight(date: string): Date {
+  return new Date(date + "T00:00:00");
 }
 
 /** Human-readable label for a yyyy-MM-dd date, suffixed with "· Today" when
  *  it is the current day. `options` picks the shape — callers differ on how
- *  much detail their context needs. The date is parsed as *local* midnight;
- *  a bare "yyyy-MM-dd" would be read as UTC and land on the wrong day west of
- *  Greenwich. */
+ *  much detail their context needs. */
 export function formatDayLabel(
   date: string,
   options: Intl.DateTimeFormatOptions,
 ): string {
-  const label = new Date(date + "T00:00:00").toLocaleDateString(
-    undefined,
-    options,
-  );
+  const label = atMidnight(date).toLocaleDateString(undefined, options);
   return date === today() ? `${label} · Today` : label;
 }
 
@@ -111,19 +102,9 @@ export function weekRange(offsetWeeks: number): { start: string; end: string } {
   const now = new Date();
   now.setDate(now.getDate() + offsetWeeks * 7);
   const start = startOfWeek(now);
-  // Parsed as local midnight — a bare "yyyy-MM-dd" would be read as UTC and
-  // shift the whole range by a day west of Greenwich.
-  const startDate = new Date(start + "T00:00:00");
-  const endDate = new Date(startDate);
-  endDate.setDate(startDate.getDate() + 6);
+  const endDate = atMidnight(start);
+  endDate.setDate(endDate.getDate() + 6);
   return { start, end: toDateInput(endDate) };
-}
-
-/** The local Date at midnight of a yyyy-MM-dd. The `T00:00:00` is what makes
- *  it local: a bare "yyyy-MM-dd" is read as UTC and lands on the day before
- *  everywhere west of Greenwich. */
-function atMidnight(date: string): Date {
-  return new Date(date + "T00:00:00");
 }
 
 /** First and last day (yyyy-MM-dd) of the month `offsetMonths` from the
