@@ -115,6 +115,27 @@ describe("log level", () => {
     const { getLogLevel } = await freshSettings({ [LOG_LEVEL_KEY]: "trace" });
     expect(getLogLevel()).toBe("error");
   });
+
+  it("logs it when Rust refuses the level", async () => {
+    const { setLogLevel } = await freshSettings();
+    const { invoke } = await import("@tauri-apps/api/core");
+    const mocked = vi.mocked(invoke);
+    mocked.mockImplementation(async (cmd) => {
+      if (cmd === "set_log_level") throw new Error("refused");
+    });
+
+    try {
+      setLogLevel("debug");
+      await vi.waitFor(() =>
+        expect(mocked).toHaveBeenCalledWith("frontend_log", {
+          level: "error",
+          message: "set_log_level(debug) failed: Error: refused",
+        }),
+      );
+    } finally {
+      mocked.mockImplementation(async () => undefined);
+    }
+  });
 });
 
 describe("fun mode", () => {

@@ -1,5 +1,5 @@
 import { api } from "./api";
-import { LOG_LEVELS, LogLevel } from "./log";
+import { LOG_LEVELS, LogLevel, logError } from "./log";
 import { persistedText } from "./persist";
 
 // Local app settings (nothing secret — credentials live in the OS keychain).
@@ -71,7 +71,9 @@ const logLevelStore = persistedText<LogLevel>(LOG_LEVEL_KEY, (raw) =>
 // Rust owns the actual log file and filtering, so every level change (and
 // the persisted choice at each launch) has to be mirrored over to it.
 function syncLogLevel(level: LogLevel): void {
-  api.setLogLevel(level).catch(() => {});
+  api
+    .setLogLevel(level)
+    .catch((err) => logError(`set_log_level(${level}) failed: ${err}`));
 }
 syncLogLevel(logLevelStore.get());
 
