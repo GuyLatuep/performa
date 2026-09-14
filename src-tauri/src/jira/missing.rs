@@ -7,8 +7,10 @@ use std::sync::Arc;
 use chrono::Local;
 use futures_util::{stream, StreamExt, TryStreamExt};
 
+use super::adf::adf_to_text;
+use super::stamps::{format_rfc3339_local, parse_jira_ts};
 use super::types::*;
-use super::{adf_to_text, format_rfc3339_local, parse_jira_ts, JiraClient, MAX_INFLIGHT};
+use super::{JiraClient, MAX_INFLIGHT};
 
 /// One thing the user did on an issue: a comment or a status change.
 /// Deliberately *not* filtered by time — the scan window moves with the clock,
@@ -463,7 +465,7 @@ fn bookable_clause(bookable_done_statuses: &[String]) -> String {
     // quote would otherwise break the JQL and with it the whole scan.
     format!(
         "(statusCategory != Done OR status in ({}))",
-        super::quoted(bookable_done_statuses)
+        super::jql::quoted(bookable_done_statuses)
     )
 }
 

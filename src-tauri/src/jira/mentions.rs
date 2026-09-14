@@ -13,10 +13,11 @@ use std::sync::Arc;
 use chrono::Local;
 use futures_util::{stream, StreamExt};
 
+use super::adf::adf_to_text;
+use super::jql::escape_jql_text;
+use super::stamps::{format_rfc3339_local, parse_jira_ts};
 use super::types::*;
-use super::{
-    adf_to_text, escape_jql_text, format_rfc3339_local, parse_jira_ts, JiraClient, MAX_INFLIGHT,
-};
+use super::{JiraClient, MAX_INFLIGHT};
 
 /// How many issues each candidate search may return. Neither net is a precise
 /// query, so this is a budget rather than a limit that "fits": when Jira says
