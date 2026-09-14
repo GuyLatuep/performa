@@ -8,7 +8,7 @@ import { persisted } from "./persist";
 const KEY = "performa-achievements";
 
 /** Every award there is. Ids are never reused: changing one re-awards it. */
-export const ACHIEVEMENTS: Record<string, string> = {
+export const ACHIEVEMENTS = {
   "erste-buchung": "Erste Buchung",
   "erster-kommentar": "Erster Kommentar",
   "erster-statuswechsel": "Erster Statuswechsel",
@@ -19,7 +19,9 @@ export const ACHIEVEMENTS: Record<string, string> = {
   nachtschicht: "Nachtschicht",
   "posteingang-leer": "Posteingang leer",
   "nichts-vergessen": "Nichts vergessen",
-};
+} satisfies Record<string, string>;
+
+export type AchievementId = keyof typeof ACHIEVEMENTS;
 
 /** Before this hour, you were up early. */
 const EARLY_BEFORE = 8;
@@ -95,11 +97,11 @@ function dayGap(from: string, to: string): number | null {
 export function award(
   state: AchievementState,
   event: AchievementEvent,
-): { state: AchievementState; earned: string[] } {
+): { state: AchievementState; earned: AchievementId[] } {
   const next: AchievementState = { ...state, earned: [...state.earned] };
-  const won: string[] = [];
-  const give = (id: string) => {
-    if (!next.earned.includes(id) && id in ACHIEVEMENTS) {
+  const won: AchievementId[] = [];
+  const give = (id: AchievementId) => {
+    if (!next.earned.includes(id)) {
       next.earned.push(id);
       won.push(id);
     }
