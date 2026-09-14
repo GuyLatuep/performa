@@ -1,4 +1,4 @@
-import { createStore } from "./store";
+import { persisted } from "./persist";
 
 // Which site-specific fields the issue view shows.
 //
@@ -121,12 +121,12 @@ function normalize(config: IssueFieldConfig): IssueFieldConfig {
   return { detail, sizes };
 }
 
-function read(): IssueFieldConfig {
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(KEY) ?? "null");
-    if (!raw || typeof raw !== "object" || Array.isArray(raw))
+const store = persisted<IssueFieldConfig>(
+  KEY,
+  (stored) => {
+    if (!stored || typeof stored !== "object" || Array.isArray(stored))
       return normalize(DEFAULT_FIELD_CONFIG);
-    const candidate = raw as Partial<IssueFieldConfig> & {
+    const candidate = stored as Partial<IssueFieldConfig> & {
       version?: number;
       /** Version 2 and earlier: the names shown full width. */
       wide?: unknown;
@@ -134,13 +134,13 @@ function read(): IssueFieldConfig {
     // A config written before the standard fields were configurable lists only
     // the site's own. Left alone it would now hide Type, Priority and the rest
     // entirely — so they go back at the front, where they were.
-    const stored = Array.isArray(candidate.detail)
+    const names = Array.isArray(candidate.detail)
       ? candidate.detail.filter((n): n is string => typeof n === "string")
       : DEFAULT_FIELD_CONFIG.detail;
     const detail =
       candidate.version === VERSION
-        ? stored
-        : [...STANDARD_FIELD_NAMES, ...stored];
+        ? names
+        : [...STANDARD_FIELD_NAMES, ...names];
     // A layout somebody already arranged said "wide" for what is now "full" —
     // the size that renders as prose. Carrying it over is the whole point of
     // the version bump.
@@ -156,18 +156,14 @@ function read(): IssueFieldConfig {
           ? candidate.sizes
           : migrated,
     });
-  } catch {
-    return normalize(DEFAULT_FIELD_CONFIG);
-  }
-}
-
-const store = createStore<IssueFieldConfig>(read());
+  },
+  // The schema version rides along with the value but is not part of it: only
+  // the parse above has any use for it.
+  (config) => ({ ...config, version: VERSION }),
+);
 
 function save(config: IssueFieldConfig): void {
-  const next = normalize(config);
-  localStorage.setItem(KEY, JSON.stringify({ ...next, version: VERSION }));
-  // Always a fresh object — the store compares with Object.is.
-  store.set(next);
+  store.save(normalize(config));
 }
 
 export function getIssueFieldConfig(): IssueFieldConfig {

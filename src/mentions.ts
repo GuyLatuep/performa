@@ -1,6 +1,7 @@
 import { api, Mention } from "./api";
 import { logInfo } from "./log";
 import { notify } from "./notify";
+import { claimStoredFor } from "./persist";
 import { hasSigSet, readSigSet, writeSigSet } from "./seen";
 import { createStore } from "./store";
 
@@ -169,10 +170,7 @@ async function runRefresh(source: "poll" | "manual"): Promise<void> {
  *  unseen news — a notification about a backlog nobody here has seen.
  *  Signing back in as the same account keeps everything. */
 export function claimMentionsFor(account: string): void {
-  if (localStorage.getItem(OWNER_KEY) === account) return;
-  localStorage.removeItem(NOTIFIED_KEY);
-  localStorage.removeItem(READ_KEY);
-  localStorage.setItem(OWNER_KEY, account);
+  claimStoredFor(OWNER_KEY, account, [NOTIFIED_KEY, READ_KEY]);
 }
 
 /** `account` identifies whose inbox this is — see `claimMentionsFor`. */

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { api } from "./api";
 import { logDebug, logInfo } from "./log";
-import { createStore } from "./store";
+import { persisted } from "./persist";
 
 export interface ActiveTimer {
   issueKey: string;
@@ -12,27 +12,14 @@ export interface ActiveTimer {
 
 const STORAGE_KEY = "performa-active-timer";
 
-function read(): ActiveTimer | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const t = JSON.parse(raw);
-    if (
-      t &&
-      typeof t.issueKey === "string" &&
-      typeof t.startedAt === "number"
-    ) {
-      return t;
-    }
-  } catch {
-    /* ignore malformed storage */
-  }
-  return null;
-}
-
 // Persisted by start timestamp, so elapsed is computed from the wall clock and
 // stays correct even if the app was closed while a timer was running.
-const store = createStore<ActiveTimer | null>(read());
+const store = persisted<ActiveTimer | null>(STORAGE_KEY, (stored) => {
+  const t = stored as ActiveTimer | null | undefined;
+  return t && typeof t.issueKey === "string" && typeof t.startedAt === "number"
+    ? t
+    : null;
+});
 
 /** Mirror the timer to the Rust side so the system tray can display it. */
 function syncTray(timer: ActiveTimer | null): void {
@@ -57,8 +44,7 @@ export function getTimer(): ActiveTimer | null {
 
 export function startTimer(issueKey: string, issueSummary: string): void {
   const timer = { issueKey, issueSummary, startedAt: Date.now() };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(timer));
-  store.set(timer);
+  store.save(timer);
   syncTray(timer);
   logInfo(`timer started on ${issueKey}`);
   // Best-effort nudge to "In Arbeit" — must never block or fail the timer.
@@ -74,8 +60,7 @@ export function stopTimer(): void {
     const elapsed = Math.floor((Date.now() - timer.startedAt) / 1000);
     logInfo(`timer stopped on ${timer.issueKey} after ${elapsed}s`);
   }
-  localStorage.removeItem(STORAGE_KEY);
-  store.set(null);
+  store.save(null);
   syncTray(null);
 }
 

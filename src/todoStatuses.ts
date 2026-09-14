@@ -1,4 +1,4 @@
-import { createStore } from "./store";
+import { persisted } from "./persist";
 
 // Workflow statuses the todo tab leaves out, per project. The query already
 // drops anything in Jira's Done category, whatever a workflow calls those
@@ -40,29 +40,20 @@ function normalize(ignored: IgnoredStatuses): IgnoredStatuses {
   return out;
 }
 
-function readIgnored(): IgnoredStatuses {
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(IGNORED_KEY) ?? "{}");
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-    const parsed: IgnoredStatuses = {};
-    for (const [project, names] of Object.entries(raw)) {
-      if (!Array.isArray(names)) continue;
-      parsed[project] = names.filter((n): n is string => typeof n === "string");
-    }
-    return normalize(parsed);
-  } catch {
-    return {};
+const store = persisted<IgnoredStatuses>(IGNORED_KEY, (stored) => {
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+  const parsed: IgnoredStatuses = {};
+  for (const [project, names] of Object.entries(stored)) {
+    if (!Array.isArray(names)) continue;
+    parsed[project] = names.filter((n): n is string => typeof n === "string");
   }
-}
+  return normalize(parsed);
+});
 
-const store = createStore<IgnoredStatuses>(readIgnored());
-
+/** Every write goes through the same normalization the stored value is read
+ *  back with, so the store only ever holds the canonical shape. */
 function save(ignored: IgnoredStatuses): void {
-  const next = normalize(ignored);
-  localStorage.setItem(IGNORED_KEY, JSON.stringify(next));
-  // Always a fresh object — the store compares with Object.is, so an in-place
-  // edit would be swallowed.
-  store.set(next);
+  store.save(normalize(ignored));
 }
 
 export function getIgnoredStatuses(): IgnoredStatuses {

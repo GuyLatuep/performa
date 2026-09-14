@@ -1,4 +1,4 @@
-import { createStore } from "./store";
+import { persistedText } from "./persist";
 
 export type AccentColor = string;
 
@@ -22,12 +22,9 @@ function isValidHex(value: string): boolean {
   return /^#[0-9a-f]{6}$/i.test(value);
 }
 
-function resolveInitial(): AccentColor {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored && isValidHex(stored) ? stored : DEFAULT_ACCENT;
-}
-
-const store = createStore<AccentColor>(resolveInitial());
+const store = persistedText<AccentColor>(STORAGE_KEY, (stored) =>
+  stored && isValidHex(stored) ? stored : DEFAULT_ACCENT,
+);
 
 /** The only two inks the accent is ever paired with — pure black and white,
  *  the way Apple's own tinted fills are inked. */
@@ -148,8 +145,7 @@ export function getAccent(): AccentColor {
 
 export function setAccent(accent: AccentColor): void {
   if (!isValidHex(accent)) return;
-  store.set(accent);
-  localStorage.setItem(STORAGE_KEY, accent);
+  store.save(accent);
   applyAccent(accent);
 }
 

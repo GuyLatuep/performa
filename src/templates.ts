@@ -1,4 +1,4 @@
-import { createStore } from "./store";
+import { persisted } from "./persist";
 
 // Saved worklog templates for recurring entries (standup, support duty, …).
 // Stored locally; shown as one-click chips on the start tab.
@@ -15,30 +15,17 @@ export interface WorklogTemplate {
 
 const TEMPLATES_KEY = "performa-worklog-templates";
 
-function readTemplates(): WorklogTemplate[] {
-  try {
-    const raw: unknown = JSON.parse(
-      localStorage.getItem(TEMPLATES_KEY) ?? "[]",
-    );
-    if (!Array.isArray(raw)) return [];
-    return raw.filter(
-      (t): t is WorklogTemplate =>
-        !!t &&
-        typeof t.id === "string" &&
-        typeof t.issueKey === "string" &&
-        typeof t.duration === "string",
-    );
-  } catch {
-    return [];
-  }
-}
-
-const store = createStore<WorklogTemplate[]>(readTemplates());
-
-function save(list: WorklogTemplate[]): void {
-  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(list));
-  store.set(list);
-}
+const store = persisted<WorklogTemplate[]>(TEMPLATES_KEY, (stored) =>
+  Array.isArray(stored)
+    ? stored.filter(
+        (t): t is WorklogTemplate =>
+          !!t &&
+          typeof t.id === "string" &&
+          typeof t.issueKey === "string" &&
+          typeof t.duration === "string",
+      )
+    : [],
+);
 
 export function useTemplates(): WorklogTemplate[] {
   return store.use();
@@ -49,9 +36,9 @@ export function addTemplate(template: Omit<WorklogTemplate, "id">): void {
     typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : String(Date.now());
-  save([...store.get(), { ...template, id }]);
+  store.save([...store.get(), { ...template, id }]);
 }
 
 export function removeTemplate(id: string): void {
-  save(store.get().filter((t) => t.id !== id));
+  store.save(store.get().filter((t) => t.id !== id));
 }

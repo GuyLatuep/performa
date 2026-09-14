@@ -1,5 +1,5 @@
 import { MissingWorklog } from "./api";
-import { createStore } from "./store";
+import { persisted } from "./persist";
 
 // Missing-worklog findings the user has waved away, per issue.
 //
@@ -36,31 +36,17 @@ function prune(ignored: IgnoredMissing, now: number): IgnoredMissing {
   return out;
 }
 
-function read(): IgnoredMissing {
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(IGNORED_KEY) ?? "{}");
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-    return prune(raw as IgnoredMissing, Date.now());
-  } catch {
-    return {};
-  }
-}
+// Parsed once at import — which is also the 24-hour cleanup the app does on
+// every start, since nothing imports this module twice.
+const store = persisted<IgnoredMissing>(IGNORED_KEY, (stored) =>
+  !stored || typeof stored !== "object" || Array.isArray(stored)
+    ? {}
+    : prune(stored as IgnoredMissing, Date.now()),
+);
 
-// Read once at import — which is also the 24-hour cleanup the app does on every
-// start, since nothing imports this module twice.
-const initial = read();
-const store = createStore<IgnoredMissing>(initial);
-
-// Whatever the prune dropped is gone from storage too, not just from this
+// Whatever that prune dropped is gone from storage too, not just from this
 // session's copy.
-localStorage.setItem(IGNORED_KEY, JSON.stringify(initial));
-
-function save(next: IgnoredMissing): void {
-  localStorage.setItem(IGNORED_KEY, JSON.stringify(next));
-  // Always a fresh object — the store compares with Object.is, so an in-place
-  // edit would be swallowed.
-  store.set(next);
-}
+store.save(store.get());
 
 export function getIgnoredMissing(): IgnoredMissing {
   return store.get();
@@ -68,11 +54,11 @@ export function getIgnoredMissing(): IgnoredMissing {
 
 /** Hide this issue's current findings until it sees newer activity. */
 export function ignoreIssue(issueKey: string): void {
-  save(prune({ ...store.get(), [issueKey]: Date.now() }, Date.now()));
+  store.save(prune({ ...store.get(), [issueKey]: Date.now() }, Date.now()));
 }
 
 export function clearIgnoredMissing(): void {
-  save({});
+  store.save({});
 }
 
 /** Is this finding covered by an ignore? Only activity from before the ignore

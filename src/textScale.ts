@@ -1,4 +1,4 @@
-import { createStore } from "./store";
+import { persistedText } from "./persist";
 
 /** How large the app draws its text. Scales the root font size, which every
  *  --fs-* token is relative to, so one value resizes the whole UI. */
@@ -19,12 +19,9 @@ function isTextScale(value: string | null): value is TextScale {
   return value !== null && value in SCALES;
 }
 
-function resolveInitial(): TextScale {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return isTextScale(stored) ? stored : "normal";
-}
-
-const store = createStore<TextScale>(resolveInitial());
+const store = persistedText<TextScale>(STORAGE_KEY, (stored) =>
+  isTextScale(stored) ? stored : "normal",
+);
 
 /** Reflect the current scale onto the document so the root font size follows.
  *  Set as an inline style, the way the accent is, so it wins over the :root
@@ -41,8 +38,7 @@ export function getTextScale(): TextScale {
 }
 
 export function setTextScale(scale: TextScale): void {
-  store.set(scale);
-  localStorage.setItem(STORAGE_KEY, scale);
+  store.save(scale);
   applyTextScale(scale);
 }
 
