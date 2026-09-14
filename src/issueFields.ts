@@ -134,10 +134,9 @@ export function isMultiValue(kind: FieldKind): boolean {
 
 /** An empty draft for a screen. */
 export function initialValues(fields: FormField[]): FormValues {
-  const values: FormValues = {};
-  for (const field of fields)
-    values[field.id] = isMultiValue(field.kind) ? [] : "";
-  return values;
+  return Object.fromEntries(
+    fields.map((field) => [field.id, isMultiValue(field.kind) ? [] : ""]),
+  );
 }
 
 /** True when the user has put nothing in this field. */
@@ -159,16 +158,16 @@ export function missingRequired(
 ): string[] {
   return fields
     .filter(
-      (f) =>
-        f.required &&
-        (f.kind === "unsupported" ||
-          isBlank(values[f.id]) ||
+      (field) =>
+        field.required &&
+        (field.kind === "unsupported" ||
+          isBlank(values[field.id]) ||
           // A value that cannot be shaped is dropped by `toJiraFields`, so a
           // required field holding one would be submitted absent — producing
           // exactly the raw Jira 400 this check exists to prevent.
-          shapeValue(f, values[f.id]) === undefined),
+          shapeValue(field, values[field.id]) === undefined),
     )
-    .map((f) => f.name);
+    .map((field) => field.name);
 }
 
 /** Whether every required field on this screen is one we can render — i.e.
@@ -210,11 +209,8 @@ export function toJiraFields(
  * refused.
  */
 export function clearedField(field: FormField): Record<string, unknown> {
-  const empty =
-    field.kind === "multiselect" ||
-    field.kind === "checkboxes" ||
-    field.kind === "labels";
-  return { [field.id]: empty ? [] : null };
+  const holdsSeveral = isMultiValue(field.kind) || field.kind === "labels";
+  return { [field.id]: holdsSeveral ? [] : null };
 }
 
 function shapeValue(field: FormField, value: FieldValue): unknown {
@@ -229,9 +225,9 @@ function shapeValue(field: FormField, value: FieldValue): unknown {
     case "datetime":
       return toJiraDateTime(value as string);
     case "number": {
-      const n = Number((value as string).trim());
+      const number = Number((value as string).trim());
       // A box that won't parse is not a number Jira should be asked to store.
-      return Number.isFinite(n) ? n : undefined;
+      return Number.isFinite(number) ? number : undefined;
     }
     case "select":
     case "radio":
@@ -245,10 +241,7 @@ function shapeValue(field: FormField, value: FieldValue): unknown {
       return (value as string[]).map((id) => optionRef(field, id));
     case "labels":
       // Whitespace or commas, whichever the user reached for.
-      return (value as string)
-        .split(/[\s,]+/)
-        .map((l) => l.trim())
-        .filter((l) => l !== "");
+      return (value as string).split(/[\s,]+/).filter((label) => label !== "");
     case "unsupported":
       return undefined;
   }
@@ -258,7 +251,7 @@ function shapeValue(field: FormField, value: FieldValue): unknown {
  *  does not (some allowed-value lists carry no ids). */
 function optionRef(field: FormField, id: string): unknown {
   const option = field.options.find((o) => o.id === id);
-  if (option && option.id) return { id: option.id };
+  if (option?.id) return { id: option.id };
   return { value: option?.label ?? id };
 }
 
