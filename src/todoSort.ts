@@ -59,17 +59,18 @@ function rankMissing(issue: IssueSummary, column: SortColumn): number {
   return valueOf(issue, column) === undefined ? 1 : 0;
 }
 
+/** Which field of an issue each sortable column reads. Only "type" is spelled
+ *  differently from the column it sits under. */
+const COLUMN_FIELD: Record<SortColumn, keyof IssueSummary> = {
+  type: "issueType",
+  key: "key",
+  summary: "summary",
+  priority: "priority",
+  status: "status",
+};
+
 function valueOf(issue: IssueSummary, column: SortColumn): string | undefined {
-  const raw =
-    column === "type"
-      ? issue.issueType
-      : column === "key"
-        ? issue.key
-        : column === "summary"
-          ? issue.summary
-          : column === "priority"
-            ? issue.priority
-            : issue.status;
+  const raw = issue[COLUMN_FIELD[column]];
   return raw && raw.trim() !== "" ? raw : undefined;
 }
 

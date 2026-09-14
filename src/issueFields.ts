@@ -63,6 +63,19 @@ const CUSTOM_KINDS: Record<string, FieldKind> = {
  *  documents all the same. */
 const RICH_TEXT_SYSTEM_FIELDS = ["description", "environment"];
 
+/** Base schema types that need no more than their own name to place. The
+ *  custom-field URI above is consulted first, because it is the more specific
+ *  answer where a site has one. */
+const BASE_KINDS: Record<string, FieldKind> = {
+  string: "text",
+  number: "number",
+  date: "date",
+  datetime: "datetime",
+  // Searched rather than listed: Jira sends no allowedValues for a user field,
+  // so the input queries the site instead of rendering a fixed list.
+  user: "user",
+};
+
 /** Base schema types that are a single choice from a fixed list. */
 const CHOICE_TYPES = [
   "option",
@@ -91,13 +104,7 @@ export function fieldKind(meta: FieldMeta): FieldKind {
   if (meta.schemaSystem && RICH_TEXT_SYSTEM_FIELDS.includes(meta.schemaSystem))
     return "textarea";
 
-  if (meta.schemaType === "string") return "text";
-  if (meta.schemaType === "number") return "number";
-  if (meta.schemaType === "date") return "date";
-  if (meta.schemaType === "datetime") return "datetime";
-  // Searched rather than listed: Jira sends no allowedValues for a user field,
-  // so the input queries the site instead of rendering a fixed list.
-  if (meta.schemaType === "user") return "user";
+  if (meta.schemaType in BASE_KINDS) return BASE_KINDS[meta.schemaType];
   if (CHOICE_TYPES.includes(meta.schemaType)) return "select";
   if (meta.schemaType === "array") {
     if (meta.schemaItems && CHOICE_TYPES.includes(meta.schemaItems))
