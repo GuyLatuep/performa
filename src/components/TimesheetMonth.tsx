@@ -47,6 +47,12 @@ const DAY_FORMAT: Intl.DateTimeFormatOptions = {
   day: "numeric",
 };
 
+/** A column together with the day it stands for, written out once for the whole
+ *  column to share. */
+interface LabelledColumn extends MonthColumn {
+  label: string;
+}
+
 export default function TimesheetMonth({ site, refreshKey }: Props) {
   const [offset, setOffset] = useState(0);
   /** Bumped to load the same month again — what Retry does after a week of it
@@ -140,6 +146,14 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
   }, [refreshKey, start, end, refreshChunk]);
 
   const grid = buildMonthGrid(entries, start, end, rowOrder);
+  // The day a tooltip names is a property of the column, not of the cell, so it
+  // is spelled out once per column and read by all thirty-odd rows under it. A
+  // month-wide grid is a thousand cells and `toLocaleDateString` is not cheap:
+  // done per cell it was most of what a re-render spent its time on.
+  const columns: LabelledColumn[] = grid.columns.map((col) => ({
+    ...col,
+    label: formatDayLabel(col.date, DAY_FORMAT),
+  }));
   // Looked up per render rather than held in state: the drill-down edits the
   // worklogs it lists, and a row captured when it opened would go on showing
   // the ones from before the edit.
@@ -208,13 +222,13 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
         <div
           className="month-grid"
           role="table"
-          style={{ "--month-cols": grid.columns.length } as React.CSSProperties}
+          style={{ "--month-cols": columns.length } as React.CSSProperties}
         >
           <div className="month-row" role="row">
             <div className="corner col-issue row-head" role="columnheader">
               {formatDuration(grid.total)}
             </div>
-            {grid.columns.map((col) => (
+            {columns.map((col) => (
               <DayHeader
                 key={col.date}
                 col={col}
@@ -230,7 +244,7 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
             <div className="col-issue" role="rowheader">
               ＋ Log time
             </div>
-            {grid.columns.map((col) => (
+            {columns.map((col) => (
               <button
                 key={col.date}
                 type="button"
@@ -238,11 +252,7 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
                   col.weekend ? " wknd" : ""
                 }`}
                 disabled={col.future}
-                title={
-                  col.future
-                    ? "Not yet"
-                    : `Log time on ${formatDayLabel(col.date, DAY_FORMAT)}`
-                }
+                title={col.future ? "Not yet" : `Log time on ${col.label}`}
                 onClick={() => setQuickLog(col.date)}
               >
                 ＋
@@ -265,7 +275,7 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
                   {row.issueSummary}
                 </span>
               </div>
-              {grid.columns.map((col) => {
+              {columns.map((col) => {
                 const cell = row.cells.get(col.date);
                 const count = cell?.entries.length ?? 0;
                 const seconds = cell?.seconds ?? 0;
@@ -331,15 +341,19 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
   );
 }
 
-function cellTitle(count: number, seconds: number, col: MonthColumn): string {
-  const day = formatDayLabel(col.date, DAY_FORMAT);
+function cellTitle(
+  count: number,
+  seconds: number,
+  col: LabelledColumn,
+): string {
+  const day = col.label;
   if (col.future) return `${day} — not yet`;
   if (count === 0) return `${day} — nothing booked, click to log`;
   if (count === 1) return `${day} — ${formatDuration(seconds)}, click to open`;
   return `${day} — ${formatDuration(seconds)} over ${count} worklogs, click to open them`;
 }
 
-function DayHeader({ col, seconds }: { col: MonthColumn; seconds: number }) {
+function DayHeader({ col, seconds }: { col: LabelledColumn; seconds: number }) {
   const date = new Date(col.date + "T00:00:00");
   return (
     <div
@@ -350,7 +364,7 @@ function DayHeader({ col, seconds }: { col: MonthColumn; seconds: number }) {
         (col.future ? " future" : "")
       }
       role="columnheader"
-      title={formatDayLabel(col.date, DAY_FORMAT)}
+      title={col.label}
     >
       <span className="dow">
         {date.toLocaleDateString(undefined, { weekday: "narrow" })}
