@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, IssueSummary, WorklogEntry } from "../api";
+import { openExternal } from "../external";
 import { useShortcut } from "../shortcuts";
 import {
   buildMonthGrid,
@@ -124,14 +124,24 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
    *
    *  A write only ever moves a single day, so refetching the whole month for
    *  it would be five wasted round trips. It is also what fills in a freshly
-   *  created worklog's id, which the next edit of that cell needs. */
+   *  created worklog's id, which the next edit of that cell needs.
+   *
+   *  Reports its own failure and never rejects, the way the week ledger's
+   *  `load` and the shell's `refreshStatus` do. The callers are modals closing
+   *  behind themselves and an effect; none of them is still there to answer a
+   *  rejection, and a re-read that quietly did nothing leaves the grid showing
+   *  a day the write already changed. */
   const refreshChunk = useCallback(async (date: string) => {
     const [chunk] = weekChunks(date, date);
-    const got = await api.listWorklogs(chunk.start, chunk.end);
-    setEntries((prev) => [
-      ...prev.filter((e) => e.date < chunk.start || e.date > chunk.end),
-      ...got,
-    ]);
+    try {
+      const got = await api.listWorklogs(chunk.start, chunk.end);
+      setEntries((prev) => [
+        ...prev.filter((e) => e.date < chunk.start || e.date > chunk.end),
+        ...got,
+      ]);
+    } catch (err) {
+      setError(String(err));
+    }
   }, []);
 
   // A worklog filed anywhere else in the app can only have landed on today, so
@@ -142,7 +152,7 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
     if (seenRefresh.current === refreshKey) return;
     seenRefresh.current = refreshKey;
     const now = today();
-    if (now >= start && now <= end) refreshChunk(now).catch(() => {});
+    if (now >= start && now <= end) void refreshChunk(now);
   }, [refreshKey, start, end, refreshChunk]);
 
   const grid = buildMonthGrid(entries, start, end, rowOrder);
@@ -267,7 +277,7 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
                 <button
                   className="key-link key"
                   title={`Open ${row.issueKey} in browser`}
-                  onClick={() => openUrl(`${site}/browse/${row.issueKey}`)}
+                  onClick={() => openExternal(`${site}/browse/${row.issueKey}`)}
                 >
                   {row.issueKey}
                 </button>
@@ -321,7 +331,7 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
           date={openCell.date}
           site={site}
           onClose={() => setOpenCell(null)}
-          onChanged={() => refreshChunk(openCell.date)}
+          onChanged={() => void refreshChunk(openCell.date)}
         />
       )}
 
@@ -330,10 +340,10 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
           site={site}
           date={quickLog}
           onClose={() => setQuickLog(null)}
-          onSaved={async () => {
+          onSaved={() => {
             const date = quickLog;
             setQuickLog(null);
-            await refreshChunk(date);
+            void refreshChunk(date);
           }}
         />
       )}
@@ -394,7 +404,10 @@ function CellWorklogsModal({
   date: string;
   site: string;
   onClose: () => void;
-  onChanged: () => Promise<void>;
+  /** Tell the month a write landed, so it re-reads the week. Does not report
+   *  back: the re-read answers for itself in the panel behind this dialog,
+   *  which outlives it. */
+  onChanged: () => void;
 }) {
   const [editing, setEditing] = useState<WorklogEntry | null>(null);
   const [repeating, setRepeating] = useState<WorklogEntry | null>(null);
@@ -407,7 +420,7 @@ function CellWorklogsModal({
     setConfirmDelete(null);
     try {
       await api.deleteWorklog(entry.issueKey, entry.id);
-      await onChanged();
+      onChanged();
     } catch (err) {
       setError(String(err));
     }
@@ -453,9 +466,9 @@ function CellWorklogsModal({
             // a cell three weeks back is to book against that day.
             initial={{ date }}
             onClose={() => setAdding(false)}
-            onSaved={async () => {
+            onSaved={() => {
               setAdding(false);
-              await onChanged();
+              onChanged();
             }}
           />
         )}
@@ -463,9 +476,9 @@ function CellWorklogsModal({
           <WorklogEditModal
             entry={editing}
             onClose={() => setEditing(null)}
-            onSaved={async () => {
+            onSaved={() => {
               setEditing(null);
-              await onChanged();
+              onChanged();
             }}
           />
         )}
@@ -479,9 +492,9 @@ function CellWorklogsModal({
               nonBillable: !repeating.billable,
             }}
             onClose={() => setRepeating(null)}
-            onSaved={async () => {
+            onSaved={() => {
               setRepeating(null);
-              await onChanged();
+              onChanged();
             }}
           />
         )}

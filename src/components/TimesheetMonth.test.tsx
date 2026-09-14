@@ -11,6 +11,11 @@ vi.mock("../api", async () => {
 
 const openUrl = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl }));
+const logWarn = vi.hoisted(() => vi.fn());
+vi.mock("../log", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../log")>()),
+  logWarn,
+}));
 vi.mock("../achievements", () => ({ recordEvent: vi.fn(() => []) }));
 
 // Covered by its own file; here it only has to offer an issue to pick.
@@ -61,6 +66,7 @@ beforeEach(() => {
   resetApiMock();
   serveWeeks([]);
   openUrl.mockClear();
+  logWarn.mockClear();
   localStorage.clear();
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(MID_MARCH);
@@ -312,5 +318,80 @@ describe("opening a cell", () => {
         expect.objectContaining({ timeSpentSeconds: 3600 }),
       ),
     );
+  });
+});
+
+describe("opening an issue in the browser", () => {
+  beforeEach(() =>
+    serveWeeks([
+      worklogEntry({
+        id: "w1",
+        date: "2026-03-17",
+        timeSpentSeconds: 3600,
+        issueKey: "ABC-1",
+      }),
+    ]),
+  );
+
+  it("hands the issue's URL to the desktop's browser", async () => {
+    renderMonth();
+    await loaded();
+
+    await userEvent.click(screen.getByTitle("Open ABC-1 in browser"));
+
+    expect(openUrl).toHaveBeenCalledWith(
+      "https://example.atlassian.net/browse/ABC-1",
+    );
+  });
+
+  it("says so in the log when the shell refuses", async () => {
+    // Through `openExternal`, never the opener directly: a bare `openUrl`
+    // leaves the refusal floating and the dead link says nothing.
+    openUrl.mockRejectedValueOnce(new Error("Not allowed to open url"));
+    renderMonth();
+    await loaded();
+
+    await userEvent.click(screen.getByTitle("Open ABC-1 in browser"));
+
+    await waitFor(() =>
+      expect(logWarn).toHaveBeenCalledWith(
+        expect.stringContaining("Not allowed to open url"),
+      ),
+    );
+  });
+});
+
+describe("when re-reading one week fails", () => {
+  it("says so in the month, which outlives the dialog the delete was made in", async () => {
+    serveWeeks([
+      worklogEntry({
+        id: "w1",
+        date: "2026-03-17",
+        timeSpentSeconds: 3600,
+        issueKey: "ABC-1",
+      }),
+    ]);
+    renderMonth();
+    await loaded();
+    await userEvent.click(screen.getByTitle(/1h, click to open/));
+    apiMock.listWorklogs.mockRejectedValue(new Error("Jira returned 500"));
+
+    await userEvent.click(screen.getByTitle("Delete"));
+    await userEvent.click(screen.getByTitle("Confirm delete"));
+    await waitFor(() => expect(apiMock.deleteWorklog).toHaveBeenCalled());
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(await screen.findByText(/Jira returned 500/)).toBeDefined();
+  });
+
+  it("says so after a worklog filed elsewhere in the app", async () => {
+    const site = "https://example.atlassian.net";
+    const view = render(<TimesheetMonth site={site} refreshKey={0} />);
+    await loaded();
+    apiMock.listWorklogs.mockRejectedValue(new Error("Jira returned 503"));
+
+    view.rerender(<TimesheetMonth site={site} refreshKey={1} />);
+
+    expect(await screen.findByText(/Jira returned 503/)).toBeDefined();
   });
 });
