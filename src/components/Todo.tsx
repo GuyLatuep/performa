@@ -29,14 +29,18 @@ interface Props {
 /** This list's name in the selection registry. */
 const SCOPE = "todo";
 
-/** The sortable columns, named the way the palette offers them. */
-const COLUMNS = [
-  { column: "type", name: "type" },
-  { column: "key", name: "issue key" },
-  { column: "summary", name: "summary" },
-  { column: "priority", name: "priority" },
-  { column: "status", name: "status" },
-] as const;
+/** The sortable columns in header order, named the way the palette offers them.
+ *  Keyed by column, like [`COLUMN_NAMES`] below, so a column added to
+ *  `SortColumn` cannot reach the header without reaching the palette too — a
+ *  plain list would just be one entry short, and the new column would be the
+ *  only one no keyboard could sort by. */
+const PALETTE_NAMES: Record<SortColumn, string> = {
+  type: "type",
+  key: "issue key",
+  summary: "summary",
+  priority: "priority",
+  status: "status",
+};
 
 // Todo tab: everything waiting on the user — escalations they raised that are
 // back in their court, plus every open issue assigned to them. Most urgent
@@ -112,13 +116,15 @@ export default function Todo({ site, onLogged }: Props) {
   // something done rarely would be five keys badly spent — so the palette is
   // where they are reachable by keyboard at all.
   useScreenActions(
-    COLUMNS.map(({ column, name }) => ({
-      id: `todo.sort.${column}`,
-      name: `Sort by ${name}`,
-      group: "Todo",
-      keywords: "order column",
-      run: () => setTodoSort({ column, direction: "asc" }),
-    })),
+    (Object.entries(PALETTE_NAMES) as [SortColumn, string][]).map(
+      ([column, name]) => ({
+        id: `todo.sort.${column}`,
+        name: `Sort by ${name}`,
+        group: "Todo",
+        keywords: "order column",
+        run: () => setTodoSort({ column, direction: "asc" }),
+      }),
+    ),
   );
 
   useSelectionScope({
