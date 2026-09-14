@@ -39,7 +39,7 @@ roughly **5–10 MB**.
 | ✅ **Todo tab** | Everything waiting on you, most urgent first, as a sortable table — with the statuses that mean "somebody else's turn" filtered out per project. |
 | 📄 **Issue view** | Read and work an issue without leaving the app: double-click a field to change it, move it through the workflow, comment (with `@` mentions), attach and remove files, link work items, and read one timeline of comments, status changes and worklogs. The field grid is yours to arrange. |
 | 🔎 **Issue picker** | Finding the issue to log against: assigned to you by default, or by text / issue key — pin favourites to the top. |
-| 🗂️ **Command palette** | ⌘P for everything the app can do, by name — open an issue by typing its key, search Jira by text, or run a search of your own built over any field your site has (Settings → Searches). |
+| 🗂️ **Command palette** | ⌘P for everything the app can do, by name — open an issue by typing its key, search Jira by text, or run a search of your own written as JQL with a `%SEARCHTERM%` placeholder for what you type (Settings → Searches). |
 | ⏱️ **Log work** | Jira-style durations (`1h 30m`), date, optional comment, and a non-billable flag (ActivityTimeline's `~` convention). |
 | 🍱 **Tray timer** | Per-issue timer with 15-minute round-up, mirrored live in the system tray / menu bar — stop and log straight from there. Starting a timer also nudges the issue to Jira's "In Arbeit" status, best-effort. |
 | 📅 **Timesheet** | **Week** — per-day totals and target charts; edit, delete, and repeat worklogs, or save them as templates. **Month** — the whole month as a matrix, day by day. |
@@ -109,8 +109,9 @@ and `cargo fmt --check`, from `src-tauri/`. CI runs all of them.
 performa/
 ├── src-tauri/        Rust core — all Jira HTTP, credentials, logging
 │   ├── jira/           typed async client over Jira REST API v3
-│   │   ├── mod.rs        the client, JQL construction and escaping
-│   │   ├── issue.rs      one issue: fields, edits, transitions, searches
+│   │   ├── mod.rs        the client
+│   │   ├── jql.rs        JQL construction and escaping, saved-search templates
+│   │   ├── issue.rs      one issue: fields, edits, transitions
 │   │   ├── links.rs      issue links · attachments.rs  files
 │   │   ├── mentions.rs   comments naming you · missing.rs  the watcher
 │   │   └── types.rs      the wire shapes
