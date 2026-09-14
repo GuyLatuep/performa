@@ -2221,6 +2221,7 @@ main {
 .template-chip {
   display: flex;
   align-items: center;
+  max-width: 100%;
   background: var(--surface);
   border-radius: var(--r-control);
 }
@@ -2228,6 +2229,7 @@ main {
   display: flex;
   align-items: baseline;
   gap: 10px;
+  min-width: 0;
   max-width: 340px;
   background: none;
   border: none;
@@ -2242,11 +2244,17 @@ main {
   background: var(--bg);
   color: var(--ink);
 }
+/* A long comment is cut to one line; key and duration always stay whole. */
+.template-use .key,
 .template-use .duration {
-  min-width: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .template-chip .comment {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {
