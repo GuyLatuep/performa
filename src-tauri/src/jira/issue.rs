@@ -17,6 +17,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use futures_util::future::join_all;
 use serde_json::Value;
 
 use super::adf::{adf_doc, adf_to_text};
@@ -221,15 +222,23 @@ impl JiraClient {
         if refs.is_empty() {
             return None;
         }
-        let mut links = Vec::new();
-        for r in refs {
-            if let Some(name) = self.asset_label(&r.workspace_id, &r.object_id).await {
-                links.push(AssetLink {
-                    name,
+        // Side by side: each object is its own round trip to Assets, and the
+        // issue view waits for the last of them.
+        let names = join_all(
+            refs.iter()
+                .map(|r| self.asset_label(&r.workspace_id, &r.object_id)),
+        )
+        .await;
+        let links: Vec<AssetLink> = refs
+            .into_iter()
+            .zip(names)
+            .filter_map(|(r, name)| {
+                Some(AssetLink {
+                    name: name?,
                     object_id: r.object_id,
-                });
-            }
-        }
+                })
+            })
+            .collect();
         (!links.is_empty()).then_some(links)
     }
 
@@ -360,18 +369,27 @@ impl JiraClient {
         // "empty" usually means a value type `field_value` has not met.
         let mut unrendered: Vec<String> = Vec::new();
         let mut details: Vec<IssueField> = Vec::new();
-        for (label, id) in &wanted_fields {
+        // Rendered once: `field_value` walks the whole ADF document for a
+        // rich-text field, and asking twice per field per issue open (up to
+        // `MAX_DETAIL_FIELDS` of them) walked it twice for nothing.
+        let rendered: Vec<Option<String>> = wanted_fields
+            .iter()
+            .map(|(_, id)| fields.get(id).and_then(field_value))
+            .collect();
+        // Nothing to show directly — but an Assets field only ever holds
+        // references, so this is where its objects get named. All fields at
+        // once, for the same reason `asset_names` names its objects at once.
+        let assets = join_all(wanted_fields.iter().zip(&rendered).map(
+            |((_, id), rendered)| async move {
+                match rendered {
+                    Some(_) => Vec::new(),
+                    None => self.asset_names(fields.get(id)).await.unwrap_or_default(),
+                }
+            },
+        ))
+        .await;
+        for (((label, id), rendered), assets) in wanted_fields.iter().zip(rendered).zip(assets) {
             let raw = fields.get(id);
-            // Nothing to show directly — but an Assets field only ever holds
-            // references, so this is where its objects get named.
-            // Rendered once: `field_value` walks the whole ADF document for a
-            // rich-text field, and asking twice per field per issue open (up
-            // to `MAX_DETAIL_FIELDS` of them) walked it twice for nothing.
-            let rendered = raw.and_then(field_value);
-            let assets = match rendered {
-                Some(_) => Vec::new(),
-                None => self.asset_names(raw).await.unwrap_or_default(),
-            };
             let value = rendered.or_else(|| {
                 (!assets.is_empty()).then(|| {
                     assets
