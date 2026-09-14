@@ -33,7 +33,7 @@ describe("text scale", () => {
     expect(getTextScale()).toBe("larger");
   });
 
-  it.each(["", "huge", "1.5", "NORMAL"])(
+  it.each(["", "huge", "1.5", "NORMAL", "toString", "constructor"])(
     "falls back to normal for the stored value %o",
     async (stored) => {
       const { getTextScale } = await fresh(stored);

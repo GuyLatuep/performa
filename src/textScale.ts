@@ -16,7 +16,7 @@ export const SCALES: Record<TextScale, number> = {
 };
 
 function isTextScale(value: string | null): value is TextScale {
-  return value !== null && value in SCALES;
+  return value !== null && Object.keys(SCALES).includes(value);
 }
 
 const store = persistedText<TextScale>(STORAGE_KEY, (stored) =>
