@@ -1,6 +1,6 @@
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternal } from "../external";
 import {
   api,
   IssueActivity,
@@ -188,7 +188,7 @@ export default function IssueView({
   // `back.ts` answers the chord; this only says where its badge belongs.
   const backBadge = useShortcutBadge("back");
   const jiraKeys = useShortcut("openInJira", () =>
-    openUrl(`${site}/browse/${open.key}`),
+    openExternal(`${site}/browse/${open.key}`),
   );
 
   return (
@@ -202,7 +202,7 @@ export default function IssueView({
           className="link"
           {...jiraKeys}
           title={`Open ${open.key} in browser`}
-          onClick={() => openUrl(`${site}/browse/${open.key}`)}
+          onClick={() => openExternal(`${site}/browse/${open.key}`)}
         >
           Open in Jira
           <ExternalLink size={13} strokeWidth={2} aria-hidden />

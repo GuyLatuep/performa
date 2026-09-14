@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { FormEvent, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternal } from "../external";
 import { api, CredentialsMeta } from "../api";
 
 interface Props {
@@ -96,7 +96,7 @@ export default function SettingsConnection({
         <button
           type="button"
           className="link"
-          onClick={() => openUrl(TOKEN_URL)}
+          onClick={() => openExternal(TOKEN_URL)}
         >
           Create an API token
           <ExternalLink size={13} strokeWidth={2} aria-hidden />

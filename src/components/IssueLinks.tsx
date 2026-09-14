@@ -1,6 +1,6 @@
 import { ExternalLink, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternal } from "../external";
 import { api, IssueSummary, LinkedItem, LinkRelation } from "../api";
 import { useDismissOnOutside } from "../dismiss";
 import { logInfo } from "../log";
@@ -65,7 +65,7 @@ export default function IssueLinks({
                   <button
                     className="link linked-key"
                     title={`Open ${item.key} in browser`}
-                    onClick={() => openUrl(`${site}/browse/${item.key}`)}
+                    onClick={() => openExternal(`${site}/browse/${item.key}`)}
                   >
                     {item.key}
                     <ExternalLink size={13} strokeWidth={2} aria-hidden />

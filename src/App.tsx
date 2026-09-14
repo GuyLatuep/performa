@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   AtSign,
   CalendarRange,
@@ -11,6 +10,7 @@ import {
 } from "lucide-react";
 import { api, CredentialsMeta, IssueSummary } from "./api";
 import { clearForward, useBackGestures } from "./back";
+import { HANDBOOK_URL, openExternal } from "./external";
 import { useSelectionKeys } from "./selection";
 import { clearIssueRequest, useRequestedIssue } from "./issueRequest";
 import { claimSearchesFor } from "./savedSearches";
@@ -77,10 +77,6 @@ const TAB_ICONS: Record<Tab, LucideIcon> = {
   missing: TriangleAlert,
   mentions: AtSign,
 };
-
-// The English manual links to the German one via its language switcher.
-const HANDBOOK_URL =
-  "https://github.com/GuyLatuep/performa/blob/main/docs/user-manual.en.md";
 
 export default function App() {
   const [creds, setCreds] = useState<CredentialsMeta | null>(null);
@@ -398,7 +394,7 @@ export default function App() {
             <button
               className="link"
               title="Open the user manual on GitHub"
-              onClick={() => openUrl(HANDBOOK_URL)}
+              onClick={() => openExternal(HANDBOOK_URL)}
             >
               Handbook
             </button>

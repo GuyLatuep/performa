@@ -1,5 +1,5 @@
 import { Check, Pencil, RotateCcw, Trash2, X } from "lucide-react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternal } from "../external";
 import { useEffect, useRef } from "react";
 import { WorklogEntry } from "../api";
 import { useShortcut } from "../shortcuts";
@@ -49,7 +49,7 @@ export default function WorklogRow({
   const repeatKeys = useShortcut("logAgain", onRepeat, selected);
   const jiraKeys = useShortcut(
     "openInJira",
-    () => openUrl(`${site}/browse/${entry.issueKey}`),
+    () => openExternal(`${site}/browse/${entry.issueKey}`),
     selected,
   );
 
@@ -64,7 +64,7 @@ export default function WorklogRow({
           {...jiraKeys}
           className="key-link key"
           title={`Open ${entry.issueKey} in browser`}
-          onClick={() => openUrl(`${site}/browse/${entry.issueKey}`)}
+          onClick={() => openExternal(`${site}/browse/${entry.issueKey}`)}
         >
           {entry.issueKey}
         </button>

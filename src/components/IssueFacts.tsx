@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternal } from "../external";
 import { api, IssueDetail } from "../api";
 import {
   buildFacts,
@@ -339,7 +339,7 @@ function FactValue({ fact, site }: { fact: Fact; site: string }) {
               // The row opens an editor on double-click; following a link is
               // not that.
               e.stopPropagation();
-              openUrl(`${site}/jira/assets/object/${asset.objectId}`);
+              openExternal(`${site}/jira/assets/object/${asset.objectId}`);
             }}
             onDoubleClick={(e) => e.stopPropagation()}
           >

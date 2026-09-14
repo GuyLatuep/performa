@@ -1,5 +1,5 @@
 import { CornerDownRight, X } from "lucide-react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternal } from "../external";
 import { useEffect, useRef } from "react";
 import { MissingWorklog } from "../api";
 import { useShortcut } from "../shortcuts";
@@ -43,7 +43,7 @@ export default function MissingRow({
   // Only the selected row binds, and only one row in the app is selected.
   const jiraKeys = useShortcut(
     "openInJira",
-    () => openUrl(`${site}/browse/${item.issueKey}`),
+    () => openExternal(`${site}/browse/${item.issueKey}`),
     selected,
   );
 
@@ -58,7 +58,7 @@ export default function MissingRow({
           {...jiraKeys}
           className="key-link key"
           title={`Open ${item.issueKey} in browser`}
-          onClick={() => openUrl(`${site}/browse/${item.issueKey}`)}
+          onClick={() => openExternal(`${site}/browse/${item.issueKey}`)}
         >
           {item.issueKey}
         </button>
