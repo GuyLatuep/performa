@@ -93,26 +93,6 @@ fn attachment_dir() -> std::path::PathBuf {
     std::env::temp_dir().join("performa-attachments")
 }
 
-/// Jira's attachment ids are its own numeric strings, and this one reaches a
-/// URL path.
-fn checked_attachment_id(id: &str) -> Result<&str, String> {
-    if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
-        Ok(id)
-    } else {
-        Err(format!("invalid attachment id '{id}'"))
-    }
-}
-
-/// Link ids are Jira's own numeric strings and reach a URL path, like the
-/// attachment ids above.
-fn checked_link_id(id: &str) -> Result<&str, String> {
-    if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
-        Ok(id)
-    } else {
-        Err(format!("invalid link id '{id}'"))
-    }
-}
-
 /// An attachment's name reaches the filesystem, so it must stay a *name*: no
 /// separators, no parent-directory hops, nothing empty. Jira's own value is
 /// normally fine; this is about what the webview could send instead.
@@ -234,6 +214,18 @@ fn checked_issue_key(key: &str) -> Result<&str, String> {
         Ok(key)
     } else {
         Err(format!("invalid issue key '{key}'"))
+    }
+}
+
+/// Jira's own record ids — an attachment, a link, a transition, a worklog —
+/// are numeric strings, and every one of them reaches a URL path or a request
+/// body. They are all held to the same shape, so `kind` only names which id is
+/// being refused.
+fn checked_jira_id<'a>(kind: &str, id: &'a str) -> Result<&'a str, String> {
+    if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
+        Ok(id)
+    } else {
+        Err(format!("invalid {kind} id '{id}'"))
     }
 }
 
@@ -372,24 +364,6 @@ fn checked_field_names(names: Vec<String>) -> Result<Vec<String>, String> {
         }
     }
     Ok(out)
-}
-
-/// Transition ids are Jira's own numeric strings and reach a request body, so
-/// hold them to that shape rather than passing the webview's word along.
-fn checked_transition_id(id: &str) -> Result<&str, String> {
-    if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
-        Ok(id)
-    } else {
-        Err(format!("invalid transition id '{id}'"))
-    }
-}
-
-fn checked_worklog_id(id: &str) -> Result<&str, String> {
-    if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
-        Ok(id)
-    } else {
-        Err(format!("invalid worklog id '{id}'"))
-    }
 }
 
 fn checked_date(s: &str) -> Result<&str, String> {
@@ -640,7 +614,7 @@ async fn update_worklog(
     worklog: WorklogInput,
 ) -> Result<(), String> {
     checked_issue_key(&issue_key)?;
-    checked_worklog_id(&worklog_id)?;
+    checked_jira_id("worklog", &worklog_id)?;
     let s = session(&state).await?;
     s.client
         .update_worklog(&issue_key, &worklog_id, &worklog)
@@ -654,7 +628,7 @@ async fn delete_worklog(
     worklog_id: String,
 ) -> Result<(), String> {
     checked_issue_key(&issue_key)?;
-    checked_worklog_id(&worklog_id)?;
+    checked_jira_id("worklog", &worklog_id)?;
     let s = session(&state).await?;
     s.client.delete_worklog(&issue_key, &worklog_id).await
 }
@@ -807,7 +781,7 @@ async fn transition_issue(
     fields: Option<serde_json::Value>,
 ) -> Result<(), String> {
     checked_issue_key(&issue_key)?;
-    checked_transition_id(&transition_id)?;
+    checked_jira_id("transition", &transition_id)?;
     let s = session(&state).await?;
     s.client
         .transition_issue(&issue_key, &transition_id, fields)
@@ -824,7 +798,7 @@ async fn open_attachment(
     attachment_id: String,
     filename: String,
 ) -> Result<(), String> {
-    checked_attachment_id(&attachment_id)?;
+    checked_jira_id("attachment", &attachment_id)?;
     let filename = checked_filename(&filename)?;
     let s = session(&state).await?;
     let path = s
@@ -851,7 +825,7 @@ async fn delete_attachment(
     state: State<'_, AppState>,
     attachment_id: String,
 ) -> Result<(), String> {
-    checked_attachment_id(&attachment_id)?;
+    checked_jira_id("attachment", &attachment_id)?;
     let s = session(&state).await?;
     s.client.delete_attachment(&attachment_id).await
 }
@@ -940,7 +914,7 @@ async fn link_issues(
 /// Remove one link. Only the link goes — both issues stay as they are.
 #[tauri::command]
 async fn delete_issue_link(state: State<'_, AppState>, link_id: String) -> Result<(), String> {
-    checked_link_id(&link_id)?;
+    checked_jira_id("link", &link_id)?;
     let s = session(&state).await?;
     s.client.delete_issue_link(&link_id).await
 }
@@ -1308,20 +1282,20 @@ mod tests {
 
     #[test]
     fn attachment_ids_are_validated() {
-        assert!(checked_attachment_id("10042").is_ok());
-        assert!(checked_attachment_id("").is_err());
-        assert!(checked_attachment_id("../10042").is_err());
-        assert!(checked_attachment_id("abc").is_err());
+        assert!(checked_jira_id("attachment", "10042").is_ok());
+        assert!(checked_jira_id("attachment", "").is_err());
+        assert!(checked_jira_id("attachment", "../10042").is_err());
+        assert!(checked_jira_id("attachment", "abc").is_err());
     }
 
     #[test]
     fn transition_ids_are_validated() {
-        assert!(checked_transition_id("31").is_ok());
-        assert!(checked_transition_id("").is_err());
+        assert!(checked_jira_id("transition", "31").is_ok());
+        assert!(checked_jira_id("transition", "").is_err());
         // The id reaches a request body; anything but Jira's own digits is a
         // webview that has been tampered with.
-        assert!(checked_transition_id("31; drop").is_err());
-        assert!(checked_transition_id("abc").is_err());
+        assert!(checked_jira_id("transition", "31; drop").is_err());
+        assert!(checked_jira_id("transition", "abc").is_err());
     }
 
     #[test]
@@ -1456,9 +1430,9 @@ mod tests {
         assert!(checked_issue_key("ABC-12").is_ok());
         assert!(checked_issue_key("ABC-12/transitions").is_err());
         assert!(checked_issue_key("../secret").is_err());
-        assert!(checked_worklog_id("10023").is_ok());
-        assert!(checked_worklog_id("10023?x=1").is_err());
-        assert!(checked_worklog_id("").is_err());
+        assert!(checked_jira_id("worklog", "10023").is_ok());
+        assert!(checked_jira_id("worklog", "10023?x=1").is_err());
+        assert!(checked_jira_id("worklog", "").is_err());
         assert!(checked_date("2026-07-16").is_ok());
         assert!(checked_date("2026-07-16\" OR project = X").is_err());
     }
@@ -1466,11 +1440,19 @@ mod tests {
     #[test]
     fn link_ids_are_validated() {
         // Reaches a URL path, like the attachment ids above.
-        assert!(checked_link_id("10042").is_ok());
-        assert!(checked_link_id("").is_err());
-        assert!(checked_link_id("10042/../issue/ABC-1").is_err());
-        assert!(checked_link_id("10042?expand=all").is_err());
-        assert!(checked_link_id("abc").is_err());
+        assert!(checked_jira_id("link", "10042").is_ok());
+        assert!(checked_jira_id("link", "").is_err());
+        assert!(checked_jira_id("link", "10042/../issue/ABC-1").is_err());
+        assert!(checked_jira_id("link", "10042?expand=all").is_err());
+        assert!(checked_jira_id("link", "abc").is_err());
+    }
+
+    #[test]
+    fn a_refused_id_says_which_kind_it_was() {
+        assert_eq!(
+            checked_jira_id("worklog", "abc").unwrap_err(),
+            "invalid worklog id 'abc'"
+        );
     }
 
     #[test]
