@@ -1,6 +1,6 @@
 import { Circle, Play, Star } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternal } from "../external";
 import { IssueSummary } from "../api";
 import { priorityClass, shortStatus } from "../issueLabels";
 import { today } from "../time";
@@ -47,7 +47,7 @@ export default function IssueRow({
   const pinKeys = useShortcut("pin", () => togglePin(issue), selected);
   const jiraKeys = useShortcut(
     "openInJira",
-    () => openUrl(`${site}/browse/${issue.key}`),
+    () => openExternal(`${site}/browse/${issue.key}`),
     selected,
   );
   // Starting a timer is the other half of ⌘T, and only available on the same
@@ -89,7 +89,7 @@ export default function IssueRow({
         {...jiraKeys}
         className="issue-open key"
         title={`Open ${issue.key} in browser`}
-        onClick={() => openUrl(`${site}/browse/${issue.key}`)}
+        onClick={() => openExternal(`${site}/browse/${issue.key}`)}
       >
         {issue.key}
       </button>

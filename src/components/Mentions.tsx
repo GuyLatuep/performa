@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternal } from "../external";
 import { IssueSummary, Mention } from "../api";
 import { clearForward } from "../back";
 import { useShortcut } from "../shortcuts";
@@ -185,7 +185,7 @@ function MentionRow({
   }, [selected]);
   const jiraKeys = useShortcut(
     "openInJira",
-    () => openUrl(`${site}/browse/${item.issueKey}`),
+    () => openExternal(`${site}/browse/${item.issueKey}`),
     selected,
   );
 
@@ -209,7 +209,7 @@ function MentionRow({
             {...jiraKeys}
             className="issue-open key"
             title={`Open ${item.issueKey} in browser`}
-            onClick={() => openUrl(`${site}/browse/${item.issueKey}`)}
+            onClick={() => openExternal(`${site}/browse/${item.issueKey}`)}
           >
             {item.issueKey}
           </button>

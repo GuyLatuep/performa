@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "./api";
 import { goBack, goForward } from "./back";
+import { HANDBOOK_URL, openExternal } from "./external";
 import { parseIssueKey } from "./issueKey";
 import { getSavedSearches } from "./savedSearches";
 import { requestFieldSearch, requestTextSearch } from "./searchRequest";
@@ -183,10 +183,7 @@ function appActions(): ActionSpec[] {
       name: "Open the handbook",
       group: "App",
       keywords: "manual help documentation",
-      run: () =>
-        void openUrl(
-          "https://github.com/GuyLatuep/performa/blob/main/docs/user-manual.en.md",
-        ),
+      run: () => void openExternal(HANDBOOK_URL),
     },
     {
       id: "logfolder",

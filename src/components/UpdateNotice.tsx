@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternal } from "../external";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 
@@ -86,7 +86,7 @@ export default function UpdateNotice() {
           <button className="link" onClick={install}>
             Update &amp; restart
           </button>
-          <button className="link" onClick={() => openUrl(RELEASES_URL)}>
+          <button className="link" onClick={() => openExternal(RELEASES_URL)}>
             Release notes
           </button>
         </>

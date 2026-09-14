@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternal } from "../external";
 import { useBackTarget } from "../back";
 import { useShortcutBadge } from "../shortcuts";
 import Blockmark from "./Blockmark";
@@ -42,7 +42,7 @@ export default function About({ onClose }: { onClose: () => void }) {
           <dd>
             <button
               className="link about-mail"
-              onClick={() => openUrl(`mailto:${EMAIL}`)}
+              onClick={() => openExternal(`mailto:${EMAIL}`)}
             >
               {EMAIL}
             </button>
