@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { api, JiraUser } from "../api";
 import { useUnsavedWork } from "../keys";
 import { useShortcut } from "../shortcuts";
@@ -9,12 +9,14 @@ import {
   deleteMentionBefore,
   PickedMention,
   usedMentions,
+  userSubtitle,
 } from "../mentionInput";
 import CommentMirror from "./CommentMirror";
-import MentionPicker from "./MentionPicker";
+import OptionList from "./OptionList";
 import { logInfo } from "../log";
 import { recordEvent } from "../achievements";
 import { useDismissOnOutside } from "../dismiss";
+import { typeaheadKey, useTypeahead } from "../typeahead";
 
 /** Write one comment, of the kind the row selected. Which kinds exist at all
  *  is a property of the issue — see `commentActions`. */
@@ -36,43 +38,16 @@ export default function CommentPanel({
    *  submit from the text as it then stands — see `usedMentions`. */
   const [picked, setPicked] = useState<PickedMention[]>([]);
   const [query, setQuery] = useState<string | null>(null);
-  const [matches, setMatches] = useState<JiraUser[]>([]);
-  /** Which result the keyboard is on. Mouse hover moves it too, so the two
-   *  never disagree about what Enter would pick. */
-  const [active, setActive] = useState(0);
   const box = useRef<HTMLTextAreaElement>(null);
   const mirror = useRef<HTMLDivElement>(null);
   const compose = useRef<HTMLDivElement>(null);
 
   useDismissOnOutside(compose, () => setQuery(null), query !== null);
 
-  // Debounced: the picker follows keystrokes, and one request per character
-  // would be a request per character.
-  useEffect(() => {
-    if (query === null) {
-      setMatches([]);
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      api.searchUsers(query).then(
-        (users) => {
-          if (cancelled) return;
-          setMatches(users);
-          // A new result set starts at the top; keeping the old index would
-          // leave the highlight on whoever happens to sit at that position.
-          setActive(0);
-        },
-        // A failed lookup must not cost the writer their comment; the picker
-        // just stays empty.
-        () => !cancelled && setMatches([]),
-      );
-    }, 250);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [query]);
+  // A blank query is a real one here: "@" on its own offers a first set of
+  // names to narrow down.
+  const people = useTypeahead(query, api.searchUsers);
+  const matches = people.matches;
 
   function edit(value: string, caret: number) {
     setText(value);
@@ -90,25 +65,12 @@ export default function CommentPanel({
       return;
     }
 
-    if (open) {
-      // These keys belong to the list while it is up: Enter must choose a name
-      // rather than break the line, and the arrows must not move the caret out
-      // from under the query being typed.
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setActive((i) => (i + 1) % matches.length);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setActive((i) => (i - 1 + matches.length) % matches.length);
-        return;
-      }
-      if (e.key === "Enter" || e.key === "Tab") {
-        e.preventDefault();
-        choose(matches[active] ?? matches[0]);
-        return;
-      }
+    // While the list is up those keys belong to it: Enter must choose a name
+    // rather than break the line, and the arrows must not move the caret out
+    // from under the query being typed.
+    if (open && typeaheadKey(e.key, { ...people, choose })) {
+      e.preventDefault();
+      return;
     }
 
     if (e.key !== "Backspace") return;
@@ -209,11 +171,15 @@ export default function CommentPanel({
           }}
         />
         {query !== null && matches.length > 0 && (
-          <MentionPicker
-            matches={matches}
-            active={active}
-            onHover={setActive}
-            onChoose={choose}
+          <OptionList
+            options={matches.map((user) => ({
+              key: user.accountId,
+              name: user.displayName,
+              sub: userSubtitle(user),
+            }))}
+            active={people.active}
+            onHover={people.setActive}
+            onChoose={(i) => choose(matches[i])}
           />
         )}
       </div>

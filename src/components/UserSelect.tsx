@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { api, JiraUser } from "../api";
 import { useDismissOnOutside } from "../dismiss";
 import { userSubtitle } from "../mentionInput";
+import { typeaheadKey, useTypeahead } from "../typeahead";
+import OptionList from "./OptionList";
 
 /**
  * Pick a person for a user field — an assignee, a reporter, an approver.
@@ -24,43 +26,16 @@ export default function UserSelect({
   onChange: (accountId: string) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [matches, setMatches] = useState<JiraUser[]>([]);
   const [chosen, setChosen] = useState<JiraUser | null>(null);
-  const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
-  const activeItem = useRef<HTMLLIElement>(null);
   const box = useRef<HTMLDivElement>(null);
 
   useDismissOnOutside(box, () => setOpen(false), open);
 
-  // Debounced, like the mention picker: one request per keystroke would be one
-  // request per keystroke.
-  useEffect(() => {
-    if (!open || query.trim() === "") {
-      setMatches([]);
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      api.searchUsers(query).then(
-        (users) => {
-          if (cancelled) return;
-          setMatches(users);
-          setActive(0);
-        },
-        // A failed lookup leaves the list empty rather than the field broken.
-        () => !cancelled && setMatches([]),
-      );
-    }, 250);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [query, open]);
-
-  useEffect(() => {
-    activeItem.current?.scrollIntoView({ block: "nearest" });
-  }, [active]);
+  const people = useTypeahead(
+    open && query.trim() !== "" ? query : null,
+    api.searchUsers,
+  );
 
   function choose(user: JiraUser) {
     setChosen(user);
@@ -70,20 +45,9 @@ export default function UserSelect({
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (!open || matches.length === 0) return;
-    if (e.key === "ArrowDown") {
+    if (!open) return;
+    if (typeaheadKey(e.key, { ...people, choose, close: () => setOpen(false) }))
       e.preventDefault();
-      setActive((i) => (i + 1) % matches.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActive((i) => (i - 1 + matches.length) % matches.length);
-    } else if (e.key === "Enter" || e.key === "Tab") {
-      e.preventDefault();
-      choose(matches[active] ?? matches[0]);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      setOpen(false);
-    }
   }
 
   // Once somebody is picked the field shows them rather than a search box:
@@ -123,26 +87,17 @@ export default function UserSelect({
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
       />
-      {open && matches.length > 0 && (
-        <ul className="mention-picker" role="listbox">
-          {matches.map((user, i) => (
-            <li key={user.accountId} ref={i === active ? activeItem : null}>
-              <button
-                role="option"
-                aria-selected={i === active}
-                className={`mention-option${i === active ? " active" : ""}`}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  choose(user);
-                }}
-                onMouseEnter={() => setActive(i)}
-              >
-                <span className="mention-name">{user.displayName}</span>
-                <span className="mention-sub">{userSubtitle(user)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+      {open && people.matches.length > 0 && (
+        <OptionList
+          options={people.matches.map((user) => ({
+            key: user.accountId,
+            name: user.displayName,
+            sub: userSubtitle(user),
+          }))}
+          active={people.active}
+          onHover={people.setActive}
+          onChoose={(i) => choose(people.matches[i])}
+        />
       )}
     </div>
   );
