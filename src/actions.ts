@@ -122,7 +122,7 @@ function searchActions(): ActionSpec[] {
       title: "Search by text",
       placeholder: "Words in any field",
       // Anything at all, so long as it is something.
-      parse: (t) => (t.trim() === "" ? null : t.trim()),
+      parse: (typed) => typed.trim() || null,
       submit: requestTextSearch,
     },
   };
@@ -134,7 +134,7 @@ function searchActions(): ActionSpec[] {
     prompt: {
       title: `Search by ${search.name}`,
       placeholder: search.field,
-      parse: (t) => (t.trim() === "" ? null : t.trim()),
+      parse: (typed) => typed.trim() || null,
       submit: (term) => requestFieldSearch(search, term),
     },
   }));
@@ -143,20 +143,22 @@ function searchActions(): ActionSpec[] {
 
 /** The app's own verbs: no control to press, only a store to set. */
 function appActions(): ActionSpec[] {
-  const theme = (t: Theme): ActionSpec => ({
-    id: `theme.${t}`,
+  const theme = (which: Theme): ActionSpec => ({
+    id: `theme.${which}`,
     name:
-      t === "dark" ? "Switch to dark appearance" : "Switch to light appearance",
+      which === "dark"
+        ? "Switch to dark appearance"
+        : "Switch to light appearance",
     group: "Appearance",
     keywords: "theme colour color mode",
-    run: () => setTheme(t),
+    run: () => setTheme(which),
   });
-  const size = (s: TextScale, name: string): ActionSpec => ({
-    id: `text.${s}`,
+  const size = (scale: TextScale, name: string): ActionSpec => ({
+    id: `text.${scale}`,
     name,
     group: "Appearance",
     keywords: "text size scale bigger smaller larger",
-    run: () => setTextScale(s),
+    run: () => setTextScale(scale),
   });
   return [
     theme("light"),
@@ -197,20 +199,18 @@ function appActions(): ActionSpec[] {
 
 /** Everything on offer this moment, in the order the palette shows it. */
 export function allActions(): ActionSpec[] {
-  const bound: ActionSpec[] = boundShortcuts().flatMap((b) => {
-    const run = b.run ?? EXTERNAL_RUNNERS[b.id];
+  const bound: ActionSpec[] = boundShortcuts().flatMap((binding) => {
+    const run = binding.run ?? EXTERNAL_RUNNERS[binding.id];
     if (!run) return [];
-    return [
-      {
-        id: `key.${b.id}`,
-        name: shortcutLabel(b.id),
-        group: "Available now",
-        chord: chordLabel(b.id),
-        run,
-      },
-    ];
+    return {
+      id: `key.${binding.id}`,
+      name: shortcutLabel(binding.id),
+      group: "Available now",
+      chord: chordLabel(binding.id),
+      run,
+    };
   });
-  const fromScreens = [...screens].flatMap((s) => s.current);
+  const fromScreens = [...screens].flatMap((screen) => screen.current);
   return [...bound, ...fromScreens, ...searchActions(), ...appActions()];
 }
 
@@ -226,27 +226,23 @@ export function filterActions(
   actions: readonly ActionSpec[],
   query: string,
 ): ActionSpec[] {
-  const q = query.trim().toLowerCase();
-  if (q === "") return [...actions];
-  const scored: { action: ActionSpec; rank: number }[] = [];
-  actions.forEach((action) => {
+  const needle = query.trim().toLowerCase();
+  if (needle === "") return [...actions];
+  const scored = actions.flatMap((action) => {
     const name = action.name.toLowerCase();
-    const rank = name.startsWith(q)
+    const rank = name.startsWith(needle)
       ? 0
-      : name.split(/\s+/).some((w) => w.startsWith(q))
+      : name.split(/\s+/).some((word) => word.startsWith(needle))
         ? 1
-        : name.includes(q)
+        : name.includes(needle)
           ? 2
-          : (action.keywords ?? "").toLowerCase().includes(q)
+          : (action.keywords ?? "").toLowerCase().includes(needle)
             ? 3
             : -1;
-    if (rank >= 0) scored.push({ action, rank });
+    return rank < 0 ? [] : { action, rank };
   });
-  // Stable within a rank, so ties keep the catalogue's own order.
-  return scored
-    .map((s, i) => ({ ...s, i }))
-    .sort((a, b) => a.rank - b.rank || a.i - b.i)
-    .map((s) => s.action);
+  // Sorting is stable, so ties keep the catalogue's own order.
+  return scored.sort((a, b) => a.rank - b.rank).map((hit) => hit.action);
 }
 
 /**

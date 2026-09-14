@@ -171,8 +171,8 @@ export const RESERVED_KEYS = [
  * do not collide. Shift is part of the spelling; the primary modifier is not,
  * being on every chord here.
  */
-export function chordOf(s: Shortcut): string {
-  return (s.shift ? "shift+" : "") + s.key;
+export function chordOf(shortcut: Shortcut): string {
+  return (shortcut.shift ? "shift+" : "") + shortcut.key;
 }
 
 const BY_CHORD = new Map<string, ShortcutId>(
@@ -190,8 +190,8 @@ const KEY_GLYPHS: Record<string, string> = {
 /** What the badge draws. The primary modifier never appears — it is being held,
  *  so the reader knows — but Shift does, because it is not. */
 export function keyLabel(id: ShortcutId): string {
-  const s = TABLE[id];
-  return (s.shift ? "⇧" : "") + (KEY_GLYPHS[s.key] ?? s.key);
+  const { key, shift } = TABLE[id];
+  return (shift ? "⇧" : "") + (KEY_GLYPHS[key] ?? key);
 }
 
 /** The whole chord, spelled out. For anywhere the modifier is *not* being held
@@ -225,13 +225,13 @@ export function matchShortcut(e: KeyboardEvent): ShortcutId | null {
 /** ARIA's spelling of the chord — "Meta+R" on a Mac, "Control+R" elsewhere.
  *  ARIA names the key, not the glyph, so this is not `primaryGlyph`. */
 export function ariaKeyShortcuts(id: ShortcutId): string {
-  const s = TABLE[id];
+  const { key, shift } = TABLE[id];
   const primary = isMac() ? "Meta" : "Control";
   // ARIA names the key: "ArrowLeft", not "←".
-  const named = s.key.startsWith("arrow")
-    ? "Arrow" + s.key.slice(5, 6).toUpperCase() + s.key.slice(6)
-    : s.key.toUpperCase();
-  return `${primary}+${s.shift ? "Shift+" : ""}${named}`;
+  const named = key.startsWith("arrow")
+    ? "Arrow" + key[5].toUpperCase() + key.slice(6)
+    : key.toUpperCase();
+  return `${primary}+${shift ? "Shift+" : ""}${named}`;
 }
 
 /**
@@ -280,7 +280,7 @@ function active(id: ShortcutId): Binding | undefined {
 /** The control answering for each bound id. For the badge overlay, and for the
  *  tests. */
 export function boundShortcuts(): Binding[] {
-  return [...bindings.keys()].map((id) => active(id)!).filter(Boolean);
+  return [...bindings.values()].flatMap((stack) => stack.slice(-1));
 }
 
 export interface ShortcutProps {
@@ -377,8 +377,8 @@ function covered(node: HTMLElement): boolean {
   // later overlay's own controls test as covered: their badges would vanish and
   // their chords go dead, which is exactly what this function promises cannot
   // happen. Last is topmost for a flat set like this one.
-  const all = document.querySelectorAll(OVERLAY_SELECTOR);
-  const top = all[all.length - 1];
+  const overlays = document.querySelectorAll(OVERLAY_SELECTOR);
+  const top = overlays[overlays.length - 1];
   return top !== undefined && !top.contains(node);
 }
 
@@ -428,24 +428,24 @@ const TOP_EDGE = 12;
 /** Where every badge goes, right now. Reads the DOM; called once per frame. */
 export function placeBadges(): BadgePlacement[] {
   const focused = document.activeElement;
-  const out: BadgePlacement[] = [];
-  for (const b of boundShortcuts()) {
-    const r = b.node.getBoundingClientRect();
+  const placements: BadgePlacement[] = [];
+  for (const binding of boundShortcuts()) {
+    const box = binding.node.getBoundingClientRect();
     // Not drawn, or scrolled out of the panel it lives in. A badge floating
     // where its control is not is worse than no badge — and this is the case a
     // corner overlay has to get right, since the control may sit inside
     // something that scrolls independently.
-    if (r.width === 0 && r.height === 0) continue;
-    if (r.bottom < 0 || r.top > window.innerHeight) continue;
-    if (r.right < 0 || r.left > window.innerWidth) continue;
-    if (covered(b.node)) continue;
-    out.push({
-      id: b.id,
-      key: keyLabel(b.id),
-      x: r.right,
-      y: Math.max(r.top, TOP_EDGE),
-      standingDown: standingDown(b.id, focused),
+    if (box.width === 0 && box.height === 0) continue;
+    if (box.bottom < 0 || box.top > window.innerHeight) continue;
+    if (box.right < 0 || box.left > window.innerWidth) continue;
+    if (covered(binding.node)) continue;
+    placements.push({
+      id: binding.id,
+      key: keyLabel(binding.id),
+      x: box.right,
+      y: Math.max(box.top, TOP_EDGE),
+      standingDown: standingDown(binding.id, focused),
     });
   }
-  return out;
+  return placements;
 }
