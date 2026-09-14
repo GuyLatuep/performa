@@ -124,6 +124,9 @@ describe("the remembered ordering", () => {
       '{"column":"assignee","direction":"asc"}',
       '{"column":"key","direction":"sideways"}',
       '"key"',
+      // The columns are recognised by the keys of a table, so a name off
+      // Object.prototype must not pass for one.
+      '{"column":"toString","direction":"asc"}',
     ]) {
       localStorage.setItem("performa-todo-sort", stored);
       vi.resetModules();

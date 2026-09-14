@@ -1,6 +1,6 @@
 import { IssueSummary } from "./api";
 import { priorityRank, shortStatus } from "./issueLabels";
-import { createStore } from "./store";
+import { persisted } from "./persist";
 
 // Ordering the todo list by one of its columns.
 //
@@ -113,40 +113,34 @@ function compareKeys(a: string, b: string): number {
 
 const SORT_KEY = "performa-todo-sort";
 
-const COLUMNS: readonly SortColumn[] = [
-  "type",
-  "key",
-  "summary",
-  "priority",
-  "status",
-];
-
-/** The stored ordering, or null for Jira's own — which is also what a value
- *  written by an older build, or by hand, falls back to. Nothing here may
- *  throw: a corrupt entry must cost the ordering, not the tab. */
-function readSort(): TodoSort | null {
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(SORT_KEY) ?? "null");
-    if (!raw || typeof raw !== "object") return null;
-    const { column, direction } = raw as Record<string, unknown>;
-    if (!COLUMNS.includes(column as SortColumn)) return null;
-    if (direction !== "asc" && direction !== "desc") return null;
-    return { column: column as SortColumn, direction };
-  } catch {
-    return null;
-  }
+/** Whether a stored name is still one of the columns. Asked of `COLUMN_FIELD`,
+ *  which the type forces to name every one — a separate list of names would go
+ *  quietly short by one the day a column is added, and the stored ordering
+ *  would be dropped at launch with nothing to say why. Its own keys, not `in`,
+ *  so a stored "toString" is not a column. */
+function isColumn(value: unknown): value is SortColumn {
+  return typeof value === "string" && Object.keys(COLUMN_FIELD).includes(value);
 }
 
-const sortStore = createStore<TodoSort | null>(readSort());
+/** The stored ordering, or null for Jira's own — which is also what a value
+ *  written by an older build, or by hand, falls back to. A corrupt entry must
+ *  cost the ordering, not the tab. */
+function asSort(stored: unknown): TodoSort | null {
+  if (!stored || typeof stored !== "object") return null;
+  const { column, direction } = stored as Record<string, unknown>;
+  if (!isColumn(column)) return null;
+  if (direction !== "asc" && direction !== "desc") return null;
+  return { column, direction };
+}
+
+const sortStore = persisted<TodoSort | null>(SORT_KEY, asSort);
 
 export function getTodoSort(): TodoSort | null {
   return sortStore.get();
 }
 
 export function setTodoSort(sort: TodoSort | null): void {
-  if (sort === null) localStorage.removeItem(SORT_KEY);
-  else localStorage.setItem(SORT_KEY, JSON.stringify(sort));
-  sortStore.set(sort);
+  sortStore.save(sort);
 }
 
 export function useTodoSort(): TodoSort | null {
