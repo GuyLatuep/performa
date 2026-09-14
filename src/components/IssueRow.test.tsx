@@ -1,6 +1,7 @@
 /** @vitest-environment happy-dom */
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
 import { IssueSummary } from "../api";
@@ -283,5 +284,49 @@ describe("the timer button", () => {
 
     const button = screen.getByTitle("Stop the running timer first");
     expect(button).toHaveProperty("disabled", true);
+  });
+});
+
+describe("re-rendering", () => {
+  // A list is two hundred rows and the screen around them moves constantly —
+  // pinning, re-sorting, a keystroke in the picker's search box. The row is a
+  // function of its props, so it sits out anything that isn't one of them.
+  //
+  // Counted through `useIssueTypeIcon`, which the row calls exactly once each
+  // time it renders.
+  function Host({ site }: { site: string }) {
+    const [, bump] = useState(0);
+    return (
+      <>
+        <button onClick={() => bump((n) => n + 1)}>bump</button>
+        <IssueRow
+          issue={ROW_ISSUE}
+          site={site}
+          pinned={false}
+          onSelect={noop}
+        />
+      </>
+    );
+  }
+  const ROW_ISSUE = issue();
+  const noop = () => {};
+
+  it("sits still while the list around it re-renders", async () => {
+    const { rerender } = render(<Host site={SITE} />);
+    const before = mocks.useIssueTypeIcon.mock.calls.length;
+
+    await userEvent.click(screen.getByText("bump"));
+    rerender(<Host site={SITE} />);
+
+    expect(mocks.useIssueTypeIcon.mock.calls.length).toBe(before);
+  });
+
+  it("still redraws when one of its own props changes", async () => {
+    const { rerender } = render(<Host site={SITE} />);
+    const before = mocks.useIssueTypeIcon.mock.calls.length;
+
+    rerender(<Host site="https://elsewhere.atlassian.net" />);
+
+    expect(mocks.useIssueTypeIcon.mock.calls.length).toBe(before + 1);
   });
 });

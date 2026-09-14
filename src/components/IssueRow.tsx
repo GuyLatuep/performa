@@ -1,5 +1,5 @@
 import { Circle, Play, Star } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { openExternal } from "../external";
 import { IssueSummary } from "../api";
 import { priorityClass, shortStatus } from "../issueLabels";
@@ -10,16 +10,7 @@ import { useShowIssueTypeIcons } from "../settings";
 import { startTimer, useTimer } from "../timer";
 import { useShortcut } from "../shortcuts";
 
-/** One issue in a selectable list: pin star, type icon, key link, summary,
- *  timer start. Shows a due-date badge when the issue carries one. */
-export default function IssueRow({
-  issue,
-  site,
-  pinned,
-  lastPinned = false,
-  selected = false,
-  onSelect,
-}: {
+interface Props {
   issue: IssueSummary;
   site: string;
   pinned: boolean;
@@ -28,7 +19,18 @@ export default function IssueRow({
    *  picker — where there is no selection to be on — is unaffected. */
   selected?: boolean;
   onSelect: (issue: IssueSummary) => void;
-}) {
+}
+
+/** One issue in a selectable list: pin star, type icon, key link, summary,
+ *  timer start. Shows a due-date badge when the issue carries one. */
+function IssueRow({
+  issue,
+  site,
+  pinned,
+  lastPinned = false,
+  selected = false,
+  onSelect,
+}: Props) {
   const activeTimer = useTimer();
   const isRunning = activeTimer?.issueKey === issue.key;
 
@@ -145,6 +147,20 @@ export default function IssueRow({
     </li>
   );
 }
+
+/**
+ * Rendered only when this row's own props change.
+ *
+ * A list is two hundred of these and the screen around them moves constantly:
+ * pinning an issue, reordering a column, a keystroke in the picker's search box
+ * — each is one piece of state on the host, and each re-rendered every row
+ * under it. A row is a function of the issue, whether it is pinned and whether
+ * the keyboard is on it, and none of those change when the list around it does.
+ *
+ * The three Lucide icons are what make it worth guarding: they are the bulk of
+ * the row's render cost, and they redraw the same SVG every time.
+ */
+export default memo(IssueRow);
 
 /** Jira's own icon for the issue's type.
  *
