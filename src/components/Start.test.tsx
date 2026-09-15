@@ -60,6 +60,7 @@ import {
   worklogEntry,
 } from "../test-support/api";
 import { AllKeys } from "../test-support/shortcuts";
+import { reportWorklogFiled } from "../worklogEvents";
 import Start from "./Start";
 
 const WEDNESDAY = new Date(2026, 2, 18, 12, 0, 0);
@@ -80,17 +81,12 @@ function renderStart() {
   const handlers = {
     onSelectIssue: vi.fn(),
     onOpenMissing: vi.fn(),
-    onLogged: vi.fn(),
   };
   render(
     <>
       {/* The app mounts its key listeners once, in `App`. */}
       <AllKeys />
-      <Start
-        site="https://example.atlassian.net"
-        refreshKey={0}
-        {...handlers}
-      />
+      <Start site="https://example.atlassian.net" {...handlers} />
     </>,
   );
   return handlers;
@@ -181,6 +177,15 @@ describe("the week section", () => {
     expect(await screen.findByText(/Jira returned 503/)).toBeDefined();
     expect(screen.getByText("This week")).toBeDefined();
   });
+
+  it("re-reads after a worklog is filed anywhere in the app", async () => {
+    renderStart();
+    await waitFor(() => expect(apiMock.listWorklogs).toHaveBeenCalledTimes(1));
+
+    act(() => reportWorklogFiled(worklogEntry()));
+
+    await waitFor(() => expect(apiMock.listWorklogs).toHaveBeenCalledTimes(2));
+  });
 });
 
 describe("the templates section", () => {
@@ -201,7 +206,7 @@ describe("the templates section", () => {
 
   it("logs a template's time through the usual form", async () => {
     templateStore.items = [template()];
-    const { onLogged } = renderStart();
+    renderStart();
 
     await userEvent.click(screen.getByTitle("Log 1h on ABC-1"));
     // Prefilled from the template.
@@ -215,7 +220,9 @@ describe("the templates section", () => {
         expect.objectContaining({ timeSpentSeconds: 3600 }),
       ),
     );
-    expect(onLogged).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.queryByLabelText(/Time spent/)).toBeNull(),
+    );
   });
 
   it("removes a template", async () => {

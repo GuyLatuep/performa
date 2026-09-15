@@ -28,7 +28,6 @@ import AchievementToast from "./AchievementToast";
 
 interface Props {
   site: string;
-  onLogged: () => void;
 }
 
 /** This list's name in the selection registry. */
@@ -42,9 +41,10 @@ function TabMissingRow(props: Parameters<typeof MissingRow>[0]) {
 
 // Reminder list: issues with recent own activity but no worklog around it.
 // Clicking an item opens an inline log form; saving returns to the refreshed
-// list. DEV issues log their time on the linked escalation-source issue, when
-// that issue is the user's own.
-export default function MissingWorklogs({ site, onLogged }: Props) {
+// list (the filed worklog triggers the recheck — see `useAccountWatchers`). DEV
+// issues log their time on the linked escalation-source issue, when that issue
+// is the user's own.
+export default function MissingWorklogs({ site }: Props) {
   const items = useMissing();
   const hidden = useMissingHiddenCount();
   const error = useMissingError();
@@ -110,17 +110,7 @@ export default function MissingWorklogs({ site, onLogged }: Props) {
   );
 
   if (logging) {
-    return (
-      <LogForm
-        item={logging}
-        onCancel={closeForm}
-        onSaved={async () => {
-          setLogging(null);
-          onLogged();
-          await refreshMissing("post-log");
-        }}
-      />
-    );
+    return <LogForm item={logging} onCancel={closeForm} onSaved={closeForm} />;
   }
 
   return (

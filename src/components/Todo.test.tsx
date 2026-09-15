@@ -77,17 +77,15 @@ const ISSUES = [
 ];
 
 function renderTodo() {
-  const onLogged = vi.fn();
   render(
     <>
       {/* The app mounts its key listeners once, in `App`; a screen on its own
           has to bring them, or its keys go into registries nobody listens
           over. */}
       <AllKeys />
-      <Todo site="https://example.atlassian.net" onLogged={onLogged} />
+      <Todo site="https://example.atlassian.net" />
     </>,
   );
-  return onLogged;
 }
 
 beforeEach(() => {

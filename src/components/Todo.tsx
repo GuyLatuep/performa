@@ -22,8 +22,6 @@ import {
 
 interface Props {
   site: string;
-  /** A worklog was filed from the opened issue — refresh what depends on it. */
-  onLogged: () => void;
 }
 
 /** This list's name in the selection registry. */
@@ -45,7 +43,7 @@ const PALETTE_NAMES: Record<SortColumn, string> = {
 // Todo tab: everything waiting on the user — escalations they raised that are
 // back in their court, plus every open issue assigned to them. Most urgent
 // first; the query itself lives in the backend (`build_todo_jql`).
-export default function Todo({ site, onLogged }: Props) {
+export default function Todo({ site }: Props) {
   const [issues, setIssues] = useState<IssueSummary[] | null>(null);
   const [opened, setOpened] = useState<IssueSummary | null>(null);
   const funMode = useFunMode();
@@ -151,7 +149,6 @@ export default function Todo({ site, onLogged }: Props) {
           // show the status it had on the way in.
           reload();
         }}
-        onLogged={onLogged}
       />
     );
   }

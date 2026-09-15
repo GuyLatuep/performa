@@ -1,5 +1,5 @@
 /** @vitest-environment happy-dom */
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
@@ -30,18 +30,14 @@ vi.mock("./IssuePicker", () => ({
 }));
 
 import { apiMock, resetApiMock, worklogEntry } from "../test-support/api";
+import { reportWorklogFiled } from "../worklogEvents";
 import TimesheetMonth from "./TimesheetMonth";
 
 // Mid-March 2026, so the month is fully in the past except its tail.
 const MID_MARCH = new Date(2026, 2, 18, 12, 0, 0);
 
-function renderMonth(refreshKey = 0) {
-  render(
-    <TimesheetMonth
-      site="https://example.atlassian.net"
-      refreshKey={refreshKey}
-    />,
-  );
+function renderMonth() {
+  render(<TimesheetMonth site="https://example.atlassian.net" />);
 }
 
 /**
@@ -385,12 +381,11 @@ describe("when re-reading one week fails", () => {
   });
 
   it("says so after a worklog filed elsewhere in the app", async () => {
-    const site = "https://example.atlassian.net";
-    const view = render(<TimesheetMonth site={site} refreshKey={0} />);
+    renderMonth();
     await loaded();
     apiMock.listWorklogs.mockRejectedValue(new Error("Jira returned 503"));
 
-    view.rerender(<TimesheetMonth site={site} refreshKey={1} />);
+    act(() => reportWorklogFiled(worklogEntry()));
 
     expect(await screen.findByText(/Jira returned 503/)).toBeDefined();
   });

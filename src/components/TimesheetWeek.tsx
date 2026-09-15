@@ -4,6 +4,7 @@ import { api, WorklogEntry } from "../api";
 import { useShortcut } from "../shortcuts";
 import { useRowSelected, useSelectionScope } from "../selection";
 import { formatDayLabel, formatDuration, weekRange } from "../time";
+import { useWorklogsFiled } from "../worklogEvents";
 import WeekChart from "./WeekChart";
 import RepeatModal from "./RepeatModal";
 import WorklogEditModal from "./WorklogEditModal";
@@ -11,7 +12,6 @@ import WorklogRow from "./WorklogRow";
 
 interface Props {
   site: string;
-  refreshKey: number;
 }
 
 // One week at a time, so the year would be noise.
@@ -30,7 +30,7 @@ function WeekRow(props: Parameters<typeof WorklogRow>[0]) {
   return <WorklogRow {...props} selected={selected} />;
 }
 
-export default function TimesheetWeek({ site, refreshKey }: Props) {
+export default function TimesheetWeek({ site }: Props) {
   const [offset, setOffset] = useState(0);
   const [entries, setEntries] = useState<WorklogEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,6 +40,7 @@ export default function TimesheetWeek({ site, refreshKey }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const { start, end } = weekRange(offset);
+  const filed = useWorklogsFiled();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -55,7 +56,7 @@ export default function TimesheetWeek({ site, refreshKey }: Props) {
 
   useEffect(() => {
     load();
-  }, [load, refreshKey]);
+  }, [load, filed]);
 
   const total = entries.reduce((sum, e) => sum + e.timeSpentSeconds, 0);
 

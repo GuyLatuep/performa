@@ -5,7 +5,6 @@ import TimesheetWeek from "./TimesheetWeek";
 
 interface Props {
   site: string;
-  refreshKey: number;
 }
 
 /**
@@ -20,7 +19,7 @@ interface Props {
  * are not the same unit and pretending otherwise would land the user somewhere
  * they didn't ask for. Switching starts at the current period.
  */
-export default function Timesheet({ site, refreshKey }: Props) {
+export default function Timesheet({ site }: Props) {
   const view = useTimesheetView();
 
   // One key for the pair, landing on whichever view is not showing — a toggle,
@@ -55,9 +54,9 @@ export default function Timesheet({ site, refreshKey }: Props) {
         </button>
       </div>
       {view === "week" ? (
-        <TimesheetWeek site={site} refreshKey={refreshKey} />
+        <TimesheetWeek site={site} />
       ) : (
-        <TimesheetMonth site={site} refreshKey={refreshKey} />
+        <TimesheetMonth site={site} />
       )}
     </div>
   );

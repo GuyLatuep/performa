@@ -6,11 +6,13 @@ import {
   useMentionsUnreadCount,
 } from "./mentions";
 import {
+  refreshMissing,
   startMissingPolling,
   stopMissingPolling,
   useMissingUnseenCount,
 } from "./missing";
 import { claimSearchesFor } from "./savedSearches";
+import { onWorklogFiled } from "./worklogEvents";
 
 /**
  * Everything that runs in the background for the signed-in account: the two
@@ -26,12 +28,17 @@ export function useAccountWatchers(creds: CredentialsMeta | null): void {
     api.setBadge(waiting > 0 ? waiting : null);
   }, [waiting]);
 
-  // Watch for unlogged activity in the background while signed in.
+  // Watch for unlogged activity in the background while signed in. A fresh
+  // worklog may resolve a reminder, so it is rechecked right away too.
   const signedIn = !!creds;
   useEffect(() => {
     if (!signedIn) return;
     startMissingPolling();
-    return stopMissingPolling;
+    const unsubscribe = onWorklogFiled(() => void refreshMissing("post-log"));
+    return () => {
+      unsubscribe();
+      stopMissingPolling();
+    };
   }, [signedIn]);
 
   // Same for @-mentions — the tab badge has to be right before it is opened.

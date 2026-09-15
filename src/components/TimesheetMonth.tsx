@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, IssueSummary, WorklogEntry } from "../api";
 import { openExternal } from "../external";
 import { useShortcut } from "../shortcuts";
+import { useWorklogsFiled } from "../worklogEvents";
 import {
   buildMonthGrid,
   dayTone,
@@ -27,7 +28,6 @@ import WorklogRow from "./WorklogRow";
 
 interface Props {
   site: string;
-  refreshKey: number;
 }
 
 // The month as a matrix: issues down the side, days across the top, hours in
@@ -53,7 +53,7 @@ interface LabelledColumn extends MonthColumn {
   label: string;
 }
 
-export default function TimesheetMonth({ site, refreshKey }: Props) {
+export default function TimesheetMonth({ site }: Props) {
   const [offset, setOffset] = useState(0);
   /** Bumped to load the same month again — what Retry does after a week of it
    *  failed. Setting the offset to the value it already holds changes nothing. */
@@ -147,13 +147,14 @@ export default function TimesheetMonth({ site, refreshKey }: Props) {
   // A worklog filed anywhere else in the app can only have landed on today, so
   // a global refresh costs one week rather than the whole month — and nothing
   // at all when the month on screen is not the current one.
-  const seenRefresh = useRef(refreshKey);
+  const filed = useWorklogsFiled();
+  const seenFiled = useRef(filed);
   useEffect(() => {
-    if (seenRefresh.current === refreshKey) return;
-    seenRefresh.current = refreshKey;
+    if (seenFiled.current === filed) return;
+    seenFiled.current = filed;
     const now = today();
     if (now >= start && now <= end) void refreshChunk(now);
-  }, [refreshKey, start, end, refreshChunk]);
+  }, [filed, start, end, refreshChunk]);
 
   const grid = buildMonthGrid(entries, start, end, rowOrder);
   // The day a tooltip names is a property of the column, not of the cell, so it

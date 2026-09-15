@@ -32,8 +32,6 @@ interface Props {
   /** Open it again, for a forward gesture that undoes `onBack`. */
   onForward?: () => void;
   backLabel: string;
-  /** A worklog was filed here — refresh what depends on it. */
-  onLogged: () => void;
 }
 
 // The issue view: one issue read in full, with its timeline, a comment box and
@@ -44,7 +42,6 @@ export default function IssueView({
   onBack,
   onForward,
   backLabel,
-  onLogged,
 }: Props) {
   /** Issues opened from a link, deepest last — `issue` is the one the list
    *  opened and stays at the bottom of it.
@@ -299,10 +296,7 @@ export default function IssueView({
               issueKey={open.key}
               serviceDesk={detail.serviceDesk}
               onPosted={reload}
-              onLogged={() => {
-                onLogged();
-                reload();
-              }}
+              onLogged={reload}
             />
           </section>
         </>

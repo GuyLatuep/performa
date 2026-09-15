@@ -23,6 +23,7 @@ import { setDailyHours, setFunMode, setShowWeekends } from "../settings";
 import { apiMock, resetApiMock, worklogEntry } from "../test-support/api";
 import { clearSelection } from "../selection";
 import { AllKeys } from "../test-support/shortcuts";
+import { reportWorklogFiled } from "../worklogEvents";
 import TimesheetWeek from "./TimesheetWeek";
 
 // Wednesday of the week starting Monday 2026-03-16.
@@ -30,15 +31,12 @@ const WEDNESDAY = new Date(2026, 2, 18, 12, 0, 0);
 const MONDAY = "2026-03-16";
 const SUNDAY = "2026-03-22";
 
-function renderWeek(refreshKey = 0) {
+function renderWeek() {
   render(
     <>
       {/* The app mounts its key listeners once, in `App`. */}
       <AllKeys />
-      <TimesheetWeek
-        site="https://example.atlassian.net"
-        refreshKey={refreshKey}
-      />
+      <TimesheetWeek site="https://example.atlassian.net" />
     </>,
   );
 }
@@ -107,15 +105,11 @@ describe("the week that loads", () => {
     expect(await screen.findByText(/Jira returned 500/)).toBeDefined();
   });
 
-  it("re-reads when the caller bumps the refresh key", async () => {
-    const { rerender } = render(
-      <TimesheetWeek site="https://example.atlassian.net" refreshKey={0} />,
-    );
+  it("re-reads after a worklog is filed anywhere in the app", async () => {
+    renderWeek();
     await waitFor(() => expect(apiMock.listWorklogs).toHaveBeenCalledTimes(1));
 
-    rerender(
-      <TimesheetWeek site="https://example.atlassian.net" refreshKey={1} />,
-    );
+    act(() => reportWorklogFiled(worklogEntry()));
 
     await waitFor(() => expect(apiMock.listWorklogs).toHaveBeenCalledTimes(2));
   });

@@ -1,6 +1,13 @@
+/** @vitest-environment happy-dom */
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import "./test-support/dom";
 import { WorklogInput } from "./api";
-import { onWorklogFiled, reportWorklogFiled } from "./worklogEvents";
+import {
+  onWorklogFiled,
+  reportWorklogFiled,
+  useWorklogsFiled,
+} from "./worklogEvents";
 
 const WORKLOG: WorklogInput = {
   timeSpentSeconds: 3600,
@@ -72,5 +79,16 @@ describe("onWorklogFiled", () => {
 
   it("announces nothing to nobody without complaint", () => {
     expect(() => reportWorklogFiled(WORKLOG)).not.toThrow();
+  });
+});
+
+describe("useWorklogsFiled", () => {
+  it("moves on with every filed worklog, so a view can re-read on it", () => {
+    const { result } = renderHook(() => useWorklogsFiled());
+    const before = result.current;
+
+    act(() => reportWorklogFiled(WORKLOG));
+
+    expect(result.current).toBe(before + 1);
   });
 });

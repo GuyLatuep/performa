@@ -8,18 +8,10 @@ import Timesheet from "./Timesheet";
 // The two views have their own tests; what this file is about is the switch
 // between them and what each is handed.
 vi.mock("./TimesheetWeek", () => ({
-  default: (p: { site: string; refreshKey: number }) => (
-    <div>
-      week view site={p.site} key={p.refreshKey}
-    </div>
-  ),
+  default: (p: { site: string }) => <div>week view site={p.site}</div>,
 }));
 vi.mock("./TimesheetMonth", () => ({
-  default: (p: { site: string; refreshKey: number }) => (
-    <div>
-      month view site={p.site} key={p.refreshKey}
-    </div>
-  ),
+  default: (p: { site: string }) => <div>month view site={p.site}</div>,
 }));
 
 const settings = vi.hoisted(() => ({
@@ -31,10 +23,8 @@ vi.mock("../settings", () => ({
   setTimesheetView: settings.setTimesheetView,
 }));
 
-const renderSheet = (refreshKey = 1) =>
-  render(
-    <Timesheet site="https://example.atlassian.net" refreshKey={refreshKey} />,
-  );
+const renderSheet = () =>
+  render(<Timesheet site="https://example.atlassian.net" />);
 
 const button = (name: string) => screen.getByRole("button", { name });
 
@@ -96,11 +86,11 @@ describe("switching", () => {
 });
 
 describe("what the view is given", () => {
-  it("passes the site and the refresh key through", () => {
-    renderSheet(7);
+  it("passes the site through", () => {
+    renderSheet();
 
     expect(
-      screen.getByText(/site=https:\/\/example.atlassian.net key=7/),
+      screen.getByText(/site=https:\/\/example.atlassian.net/),
     ).toBeDefined();
   });
 });

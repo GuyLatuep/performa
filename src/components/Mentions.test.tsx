@@ -71,9 +71,7 @@ function mention(o: Partial<Mention> = {}): Mention {
 }
 
 function renderTab() {
-  const onLogged = vi.fn();
-  render(<Mentions site="https://example.atlassian.net" onLogged={onLogged} />);
-  return onLogged;
+  render(<Mentions site="https://example.atlassian.net" />);
 }
 
 beforeEach(() => {

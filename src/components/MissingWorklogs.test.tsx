@@ -50,14 +50,7 @@ import {
 import MissingWorklogs from "./MissingWorklogs";
 
 function renderTab() {
-  const onLogged = vi.fn();
-  render(
-    <MissingWorklogs
-      site="https://example.atlassian.net"
-      onLogged={onLogged}
-    />,
-  );
-  return onLogged;
+  render(<MissingWorklogs site="https://example.atlassian.net" />);
 }
 
 beforeEach(() => {
@@ -228,7 +221,7 @@ describe("logging from a finding", () => {
 
   it("logs against the target issue, not the flagged one", async () => {
     // A DEV escalation books its time on the issue it was raised for.
-    const onLogged = renderTab();
+    renderTab();
     await userEvent.click(screen.getByTitle("Log work on ABC-1"));
 
     await userEvent.type(screen.getByLabelText(/Time spent/), "1h");
@@ -240,8 +233,10 @@ describe("logging from a finding", () => {
         expect.objectContaining({ timeSpentSeconds: 3600 }),
       ),
     );
-    expect(onLogged).toHaveBeenCalled();
-    expect(store.refreshMissing).toHaveBeenCalledWith("post-log");
+    // Back to the list; the recheck follows the filed worklog on its own.
+    expect(
+      await screen.findByText(/without logging time around it/),
+    ).toBeDefined();
   });
 
   it("refuses a duration it cannot read", async () => {

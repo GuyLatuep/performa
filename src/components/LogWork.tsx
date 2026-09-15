@@ -16,7 +16,6 @@ import {
 
 interface Props {
   site: string;
-  onLogged: () => void;
   /** Issue to open the log form for right away (e.g. picked on the start tab). */
   initialIssue?: IssueSummary | null;
   /** Name of the tab the form was opened from ("Todo", "Start", …). */
@@ -27,7 +26,6 @@ interface Props {
 
 export default function LogWork({
   site,
-  onLogged,
   initialIssue,
   backLabel,
   onBack,
@@ -91,7 +89,6 @@ export default function LogWork({
       setOkMsg(`Logged ${formatDuration(seconds)} on ${selected.key}`);
       patch({ duration: "", comment: "", nonBillable: false });
       setHistoryKey((k) => k + 1);
-      onLogged();
     } catch (err) {
       setError(String(err));
     } finally {
