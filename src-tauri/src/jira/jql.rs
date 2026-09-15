@@ -12,7 +12,7 @@
 //! clause needs is a property of the clause, so both live beside the builders
 //! that pick between them.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use super::types::*;
 
@@ -27,8 +27,7 @@ pub fn build_search_jql(query: &str) -> String {
     if is_issue_key(trimmed) {
         return format!("key = \"{}\"", trimmed.to_uppercase());
     }
-    let esc = escape_jql_text(trimmed);
-    format!("(summary ~ \"{esc}*\" OR text ~ \"{esc}\") ORDER BY updated DESC")
+    build_text_jql(trimmed)
 }
 
 /// A plain text search, over every text field Jira will search.
@@ -76,8 +75,8 @@ pub fn fill_search_template(template: &str, term: &str) -> Result<String, String
             .is_some_and(|s| s.eq_ignore_ascii_case(SEARCH_TERM_PLACEHOLDER));
         if at_placeholder {
             let clause_start = string.map_or(i, |(_, open)| open);
-            let text = template[..clause_start].trim_end().ends_with('~');
-            let escaped_for_index = if text {
+            let in_text_clause = template[..clause_start].trim_end().ends_with('~');
+            let escaped_for_index = if in_text_clause {
                 lucene_escaped(term)
             } else {
                 term.to_string()
@@ -226,7 +225,7 @@ pub(super) fn drop_ignored_statuses(
     // Merged rather than collected: settings can hold "DEV" and "dev" as two
     // separate keys, and the old scan matched both, so folding them has to
     // union their names instead of letting one win.
-    let mut ignored: HashMap<String, std::collections::HashSet<String>> = HashMap::new();
+    let mut ignored: HashMap<String, HashSet<String>> = HashMap::new();
     for (project, names) in &cfg.ignored_statuses {
         ignored
             .entry(project.to_lowercase())
@@ -329,14 +328,7 @@ const LUCENE_RESERVED: &[char] = &[
 /// afterwards stays a wildcard, which is the point of doing it here rather than
 /// on the finished clause.
 pub(super) fn escape_jql_text(s: &str) -> String {
-    let mut escaped = String::with_capacity(s.len());
-    for c in s.chars() {
-        if LUCENE_RESERVED.contains(&c) {
-            escaped.push('\\');
-        }
-        escaped.push(c);
-    }
-    escape_jql(&escaped)
+    escape_jql(&lucene_escaped(s))
 }
 
 #[cfg(test)]
