@@ -314,11 +314,15 @@ describe("showing a view", () => {
   });
 
   it("is headed by its name alone — there is no term to name", async () => {
-    apiMock.viewIssues.mockResolvedValue(page([issueSummary({ key: "ABC-1" })]));
+    apiMock.viewIssues.mockResolvedValue(
+      page([issueSummary({ key: "ABC-1" })]),
+    );
 
     renderResults(VIEW);
 
-    expect(await screen.findByText(/Results for Open escalations/)).toBeDefined();
+    expect(
+      await screen.findByText(/Results for Open escalations/),
+    ).toBeDefined();
   });
 
   it("lists what came back, as any other result does", async () => {

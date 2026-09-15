@@ -90,7 +90,10 @@ describe("writing one", () => {
     // This was refused until views existed: JQL that names no term finds the
     // same issues whatever is typed, which is the point of a view rather than a
     // fault in a search.
-    await fillIn("Open escalations", "project = DEV AND statusCategory != Done");
+    await fillIn(
+      "Open escalations",
+      "project = DEV AND statusCategory != Done",
+    );
 
     expect(screen.getByRole("button", { name: "Add" })).toHaveProperty(
       "disabled",

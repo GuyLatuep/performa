@@ -46,9 +46,9 @@ export default function SettingsSearches() {
       </div>
 
       <span className="hint">
-        Write <code>{SEARCH_TERM_PLACEHOLDER}</code> where the text you type goes
-        and this becomes “Search by …” in the palette (⌘P), which asks for a
-        term. On its own the term is quoted for you, as in{" "}
+        Write <code>{SEARCH_TERM_PLACEHOLDER}</code> where the text you type
+        goes and this becomes “Search by …” in the palette (⌘P), which asks for
+        a term. On its own the term is quoted for you, as in{" "}
         <code>"Plant no." ~ {SEARCH_TERM_PLACEHOLDER}</code>; inside quotes it
         leaves the rest of the string alone, so{" "}
         <code>"{SEARCH_TERM_PLACEHOLDER}*"</code> matches anything starting with
