@@ -129,6 +129,32 @@ jobs:
           # coverage gate is the status check Codecov posts, not this step.
           fail_ci_if_error: false
 
+  # The other release target, compiled but not measured. `release.yml` ships a
+  # Windows installer, so without this the first Windows build of a change is
+  # the tag build — the worst moment to discover that a `cfg` branch or the
+  # `windows-native` keyring backend no longer compiles. Clippy over
+  # `--all-targets` is the cheapest thing that type-checks every one of them;
+  # coverage and the test report stay on macOS, where the numbers already are.
+  rust-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          key: windows-check
+
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+
   rust:
     # macOS mirrors the primary release target and needs no system packages,
     # unlike Linux where Tauri pulls in webkit2gtk & friends.
