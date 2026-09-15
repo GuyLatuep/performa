@@ -62,10 +62,16 @@ function legacyJql(field: string, exact: boolean, excluded: string[]): string {
   return `${match}${leftOut} ORDER BY updated DESC`;
 }
 
-/** One stored entry as a search, or null when it is not one. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function fromStored(s: any): SavedSearch | null {
-  if (!s || typeof s.id !== "string" || typeof s.name !== "string") return null;
+/** One stored entry as a search, or null when it is not one.
+ *
+ *  `unknown` rather than `any`: this reads whatever localStorage happens to
+ *  hold, so every field has to be proven before it is used — which the body
+ *  already did. Typing it `any` only meant the compiler was not checking that
+ *  the proofs covered everything the returned object touches. */
+function fromStored(stored: unknown): SavedSearch | null {
+  if (!stored || typeof stored !== "object") return null;
+  const s = stored as Record<string, unknown>;
+  if (typeof s.id !== "string" || typeof s.name !== "string") return null;
   const name = s.name.trim();
   if (name === "") return null;
   if (typeof s.jql === "string") {
@@ -82,7 +88,7 @@ function fromStored(s: any): SavedSearch | null {
     return {
       id: s.id,
       name,
-      jql: legacyJql(s.field, s.exact, s.excludedProjects),
+      jql: legacyJql(s.field, s.exact, s.excludedProjects as string[]),
     };
   }
   return null;

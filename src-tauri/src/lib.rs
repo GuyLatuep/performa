@@ -825,10 +825,13 @@ mod tests {
     fn some_done_statuses_still_accept_worklogs() {
         let cfg = missing_config();
 
-        // Not merely the shipped names: an *empty* list collapses
+        // Non-emptiness is the load-bearing part: an empty list collapses
         // `missing::bookable_clause` to "not done at all", and the scan then
-        // stops flagging anything resolved at all.
-        assert_eq!(cfg.bookable_done_statuses, ["Gel\u{f6}st", "Resolved"]);
+        // stops flagging anything resolved at all. The names themselves are
+        // free to grow as other projects' workflows arrive, so only the one
+        // the clause is written around is named here.
+        assert!(!cfg.bookable_done_statuses.is_empty());
+        assert!(cfg.bookable_done_statuses.iter().any(|s| s == "Gelöst"));
         assert_eq!(cfg.escalation_project, MISSING_ESCALATION_PROJECT);
         assert_eq!(cfg.escalation_link, MISSING_ESCALATION_LINK);
     }

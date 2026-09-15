@@ -1,0 +1,176 @@
+/* ---------- Setup ---------- */
+.setup {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 52px 24px 40px;
+}
+/* The same screen serves first-run sign-in and the settings page. Sign-in is a
+   short form and wants a narrow column; settings holds lists of statuses and
+   fields that turn into a very long page at that width. */
+.setup.settings-page {
+  max-width: 980px;
+}
+
+/* Side-by-side settings blocks, collapsing to one column when there is not
+   room for two. */
+.settings-columns {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 8px 32px;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .settings-columns {
+    grid-template-columns: 1fr;
+  }
+}
+.setup-mark {
+  margin-bottom: 22px;
+}
+.setup-mark .blockmark {
+  width: 26px;
+  height: 26px;
+}
+.eyebrow {
+  display: block;
+  font-size: var(--fs-base);
+  color: var(--muted);
+  margin-bottom: var(--sp-1);
+}
+.setup h1 {
+  font-weight: 600;
+  font-size: var(--fs-display);
+  line-height: 1.2;
+  letter-spacing: 0.011em; /* Large Titles loosen slightly */
+  margin: 0 0 var(--sp-4);
+}
+.setup > .muted {
+  font-size: var(--fs-md);
+  max-width: 44ch;
+  margin: 0 0 28px;
+}
+.setup .row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* ---------- Appearance / theme toggle ---------- */
+.field-block {
+  margin-bottom: 24px;
+}
+.field-label {
+  display: block;
+  font-size: var(--fs-xs);
+  margin-bottom: 8px;
+}
+/* Segmented control: a sunken track with a raised pill on the active
+   segment, the way iOS draws one. */
+.theme-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--fill-tertiary);
+  border-radius: 10px;
+}
+.theme-toggle button {
+  background: none;
+  border: none;
+  color: var(--ink);
+  min-height: var(--tap-compact);
+  padding: 0 var(--sp-4);
+  border-radius: 8px;
+  font-size: var(--fs-base);
+  font-weight: 500;
+}
+.theme-toggle button:hover {
+  color: var(--ink);
+  background: var(--fill-quaternary);
+}
+.theme-toggle button.active,
+.theme-toggle button.active:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.accent-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.accent-swatch {
+  width: var(--tap-dense);
+  height: var(--tap-dense);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.accent-swatch:hover {
+  transform: scale(1.08);
+}
+.accent-swatch.active {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+/* The swatches are small by design, so the row carries the 44pt target. */
+.accent-picker {
+  min-height: var(--tap);
+}
+.accent-custom::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.accent-custom::-webkit-color-swatch {
+  border: none;
+}
+.accent-custom::-moz-color-swatch {
+  border: none;
+}
+
+/* ---------- Settings tabs ---------- */
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--hair);
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-6);
+}
+.settings-tabs button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  border-radius: var(--r-control);
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-base);
+  font-weight: 500;
+  /* Never narrower than the label. Flex items shrink by default, and once a
+     button is squeezed below its text the label overflows the box while the
+     underline — which tracks the box — stops short of it. */
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.settings-tabs button:hover {
+  background: var(--fill-quaternary);
+  color: var(--ink);
+}
+.settings-tabs button.active,
+.settings-tabs button.active:hover {
+  color: var(--accent-text);
+  background: var(--accent-tint);
+}
+
+.hours-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.hours-field input {
+  width: 96px;
+  font-variant-numeric: tabular-nums;
+}
+.hours-field select {
+  cursor: pointer;
+  width: auto;
+}

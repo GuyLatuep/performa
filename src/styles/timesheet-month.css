@@ -1,0 +1,242 @@
+/* ---------- Timesheet · month matrix ---------- */
+
+/* The Week/Month switch above whichever view is showing. Reuses the segmented
+   control from the settings screen; only the placement is new. */
+.timesheet-view {
+  margin-bottom: 12px;
+}
+
+/* Twenty-odd day columns do not fit any window worth having, so the grid
+   scrolls sideways inside the panel while the issue column and the day header
+   stay put.
+
+   It keeps a vertical scroll too, because CSS cannot scroll one axis and let
+   the other overflow — asking for `overflow-x: auto` makes the other axis
+   scroll as well. So rather than fight it, the grid is given the rest of the
+   column's height: it becomes the view's only scroll region instead of a
+   short pane with the page scrolling behind it. That is also how a frozen
+   header and first column are supposed to behave. */
+.month-scroll {
+  overflow: auto;
+  overscroll-behavior-x: contain;
+  flex: 1;
+  min-height: 22rem;
+}
+
+/* The chain that hands the grid a height to fill. `main` is bounded by the
+   column, so a percentage height here resolves to something definite, and the
+   flex items below divide it up. Without a bounded height the grid grows to
+   its content, and a sticky header with nothing to scroll inside stops
+   sticking — the frozen day row would simply scroll away. */
+.timesheet-month {
+  height: 100%;
+}
+.timesheet-month,
+.timesheet-month > .panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.timesheet-month > .panel {
+  flex: 1;
+}
+.month-grid {
+  display: grid;
+  /* The column count is data — how many days the month shows — so it arrives
+     from the component rather than being written here. */
+  /* Who gets a wide window's spare width, in order.
+
+     The issue column asks for exactly what its longest key-and-summary needs
+     and stops there: `fit-content` is content-sized, so once every summary
+     fits, further width is of no use to it. The cap is a share of the matrix
+     rather than a length, so it holds on any window — one runaway summary
+     cannot take the whole table hostage, and the days always keep the
+     majority of it.
+
+     What is left over then goes to the days, evenly, because each is `1fr`
+     above a floor that budgets the four characters `decimalHours` can produce
+     ("0.25"). That floor is also what they collapse back to on a narrow
+     window, where the grid scrolls sideways instead. */
+  grid-template-columns:
+    fit-content(40%)
+    repeat(var(--month-cols), minmax(3.125rem, 1fr))
+    4.25rem;
+  min-width: min-content;
+}
+/* Rows exist for screen readers, not for layout: `display: contents` lets the
+   cells inside them be the grid's own children, which is what the column
+   template and the sticky cells below both need. */
+.month-row {
+  display: contents;
+}
+/* Every cell, reached through the row wrapper: `display: contents` takes the
+   rows out of the layout but not out of the DOM, so a child combinator on the
+   grid itself would land on them and style nothing. */
+.month-row > * {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  text-align: right;
+  padding: var(--sp-1) 6px;
+  border-bottom: 1px solid var(--hair);
+  background: var(--surface);
+  min-height: var(--tap-dense);
+}
+.month-grid .col-issue {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  /* Two tracks rather than a flex row, so every summary starts at the same x
+     down the whole table instead of each one beginning wherever its own key
+     happened to end. The floor holds the longest key these projects produce;
+     `auto` lets an unusually long one push its own summary across rather than
+     be clipped — that row loses the alignment, never the key. */
+  display: grid;
+  grid-template-columns: minmax(5rem, auto) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 6px;
+  text-align: left;
+  /* One line, however long the summary is — a wrapping row would break the
+     alignment every other column depends on. The full text is in the title. */
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 1px solid var(--hair);
+}
+/* The key keeps its old hit area: a grid item would otherwise stretch across
+   the whole track, making the empty space beside a short key open Jira. */
+.month-grid .col-issue .key-link {
+  justify-self: start;
+}
+.month-grid .col-issue .summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+.month-grid .row-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+.month-grid .corner {
+  z-index: 4;
+  font-weight: 600;
+  /* One value, not a key and a summary, so it takes the whole issue column
+     back off the two-track template and stays at its right edge. */
+  display: block;
+  text-align: right;
+}
+.day-head-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1.2;
+  border-bottom: 1px solid var(--hair-strong);
+}
+.day-head-cell .dow {
+  font-size: var(--fs-micro);
+}
+.day-head-cell .dom {
+  font-weight: 600;
+}
+.day-head-cell .day-sum {
+  font-size: var(--fs-micro);
+  color: var(--muted);
+  font-weight: 600;
+}
+/* How full the day is, at a glance. Only ordinary working days are judged —
+   `dayTone` leaves weekends and days still to come uncoloured. */
+.day-sum.tone-thin {
+  color: var(--tone-thin);
+}
+.day-sum.tone-part {
+  color: var(--tone-part);
+}
+.day-sum.tone-full {
+  color: var(--tone-full);
+}
+
+.month-cell {
+  border: none;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  padding: 5px 6px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  text-align: right;
+  cursor: pointer;
+}
+.month-cell:hover:not(:disabled) {
+  background: var(--accent-tint);
+}
+.month-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* A hairline between the days, in the same tone as the row separators: with
+   two dozen narrow columns the eye needs a vertical rule to keep a cell tied
+   to the day heading above it. Drawn on the left of each cell, so a column and
+   its heading share one line and the last column needs no exception.
+
+   Below both cells' own rules on purpose: `.month-cell` resets `border` to
+   none to strip the base button's, and at equal specificity that reset wins
+   over anything declared above it. */
+.month-cell,
+.day-head-cell {
+  border-left: 1px solid var(--hair);
+}
+/* Except the first day column: the frozen issue column draws that separator
+   itself and has to — its own border is what stays put while the days scroll
+   underneath it. */
+.month-row > *:nth-child(2) {
+  border-left: none;
+}
+/* Saturdays and Sundays only appear when something was booked on them, so the
+   tint is there to explain why the column exists at all. */
+.month-grid .wknd {
+  background: var(--surface-sunken);
+}
+/* Today's column, marked by tinting it rather than by ruling both its edges.
+   This retired the last box-shadow in the file; nothing here floats. */
+.month-grid .today {
+  background: var(--accent-tint);
+}
+/* Nothing can be booked in the future, which is the same rule the log form
+   enforces with its date input — so the cell is not a target at all. */
+.month-grid .future {
+  color: var(--muted);
+  cursor: default;
+}
+/* How many worklogs are hiding behind the total — the mark that says clicking
+   opens them rather than editing in place. */
+.month-cell.cell-multi::after {
+  content: attr(data-count);
+  font-size: var(--fs-micro);
+  vertical-align: super;
+  color: var(--muted);
+  margin-left: 1px;
+}
+.month-grid .col-total {
+  border-left: 1px solid var(--hair-strong);
+  font-weight: 600;
+}
+/* The row that logs on an issue not yet in the table. Quiet until hovered —
+   it is a whole row of buttons and would otherwise shout over the data. */
+.quick-row .col-issue {
+  /* A label, not a key and a summary — see .corner. */
+  display: block;
+  font-size: var(--fs-micro);
+}
+.quick-cell {
+  /* A mark, not a number: centred and solid, unlike the hours in the columns
+     below it. It was set in the cells' own right-aligned, faded style and was
+     next to impossible to pick out. */
+  text-align: center;
+  font-weight: 600;
+  font-size: var(--fs-base);
+  line-height: 1;
+  color: var(--muted);
+}
+.quick-cell:hover:not(:disabled) {
+  color: var(--accent-text);
+}

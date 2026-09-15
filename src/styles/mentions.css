@@ -1,0 +1,151 @@
+/* ---------- Mentions inbox ---------- */
+/* A mention reads as two stacked lines: the issue it happened on, then the
+   comment itself. Both lines are buttons — the head opens the issue, the body
+   the focused comment. */
+/* Two targets, not one: the key goes to Jira, the summary opens the issue
+   here — the same split the todo tab's rows use. */
+.mention-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.mention-summary {
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.mention-summary:hover {
+  background: none;
+  border: none;
+  color: var(--ink);
+}
+.mention-summary .summary {
+  font-size: var(--fs-base);
+  color: var(--muted);
+  min-width: 0;
+}
+.mention-summary:hover .summary {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* The excerpt wraps; four lines is the ceiling, past which it is clipped with
+   an ellipsis by the browser. */
+.mention-body {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  background: none;
+  border: none;
+  /* Square, because the text starts hard at the edge: any corner radius here
+     is carved out of the words themselves once overflow is hidden. */
+  border-radius: 0;
+  /* A paragraph in a row, not a control of its own — the row carries the
+     44pt target, and a minimum here would double the height of every
+     single-line mention. */
+  min-height: 0;
+  padding: 0;
+  margin-top: 3px;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--muted);
+}
+.mention-body:hover {
+  background: none;
+  color: var(--ink);
+}
+/* Shown when the candidate search was cut short: the list below is real but
+   incomplete, and saying so beats implying the inbox is the whole picture. */
+.mention-partial {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--muted);
+  background: var(--fill-quaternary);
+  border-radius: var(--r-control);
+  padding: var(--sp-2) var(--sp-3);
+  margin: 0 0 var(--sp-3);
+}
+/* Unread mentions carry the accent down their left edge for the visit in which
+   they were opened — after that the row reads as an ordinary entry. */
+.mention-row.unread {
+  background: var(--accent-tint);
+  border-radius: var(--r-control);
+  padding-left: var(--sp-3);
+  padding-right: var(--sp-3);
+  margin: 0 calc(var(--sp-3) * -1);
+}
+.mention-row.unread .summary {
+  color: var(--ink);
+  font-weight: 500;
+}
+/* Pinned to the top of a row that is now several lines tall, with the
+   log-work shortcut stacked underneath it. */
+.mention-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  align-self: flex-start;
+  gap: 2px;
+  flex: none;
+}
+.mention-row .missing-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* A mention says somebody wants something from you, so the row's own buttons —
+   open the issue, open the comment — are what it is for. Logging time is the
+   other tab's subject, and this shortcut is a convenience on top: muted and
+   without the usual link underline at rest, picking both up only on hover.
+   `button.` on the selector to outweigh `button.link` above. */
+.unread-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+
+/* Marker on rows logged as non-billable.
+   Badges are filled capsules rather than outlined boxes: an outline faint
+   enough to be quiet ends up too faint to see, and a fill says the same thing
+   without drawing a line around it. */
+.nb-tag {
+  align-self: flex-start;
+  font-size: var(--fs-micro);
+  background: var(--fill-tertiary);
+  border-radius: var(--r-capsule);
+  padding: 2px var(--sp-2);
+  margin-top: 2px;
+}
+.wl-time {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.duration {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 58px;
+  text-align: right;
+}
+.worklog-actions {
+  display: flex;
+  gap: 2px;
+}

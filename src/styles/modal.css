@@ -1,0 +1,57 @@
+/* ---------- Modal ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: grid;
+  place-items: center;
+  z-index: 10;
+  padding: var(--sp-5);
+}
+.modal {
+  background: var(--surface);
+  border-radius: var(--r-sheet);
+  padding: var(--sp-6);
+  /* In rem, not px: the body inside is rem and --text-scale can take it to
+     21px, which a fixed 384px box cannot hold. */
+  width: 24rem;
+  max-width: 100%;
+  animation: sheet-in var(--dur-nav) var(--ease-spring);
+}
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+/* Wide enough for a list of issues to pick from, or a day's worth of worklog
+   rows — both of which are unreadable at the standard width. */
+.modal.wide {
+  width: 35rem;
+}
+/* A modal opened from inside a modal (editing one of a cell's worklogs) has to
+   sit above the one that opened it. */
+.modal .modal-backdrop {
+  z-index: 11;
+}
+.modal h3 {
+  font-weight: 600;
+  font-size: var(--fs-lg);
+  letter-spacing: var(--track-tight);
+  margin: 0 0 var(--sp-1);
+}
+.modal-sub {
+  margin: 0 0 20px;
+  font-size: var(--fs-base);
+}
+.clock-inline {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.modal .row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}

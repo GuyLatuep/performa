@@ -1,0 +1,237 @@
+/* ---------- App shell ---------- */
+/* Two columns: a macOS source list on the left, the view on the right. The
+   sidebar is a fixed track and the content is what grows; the window's own
+   640px minimum keeps both usable. */
+.app {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  /* The window is the frame; the content column is what scrolls. Letting the
+     body scroll too is what put a second scrollbar behind every view that had
+     an inner scroll region of its own. */
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-4) var(--sp-3);
+  background: var(--surface-sunken);
+  border-right: 1px solid var(--hair);
+  /* The list stays put while the view scrolls, the way a source list does —
+     the grid gives it the window's full height, so it needs no stickiness. */
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2);
+  font-weight: 600;
+  font-size: var(--fs-lg);
+  line-height: 1;
+  letter-spacing: var(--track-tight);
+}
+
+/* ---------- Source list ---------- */
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: var(--tap-compact);
+  padding: 0 var(--sp-2);
+  border: none;
+  border-radius: var(--r-control);
+  background: none;
+  color: var(--ink);
+  font-size: var(--fs-base);
+  font-weight: 400;
+  text-align: left;
+}
+.nav-row:hover {
+  background: var(--fill-quaternary);
+}
+.nav-icon {
+  flex: none;
+  color: var(--muted);
+}
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The selected row is the one place besides the primary button where the
+   accent is a fill rather than a tint. */
+.nav-row.active,
+.nav-row.active:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 500;
+}
+.nav-row.active .nav-icon {
+  color: var(--accent-ink);
+}
+
+/* Count of what is waiting, right-aligned. */
+.nav-count {
+  flex: none;
+  min-width: 20px;
+  padding: 1px var(--sp-2);
+  border-radius: var(--r-capsule);
+  background: var(--fill-secondary);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.nav-row.active .nav-count {
+  background: color-mix(in srgb, var(--accent-ink) 22%, transparent);
+  color: var(--accent-ink);
+}
+/* Something unseen. systemRed is the one colour allowed to step outside the
+   accent, and it carries the row's icon as well as its count — a count alone
+   is a very small thing to notice in the corner of a sidebar. */
+.nav-row.alert .nav-count {
+  background: var(--danger);
+  color: var(--danger-ink);
+}
+.nav-row.alert:not(.active) .nav-icon,
+.nav-row.alert:not(.active) .nav-label {
+  color: var(--danger-text);
+}
+
+/* Just arrived. The row pulses for a few seconds and then settles, rather
+   than blinking until the tab is opened: enough to catch the eye on the way
+   back to the window, and over before it becomes something to endure. The
+   global reduced-motion rule turns the animation off, and the row is still
+   red underneath — the news does not depend on the movement. */
+.nav-row.arrived {
+  animation: row-arrived 1.4s var(--ease-spring) 3;
+}
+@keyframes row-arrived {
+  0%,
+  100% {
+    background: none;
+  }
+  35% {
+    background: color-mix(in srgb, var(--danger) 26%, transparent);
+  }
+}
+.nav-row.arrived .nav-count {
+  animation: count-arrived 1.4s var(--ease-spring) 3;
+}
+@keyframes count-arrived {
+  35% {
+    transform: scale(1.18);
+  }
+}
+
+/* ---------- Account, at the foot of the source list ---------- */
+.account {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: auto;
+  padding: var(--sp-3) var(--sp-2) 0;
+  border-top: 1px solid var(--hair);
+  font-size: var(--fs-sm);
+}
+.account .muted {
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--sp-1);
+  margin-left: calc(var(--sp-2) * -1);
+}
+/* These sit in a tight column, so they carry a smaller target than a button
+   in the body of a view — listed with the other tap-target debt above. */
+.account-actions button.link {
+  min-height: var(--tap-compact);
+  font-size: var(--fs-sm);
+}
+.account .confirm-text {
+  margin: 0 var(--sp-1) 0 var(--sp-2);
+}
+
+/* ---------- Content column ---------- */
+/* The view area is the scroll region, so the title above it stays put the way
+   a toolbar does. Its height is bounded by the column, which is what lets a
+   view that wants to fill the window — the month grid — ask for it. */
+main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: var(--sp-8);
+}
+.content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* The cap is set by the widest thing the app shows — the month matrix,
+     which wants around 1300px before it has to scroll. */
+  max-width: 1760px;
+  padding: 0 var(--sp-5);
+}
+/* The month matrix is the exception to that cap: width there is days on
+   screen and summary before the ellipsis, not line length to read across, so
+   it takes the whole window and the day columns keep their hand-tuned size
+   while the issue column absorbs the slack. */
+.content.content-wide {
+  max-width: none;
+}
+.content > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-5) 0 var(--sp-4);
+}
+.content > header h1 {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  letter-spacing: var(--track-tight);
+}
+
+/* Narrow windows: the labels go, the icons stay. */
+@media (max-width: 880px) {
+  .app {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+  }
+  .brand,
+  .nav-label,
+  .account .muted,
+  .account-actions {
+    display: none;
+  }
+  .nav-row {
+    justify-content: center;
+  }
+  .nav-count {
+    position: absolute;
+    margin: -18px 0 0 18px;
+    min-width: 16px;
+    padding: 0 4px;
+  }
+  .account {
+    border: none;
+  }
+}

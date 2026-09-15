@@ -8,6 +8,10 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 
 /** Append a line to the on-disk debug log; never throws. */
 export function logToFile(level: LogLevel, message: string): void {
+  // Swallowed rather than reported, because the only way to report it would be
+  // to log — and a logging call that fails once will fail again on the line
+  // complaining about it. An unhandled rejection out of every log call is the
+  // other end of that trade, and worse.
   invoke("frontend_log", { level, message }).catch(() => {});
 }
 

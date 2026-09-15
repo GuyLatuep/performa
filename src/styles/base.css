@@ -1,0 +1,243 @@
+/* ==========================================================================
+   performa — Apple design language
+
+   Content-first and quiet: hairline separators instead of borders, filled
+   surfaces instead of outlined cards, continuous-curvature corners, one
+   accent, no shadows anywhere. Body text is 17/22. The system font resolves
+   to SF Pro on macOS — which is the only licensed way to use it, and why no
+   SF file is bundled — and to Inter elsewhere. No SF Symbols: the icons are
+   drawn from Lucide.
+
+   Colours are Apple's semantic tokens, with two deliberate departures. Apple's
+   secondaryLabel is rgba(60,60,67,0.60), which measures 3.44:1 on white and
+   3.29:1 on the grouped background — under WCAG AA. This file has always
+   promised that everything carrying words clears AA on the surface it sits on,
+   and that promise outranks matching Apple's exact alpha, so --muted keeps
+   Apple's grey but at a higher one (5.30:1 and 4.96:1). Dark mode needs no
+   such adjustment: Apple's own value already clears it. The same reasoning
+   produces --accent-text, derived in accent.ts — see the note there.
+
+   Dark mode is authored, not inverted.
+   ========================================================================== */
+
+:root {
+  /* ---- Surfaces (systemGroupedBackground family) ---- */
+  --bg: #f2f2f7;
+  --surface: #ffffff;
+  --surface-sunken: #f2f2f7;
+
+  /* ---- Fills, for controls that sit on a surface rather than outline it ---- */
+  --fill-secondary: rgba(120, 120, 128, 0.16);
+  --fill-tertiary: rgba(118, 118, 128, 0.12);
+  --fill-quaternary: rgba(116, 116, 128, 0.08);
+
+  /* ---- Text ---- */
+  --ink: #000000; /* label */
+  --muted: rgba(60, 60, 67, 0.76); /* secondaryLabel, raised to clear AA */
+  --faint: rgba(60, 60, 67, 0.3); /* tertiaryLabel — placeholders, disabled */
+
+  /* ---- Lines ---- */
+  --hair: rgba(60, 60, 67, 0.29); /* separator; decorative */
+  --hair-strong: #8e8e93; /* systemGray — 3.5:1, structural boundaries */
+
+  --disabled-fill: rgba(120, 120, 128, 0.16);
+
+  /* ---- Accent. Set inline on <html> by accent.ts; these are first-paint
+         fallbacks and must stay in step with DEFAULT_ACCENT. ---- */
+  --accent: #007aff; /* systemBlue — a FILL */
+  --accent-ink: #000000; /* text on that fill */
+  --accent-text: #006be0; /* the accent as TEXT — AA on --bg and --surface */
+  --accent-tint: rgba(0, 122, 255, 0.12); /* selection / hover wash */
+
+  /* systemRed, darkened for use as a fill: white on Apple's #ff3b30 is
+     3.55:1, under AA. #d70015 is Apple's own increased-contrast red and takes
+     white at 5.38:1. Destructive stays red whatever the accent is. */
+  --danger: #d70015;
+  --danger-ink: #ffffff;
+  --danger-text: #d70015; /* 5.38:1 on --surface, 4.83:1 on --bg */
+
+  /* How full a day is. Text colours, so they are picked to stay readable on
+     --surface rather than to be bright. */
+  --tone-thin: #c62a30;
+  --tone-part: #8a5a00;
+  --tone-full: #1a7f37;
+
+  /* ---- Type ---- */
+  --font-sans:
+    system-ui, "Inter Variable", -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-sans); /* no second display face, by design */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Apple's Dynamic Type scale, in rem off a 16px root so one root font-size
+     scales the whole app. Body is 17 — the single value that does most of the
+     work in making this feel like an Apple app. */
+  --fs-micro: 0.6875rem; /* 11 — Caption 2 */
+  --fs-xs: 0.75rem; /* 12 — Caption 1 */
+  --fs-sm: 0.9375rem; /* 15 — Subheadline */
+  /* --fs-base and --fs-md are both Body, deliberately. The app's reading
+     surfaces — .issue-description, .timeline-text, .issue-fact dd, .comment-box
+     — all sit on --fs-base, while --fs-md is barely used outside the body
+     default. Sizing --fs-base at anything but 17 would mean nothing in the app
+     renders at Body, which is the one measurement this design language is
+     least willing to give up. --fs-xs stays at 12: the month matrix is built
+     on it and its column widths are hand-tuned. */
+  --fs-base: 1.0625rem; /* 17 — Body */
+  --fs-md: 1.0625rem; /* 17 — Body */
+  --fs-lg: 1.25rem; /* 20 — Title 3 */
+  --fs-xl: 1.375rem; /* 22 — Title 2 */
+  --fs-2xl: 1.75rem; /* 28 — Title 1 */
+  --fs-display: 2.125rem; /* 34 — Large Title */
+
+  /* Tracking. Apple tightens between 15 and 22 and leaves small text alone;
+     --track-label used to letter-space the uppercase micro-labels and is kept
+     at zero so the 23 selectors wearing that recipe need no individual edit. */
+  --track-tight: -0.024em;
+  --track-label: 0;
+
+  /* ---- Corners. Continuous curvature where the engine has it. ---- */
+  --r-control: 8px; /* chips, small inputs */
+  --r-card: 12px; /* grouped sections, cards, panels */
+  --r-sheet: 20px; /* modals */
+  --r-capsule: 999px; /* prominent buttons */
+
+  /* ---- Spacing, on an 8pt grid (4 for optical fine-tuning only) ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-section: 35px; /* between grouped sections — the real iOS value */
+
+  /* ---- Motion. Springs, not duration curves. ---- */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-micro: 120ms;
+  --dur-state: 350ms;
+  --dur-nav: 450ms;
+
+  /* Pointer targets, in two tiers.
+
+     --tap is the 44pt minimum, and every standalone control carries it:
+     buttons, inputs, selects, list rows.
+
+     --tap-compact is for the controls a desktop app draws small on purpose:
+     source-list rows, segmented-control segments, chips, inline text buttons.
+
+     --tap-dense is for controls inside a dense grid or a table header, where
+     44 would mean redesigning the data rather than the control — a month
+     matrix on 44pt rows is a different view, not a bigger one.
+
+     The two smaller tiers are a deliberate departure from the flat 44. That
+     figure is iOS's *touch* minimum, and this app is driven by a pointer on
+     macOS and Windows, where the system's own source lists, segmented
+     controls and grid cells all sit well below it. Sizing every one of them
+     at 44 would read as an iPad app stretched onto a desktop, which is the
+     opposite of the goal. Nothing goes below 28. */
+  --tap: 44px;
+  --tap-compact: 32px;
+  --tap-dense: 28px;
+
+  color-scheme: light;
+  font-family: var(--font-sans);
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] {
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --surface-sunken: #000000;
+
+  --fill-secondary: rgba(120, 120, 128, 0.32);
+  --fill-tertiary: rgba(118, 118, 128, 0.24);
+  --fill-quaternary: rgba(118, 118, 128, 0.18);
+
+  --ink: #ffffff;
+  --muted: rgba(235, 235, 245, 0.6); /* Apple's own value; 5.94:1 here */
+  --faint: rgba(235, 235, 245, 0.3);
+
+  --hair: rgba(84, 84, 88, 0.65);
+  --hair-strong: #8e8e93; /* systemGray is the same in both modes */
+
+  --disabled-fill: rgba(120, 120, 128, 0.32);
+
+  --accent: #0a84ff;
+  --accent-ink: #000000;
+  --accent-text: #0d81ff;
+  --accent-tint: rgba(10, 132, 255, 0.22);
+
+  --danger: #ff453a; /* black on it is 6.16:1 — no darkening needed here */
+  --danger-ink: #000000;
+  --danger-text: #ff6961; /* 6.03:1 on --surface */
+
+  --tone-thin: #ff6b6b;
+  --tone-part: #e3a33a;
+  --tone-full: #55c46a;
+
+  color-scheme: dark;
+}
+
+/* Squircles. Apple's corners are continuous, not circular arcs; below about
+   12px the difference is invisible, so this only applies where it shows. */
+@supports (corner-shape: squircle) {
+  :root {
+    --corner-shape: squircle;
+  }
+  .panel,
+  .modal,
+  .card,
+  .grouped {
+    corner-shape: squircle;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Every --fs-* token is relative to this, so it is the one knob that resizes
+   the app. --text-scale is set inline on <html> by textScale.ts; the fallback
+   keeps the app at its normal size if that has not run yet. */
+html {
+  font-size: calc(16px * var(--text-scale, 1));
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  font-size: var(--fs-md);
+  line-height: 1.294; /* 22 on 17 */
+  letter-spacing: var(--track-tight);
+  -webkit-font-smoothing: antialiased;
+  /* Bring Inter's single-storey a/g closer to SF's construction. Ignored by
+     SF itself, which does not carry these features. */
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* Chrome that is not text should not be selectable — this is an app window,
+   not a document. Inputs and the places people copy an issue key from opt
+   back in. */
+body {
+  user-select: none;
+  cursor: default;
+}
+input,
+textarea,
+.summary,
+.key,
+.comment,
+.issue-description,
+.mention-body,
+.timeline-text {
+  user-select: text;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+  border-radius: var(--r-control);
+}
+
+::selection {
+  background: var(--accent-tint);
+}

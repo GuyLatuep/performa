@@ -1,0 +1,507 @@
+/* ---------- Blockmark signature ---------- */
+/* The mark keeps its four cells, softened: rounded quadrants on the accent
+   rather than ink blocks with a hard 2px inset border. */
+.blockmark {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.blockmark i {
+  display: block;
+  border-radius: 2px;
+}
+.blockmark i:nth-child(1) {
+  background: var(--accent);
+}
+.blockmark i:nth-child(2) {
+  background: var(--accent);
+  opacity: 0.55;
+}
+.blockmark i:nth-child(3) {
+  background: var(--accent);
+  opacity: 0.55;
+}
+.blockmark i:nth-child(4) {
+  background: var(--accent);
+  opacity: 0.25;
+}
+
+/* ---------- Buttons ---------- */
+/* The default button is a capsule filled with the accent. Every button clears
+   the 44pt minimum target, including the icon-only ones. */
+button {
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  border: none;
+  border-radius: var(--r-capsule);
+  padding: 0 var(--sp-5);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  font-size: var(--fs-md);
+  letter-spacing: var(--track-tight);
+  transition:
+    background var(--dur-micro) var(--ease-spring),
+    color var(--dur-micro) var(--ease-spring),
+    transform var(--dur-micro) var(--ease-spring);
+}
+button:hover {
+  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
+}
+
+/* Buttons that are really a row of text or a table cell rather than a control.
+
+   The base rule above centres a button's contents, which is right for a
+   standalone button and wrong for every one of these: a list row reads from
+   the left, a numeric cell from the right. Browsers default a button to
+   centred text, so anything wanting otherwise had to say `text-align` — which
+   makes that declaration the reliable signal for what belongs here. Both
+   properties are needed, because these are flex containers: `text-align`
+   alone does not place a flex item. */
+.nav-row,
+.issue-select,
+.issue-open,
+.key-link,
+.mention-summary,
+.mention-option,
+.linked-summary,
+.template-use,
+.mention-body,
+.mention-summary,
+.todo-columns .col-sort {
+  justify-content: flex-start;
+  /* Not capsules. A 999px radius on a block of text clips the corners, and
+     with `overflow: hidden` for line-clamping it eats the first and last
+     lines' opening characters outright. */
+  border-radius: var(--r-control);
+}
+/* Numbers line up with the column they sit under. */
+.month-cell {
+  justify-content: flex-end;
+}
+/* Except the quick-log row, whose cells hold a mark rather than a number. */
+.quick-cell {
+  justify-content: center;
+}
+
+/* The dense tier: controls inside a grid cell or a table header, which take
+   --tap-dense instead of --tap. See the token for why the two tiers exist. */
+.month-cell,
+.quick-cell,
+.col-sort,
+.arrange-grip {
+  min-height: var(--tap-dense);
+}
+
+/* A drag handle is a span, so it needs the box drawn on it explicitly. */
+.arrange-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-dense);
+}
+
+/* The exceptions, none of which is a target in its own right:
+
+   .key-link and .asset-link are words inside a sentence — inline links, sized
+   by the text they sit in. The row around them carries the 44pt target.
+
+   The checkbox and the accent swatch are round, with a fixed width and height;
+   a minimum would stretch them into ellipses. Each is wrapped by something
+   that is the real target — the checkbox's label, the swatch's picker row —
+   and that is where the 44 goes. */
+.key-link,
+.asset-link,
+.accent-swatch,
+label.checkbox input {
+  min-height: 0;
+}
+label.checkbox {
+  min-height: var(--tap);
+}
+/* Apple's press: a small scale-down, released immediately. */
+button:active {
+  transform: scale(0.96);
+}
+/* Greyed out by swapping the fill, not by fading the whole button: at 40%
+   opacity the label sat at 2.63:1, which is unreadable rather than quiet. */
+button:disabled {
+  cursor: default;
+  background: var(--disabled-fill);
+  color: var(--muted);
+  transform: none;
+}
+/* Tinted: the accent at low alpha, with accent-coloured text on it. Apple's
+   standard secondary button. */
+button.secondary {
+  background: var(--fill-tertiary);
+  color: var(--accent-text);
+}
+button.secondary:hover {
+  background: var(--fill-secondary);
+}
+/* A plain text button — no fill at all. */
+button.link {
+  background: none;
+  color: var(--accent-text);
+  padding: 0 var(--sp-2);
+  width: auto;
+  font-size: var(--fs-base);
+  font-weight: 400;
+  border-radius: var(--r-control);
+}
+button.link:hover {
+  background: var(--fill-quaternary);
+  color: var(--accent-text);
+}
+button.icon {
+  background: none;
+  border: none;
+  color: var(--muted);
+  min-width: var(--tap);
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-md);
+  border-radius: var(--r-control);
+}
+button.icon:hover {
+  background: var(--fill-quaternary);
+  color: var(--ink);
+}
+button.danger {
+  background: var(--danger);
+  color: var(--danger-ink);
+}
+button.danger:hover {
+  background: color-mix(in srgb, var(--danger) 88%, var(--ink));
+}
+button.icon.on {
+  background: var(--accent-tint);
+  color: var(--accent-text);
+}
+button.icon.danger-icon:hover {
+  background: var(--fill-quaternary);
+  color: var(--danger-text);
+}
+
+/* ---------- Vibrancy (macOS only) ----------
+   The window itself is the material: tauri.macos.conf.json makes it
+   transparent and puts an NSVisualEffectView behind it. Refraction cannot be
+   reproduced outside Apple's renderer and this does not try — it simply lets
+   the real thing show through behind the source list, which is the one class
+   of element that gets it. Everything else stays opaque.
+
+   The mark is set by vibrancy.ts and only on macOS, so on Windows and Linux
+   none of this applies and every surface keeps its solid colour. */
+:root[data-vibrancy="on"] body {
+  background: transparent;
+}
+:root[data-vibrancy="on"] .sidebar {
+  background: color-mix(in srgb, var(--surface-sunken) 55%, transparent);
+}
+/* The content column keeps a solid ground: text is read there, and the whole
+   point of the material is that it moves. */
+:root[data-vibrancy="on"] .content {
+  background: var(--bg);
+}
+/* Asked for less transparency, the material goes away and the opaque surface
+   comes back — the same instruction the reduced-motion rule follows. */
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-vibrancy="on"] body {
+    background: var(--bg);
+  }
+  :root[data-vibrancy="on"] .sidebar {
+    background: var(--surface-sunken);
+  }
+}
+
+/* ---------- Motion ----------
+   Springs, not duration curves. --ease-spring is the cubic-bezier that comes
+   closest to Apple's sheet transition; anything with ease-in-out at 300ms
+   reads as generic. The prefers-reduced-motion rule further down the file
+   switches all of it off with !important, so nothing here needs to repeat
+   that check. */
+
+/* Switching views. Each tab's panel mounts fresh, so this runs on arrival —
+   a short rise and fade rather than a slide, because there is no spatial
+   relationship between the six views to honour. */
+main > * {
+  animation: view-in var(--dur-state) var(--ease-spring);
+}
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.nav-row {
+  transition:
+    background var(--dur-micro) var(--ease-spring),
+    color var(--dur-micro) var(--ease-spring);
+}
+input,
+textarea,
+select {
+  transition: border-color var(--dur-micro) var(--ease-spring);
+}
+.issue-select,
+.issue-open,
+.timer-start,
+.month-cell,
+.mention-option,
+.linked-summary {
+  transition: background var(--dur-micro) var(--ease-spring);
+}
+
+/* ---------- Icons ---------- */
+/* Lucide, at stroke 1.5-2. SF Symbols are licensed for Apple's own platforms
+   and may not be redrawn or shipped, so this is the substitute; the weight and
+   geometry are the closest match available. Icons never carry the accessible
+   name on their own — every icon-only control has a title or an aria-label,
+   and the glyph itself is aria-hidden. */
+button svg,
+.nav-icon {
+  flex: none;
+}
+/* An icon sitting beside a word wants the word's optical centre, not the
+   line's baseline. */
+.col-sort svg,
+.timeline-tag svg {
+  align-self: center;
+}
+
+/* ---------- Micro-labels ---------- */
+
+/* One recipe, worn by every small label in the app: form and field names,
+   section headings, badges, grid headers. It used to be uppercase mono with
+   letter-spacing; it is now simply the system font, a little smaller and in
+   secondary ink. Weight carries the hierarchy, colour never does.
+
+   Size is deliberately *not* set here. There are two tiers — inline labels and
+   badges at --fs-micro, standalone form and section labels at --fs-xs — and
+   each rule keeps its own. Every rule that overrides a colour or weight below
+   (.due-badge.overdue, .todo-columns .col-sort, .day-head .muted, …) is more
+   specific than this, so it still wins. */
+.confirm-text,
+label,
+.eyebrow,
+.field-label,
+.day-labels span,
+.gauge-center span,
+.week-total,
+.day-head,
+.nb-tag,
+.due-badge,
+.status-badge,
+.priority-badge,
+.todo-columns,
+.issue-section h3,
+.issue-fact dt,
+.timeline-tag,
+.form-field > label,
+.link-relation,
+.link-form > label,
+.status-picker-box > label,
+.week-rank,
+.about-facts dt,
+.day-head-cell .dow,
+.quick-row .col-issue {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: none;
+  color: var(--muted);
+}
+
+.confirm-text {
+  margin-right: auto;
+  align-self: center;
+  font-size: var(--fs-xs);
+}
+
+/* ---------- Forms ---------- */
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: var(--fs-xs);
+  margin-bottom: 16px;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  font-weight: 400;
+  letter-spacing: var(--track-tight);
+  text-transform: none;
+  min-height: var(--tap);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  color: var(--ink);
+  /* An explicit caret: the accent focus ring reads as "selected", and without
+     a blinking cursor a focused box still looks like something to look at
+     rather than something to type in. */
+  caret-color: var(--ink);
+}
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="datetime-local"],
+textarea {
+  cursor: text;
+}
+/* No `outline: none` here: it is more specific than the global :focus-visible
+   rule and used to cancel it, leaving the accent fill as the only focus cue —
+   invisible when the user has picked a low-contrast accent. The ring is the
+   cue now; the fill is the second one. */
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--faint);
+}
+textarea {
+  resize: vertical;
+}
+
+/* Duration input plus its quick-add row; the label keeps its own bottom
+   margin off so the shortcuts sit tight under the field. */
+.duration-field {
+  margin-bottom: 16px;
+}
+.duration-field > label {
+  margin-bottom: 0;
+}
+.duration-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 7px;
+}
+button.duration-add {
+  width: auto;
+  min-height: var(--tap-compact);
+  padding: 0 var(--sp-3);
+  background: var(--fill-tertiary);
+  color: var(--accent-text);
+  border: none;
+  border-radius: var(--r-capsule);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: var(--track-tight);
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+button.duration-add:hover {
+  background: var(--fill-secondary);
+  color: var(--accent-text);
+}
+.duration-quick .hint {
+  margin-left: auto;
+}
+
+.field-row {
+  display: flex;
+  gap: 14px;
+}
+.field-row label {
+  flex: 1;
+}
+
+/* The ignored-status list in settings: as many rows as the project has
+   statuses, so it scrolls rather than pushing the tab buttons off-screen. */
+.status-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* Checkbox variant of the form label (e.g. non-billable). */
+label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+label.checkbox input {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--hair-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    background var(--dur-micro) var(--ease-spring),
+    border-color var(--dur-micro) var(--ease-spring);
+}
+label.checkbox input:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+/* The tick, drawn rather than imported — an SF Symbol may not be used. */
+label.checkbox input:checked::after {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 11px;
+  margin: 2px auto 0;
+  border: solid var(--accent-ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--danger-text);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  padding: var(--sp-3);
+  border-radius: var(--r-control);
+  font-size: var(--fs-base);
+}
+.success {
+  color: var(--muted);
+  font-size: var(--fs-base);
+}
+.hint {
+  font-size: var(--fs-base);
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: var(--track-tight);
+  text-transform: none;
+}
+.empty {
+  padding: var(--sp-8) 0;
+  text-align: center;
+  font-size: var(--fs-base);
+  color: var(--muted);
+}
+
+.loading {
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  color: var(--muted);
+  font-size: var(--fs-base);
+}
