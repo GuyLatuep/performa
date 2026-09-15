@@ -126,6 +126,11 @@ describe("field sizes", () => {
     expect(m.fieldSize(m.getIssueFieldConfig(), "Analysis")).toBe("full");
   });
 
+  it("gives a field named like an inherited property the default", async () => {
+    const m = await fresh({ detail: ["Constructor"], sizes: {}, version: 3 });
+    expect(m.fieldSize(m.getIssueFieldConfig(), "Constructor")).toBe("normal");
+  });
+
   it("cycles normal → wide → full → normal", async () => {
     const m = await fresh();
     expect(m.nextFieldSize("normal")).toBe("wide");

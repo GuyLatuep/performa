@@ -206,7 +206,8 @@ export function moveDetailField(name: string, by: -1 | 1): void {
 
 /** How much room a field gets. */
 export function fieldSize(config: IssueFieldConfig, name: string): FieldSize {
-  return config.sizes[key(name)] ?? "normal";
+  const k = key(name);
+  return Object.keys(config.sizes).includes(k) ? config.sizes[k] : "normal";
 }
 
 export function setFieldSize(name: string, size: FieldSize): void {

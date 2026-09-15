@@ -99,12 +99,14 @@ export function fieldKind(meta: FieldMeta): FieldKind {
     return "unsupported";
 
   const custom = meta.schemaCustom?.split(":").pop();
-  if (custom && custom in CUSTOM_KINDS) return CUSTOM_KINDS[custom];
+  if (custom && Object.keys(CUSTOM_KINDS).includes(custom))
+    return CUSTOM_KINDS[custom];
 
   if (meta.schemaSystem && RICH_TEXT_SYSTEM_FIELDS.includes(meta.schemaSystem))
     return "textarea";
 
-  if (meta.schemaType in BASE_KINDS) return BASE_KINDS[meta.schemaType];
+  if (Object.keys(BASE_KINDS).includes(meta.schemaType))
+    return BASE_KINDS[meta.schemaType];
   if (CHOICE_TYPES.includes(meta.schemaType)) return "select";
   if (meta.schemaType === "array") {
     if (meta.schemaItems && CHOICE_TYPES.includes(meta.schemaItems))
@@ -322,10 +324,10 @@ export interface Fact {
 
 /** Shorter names for the fields whose Jira spelling is longer than the column
  *  deserves. Keyed by the normalised Jira name. */
-const SHORT_LABELS: Record<string, string> = {
-  issuetype: "Type",
-  duedate: "Due",
-};
+const SHORT_LABELS = new Map([
+  ["issuetype", "Type"],
+  ["duedate", "Due"],
+]);
 
 /** Compared without case, spaces or punctuation — the same rule the Rust side
  *  matches configured field names by, so "Due date" finds "Due Date". */
@@ -346,13 +348,13 @@ export function normalizeFieldName(name: string): string {
  * resolve against the site's catalog would otherwise take the field with it.
  */
 export function buildFacts(detail: IssueDetail, configured: string[]): Fact[] {
-  const standard: Record<string, string | undefined> = {
-    issuetype: detail.issueType,
-    priority: detail.priority,
-    reporter: detail.reporter,
-    assignee: detail.assignee,
-    duedate: detail.dueDate,
-  };
+  const standard = new Map([
+    ["issuetype", detail.issueType],
+    ["priority", detail.priority],
+    ["reporter", detail.reporter],
+    ["assignee", detail.assignee],
+    ["duedate", detail.dueDate],
+  ]);
   const byName = new Map(
     detail.details.map((f) => [normalizeFieldName(f.label), f] as const),
   );
@@ -361,9 +363,9 @@ export function buildFacts(detail: IssueDetail, configured: string[]): Fact[] {
     const key = normalizeFieldName(name);
     const match = byName.get(key);
     return {
-      label: SHORT_LABELS[key] ?? name,
+      label: SHORT_LABELS.get(key) ?? name,
       jiraName: name,
-      value: standard[key] ?? match?.value,
+      value: standard.get(key) ?? match?.value,
       assets: match?.assets,
     };
   });
