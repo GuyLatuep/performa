@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, SearchResults as Results } from "../api";
+import { SearchResults as Results } from "../api";
 import { clearForward, useBackTarget } from "../back";
 import { requestIssue } from "../issueRequest";
 import {
   clearSearchRequest,
   describeSearch,
-  requestFieldSearch,
-  requestTextSearch,
+  repeatSearch,
+  runSearch,
   SearchRequest,
 } from "../searchRequest";
 import { useRowSelected, useSelectionScope } from "../selection";
@@ -48,11 +48,7 @@ export default function SearchResults({
     let cancelled = false;
     setFound(null);
     setError(null);
-    const run =
-      search.kind === "text"
-        ? api.searchText(search.term)
-        : api.searchJql(search.search.jql, search.term);
-    run.then(
+    runSearch(search).then(
       (result) => {
         if (!cancelled) setFound(result);
       },
@@ -96,10 +92,7 @@ export default function SearchResults({
   useBackTarget({
     label: backLabel,
     back: clearSearchRequest,
-    forward: () =>
-      search.kind === "text"
-        ? requestTextSearch(search.term)
-        : requestFieldSearch(search.search, search.term),
+    forward: () => repeatSearch(search),
   });
 
   return (

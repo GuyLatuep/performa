@@ -1,3 +1,4 @@
+import { api, SearchResults } from "./api";
 import { clearForward } from "./back";
 import { clearIssueRequest } from "./issueRequest";
 import { SavedSearch } from "./savedSearches";
@@ -11,13 +12,13 @@ import { createStore } from "./store";
  * shell answers rather than a call into a component it cannot see.
  *
  * Two shapes, because there are two kinds of search and they differ in more than
- * a term. Searching text needs nothing but the words; searching a field needs
- * the whole definition the user wrote, which is carried here rather than looked
- * up again so that editing a search cannot change a result already on screen.
+ * a term. Searching text needs nothing but the words; a saved search needs the
+ * whole definition the user wrote, which is carried here rather than looked up
+ * again so that editing a search cannot change a result already on screen.
  */
 export type SearchRequest =
   | { kind: "text"; term: string }
-  | { kind: "field"; term: string; search: SavedSearch };
+  | { kind: "saved"; term: string; search: SavedSearch };
 
 const store = createStore<SearchRequest | null>(null);
 
@@ -42,8 +43,20 @@ export function requestTextSearch(term: string): void {
   show({ kind: "text", term });
 }
 
-export function requestFieldSearch(search: SavedSearch, term: string): void {
-  show({ kind: "field", term, search });
+export function requestSavedSearch(search: SavedSearch, term: string): void {
+  show({ kind: "saved", term, search });
+}
+
+/** Ask for this search again, as a fresh request so its results re-run. */
+export function repeatSearch(request: SearchRequest): void {
+  show({ ...request });
+}
+
+/** Run it against Jira. */
+export function runSearch(request: SearchRequest): Promise<SearchResults> {
+  return request.kind === "text"
+    ? api.searchText(request.term)
+    : api.searchJql(request.search.jql, request.term);
 }
 
 /** The search being shown, or null — which is every other moment. */
