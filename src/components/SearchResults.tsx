@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { SearchResults as Results } from "../api";
+import { IssueSummary, SearchResults as Results } from "../api";
 import { clearForward, useBackTarget } from "../back";
 import { requestIssue } from "../issueRequest";
 import {
@@ -77,6 +77,11 @@ export default function SearchResults({
     requestIssue(key);
   }, []);
 
+  // Stable, because `IssueRow` is memoised and a fresh closure here defeats
+  // that for every row at once: pinning one issue re-rendered the whole page of
+  // results, three Lucide icons each, none of whose own props had changed.
+  const openRow = useCallback((issue: IssueSummary) => open(issue.key), [open]);
+
   useSelectionScope({
     id: SCOPE,
     rows: (issues ?? []).map((i) => i.key),
@@ -138,7 +143,7 @@ export default function SearchResults({
               site={site}
               pinned={pinnedKeys.has(issue.key)}
               // Opening a result reads the issue, the way the Todo tab's rows do.
-              onSelect={(i) => open(i.key)}
+              onSelect={openRow}
             />
           ))}
         </ul>
