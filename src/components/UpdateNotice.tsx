@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { openExternal } from "../external";
+import { logDebug } from "../log";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 
@@ -23,8 +24,9 @@ export default function UpdateNotice() {
       try {
         const found = await check();
         if (!cancelled && found && !installing.current) setUpdate(found);
-      } catch {
-        // Update checks are best-effort; stay quiet on failure.
+      } catch (err) {
+        // Update checks are best-effort: no banner on failure, only the log.
+        logDebug(`update check failed: ${err}`);
       }
     }
     run();
