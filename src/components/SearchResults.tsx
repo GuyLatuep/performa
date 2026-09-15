@@ -11,6 +11,7 @@ import {
 } from "../searchRequest";
 import { useRowSelected, useSelectionScope } from "../selection";
 import { usePinnedIssues } from "../pins";
+import { useShowIssueTypeIcons } from "../settings";
 import IssueRow from "./IssueRow";
 
 /** This list's name in the selection registry. */
@@ -42,6 +43,11 @@ export default function SearchResults({
   const [found, setFound] = useState<Results | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pinnedKeys = new Set(usePinnedIssues().map((p) => p.key));
+  // The rows draw a type-icon cell whenever the setting is on, so the list has
+  // to reserve a column for it on exactly the same terms. Hard-coding
+  // `no-type-icons` here left the icon sharing the key's column, which pushed
+  // the key onto a line of its own.
+  const typeIcons = useShowIssueTypeIcons();
   const issues = found?.issues ?? null;
 
   useEffect(() => {
@@ -122,7 +128,7 @@ export default function SearchResults({
           </p>
         )}
         <ul
-          className="issue-list todo-list no-type-icons"
+          className={`issue-list todo-list${typeIcons ? "" : " no-type-icons"}`}
           aria-label="Search results"
         >
           {(issues ?? []).map((issue) => (
