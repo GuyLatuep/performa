@@ -132,28 +132,43 @@ jobs:
   # The other release target, compiled but not measured. `release.yml` ships a
   # Windows installer, so without this the first Windows build of a change is
   # the tag build — the worst moment to discover that a `cfg` branch or the
-  # `windows-native` keyring backend no longer compiles. Clippy over
-  # `--all-targets` is the cheapest thing that type-checks every one of them;
-  # coverage and the test report stay on macOS, where the numbers already are.
+  # `windows-native` keyring backend no longer compiles.
+  #
+  # Through the Tauri CLI rather than bare `cargo`, which cannot build this
+  # crate off macOS at all: `macOSPrivateApi` lives in `tauri.macos.conf.json`,
+  # so on Windows `tauri-build` sees the `macos-private-api` feature enabled
+  # with nothing in the merged config asking for it and stops. The CLI is also
+  # what release runs, which is the point — this checks the path that ships.
+  #
+  # `--no-bundle` skips the installer (the artifact is release.yml's job) and
+  # `--debug` skips optimisation; between them this compiles rather than builds.
   rust-windows:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: src-tauri
     steps:
       - uses: actions/checkout@v5
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: pnpm/action-setup@v6
         with:
-          components: clippy
+          version: 10
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: dtolnay/rust-toolchain@stable
 
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
           key: windows-check
 
-      - name: Lint
-        run: cargo clippy --all-targets -- -D warnings
+      # `beforeBuildCommand` (`pnpm build`) runs the frontend build first, so
+      # this covers the webview bundle on Windows as well.
+      - name: Compile for Windows
+        run: pnpm tauri build --debug --no-bundle
 
   rust:
     # macOS mirrors the primary release target and needs no system packages,
