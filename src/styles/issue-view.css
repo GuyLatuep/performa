@@ -1,0 +1,644 @@
+/* ---------- Field form (transition screens, field edits) ---------- */
+.field-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 16px 0;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.form-field > label {
+  font-size: var(--fs-micro);
+}
+.form-field input[type="text"],
+.form-field input[type="number"],
+.form-field input[type="date"],
+.form-field input[type="datetime-local"],
+.form-field select,
+.form-field textarea {
+  width: 100%;
+}
+.form-field textarea {
+  resize: vertical;
+  font-family: inherit;
+  font-size: var(--fs-base);
+}
+.field-required {
+  color: var(--ink);
+}
+.field-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.field-choice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-base);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.field-unsupported {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--hair);
+  border-radius: var(--r-control);
+}
+.transition-screen {
+  background: var(--surface);
+  border: none;
+  border-radius: var(--r-card);
+  padding: var(--sp-4);
+}
+.transition-more {
+  color: var(--muted);
+}
+
+/* ---------- Attachments ---------- */
+.attachments {
+  border: 2px dashed transparent;
+  border-radius: var(--r-card);
+  margin: -6px;
+  padding: 6px;
+  transition: border-color var(--dur-micro) var(--ease-spring);
+}
+/* Only while something is actually over the window — a permanent drop target
+   would be noise on every issue. */
+.attachments.dropping {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+/* Five rows, then scroll. An issue with twenty files would otherwise push
+   everything below it — the comment box included — off the screen.
+   Approximate by design: a long filename wraps to a second line and shows four
+   rows rather than five, which is better than clipping one mid-row. */
+.attachment-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  max-height: 10.5rem;
+  overflow-y: auto;
+}
+.attachment-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--hair);
+}
+.attachment-list li:last-child {
+  border-bottom: none;
+}
+.attachment-name {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: var(--fs-base);
+  overflow-wrap: anywhere;
+}
+.attachment-meta {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-left: auto;
+}
+
+/* ---------- Linked work items ----------
+   Two levels: the relationship names a group, its issues sit under it. The
+   nesting is the point — a row's meaning is the heading above it, and
+   flattening the two would leave every row having to repeat "is blocked by".
+   Capped like the attachment list, and for the same reason: an issue with
+   thirty links must not push the comment box off the screen. */
+.link-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+.link-group + .link-group {
+  margin-top: 12px;
+}
+.link-relation {
+  display: block;
+  font-size: var(--fs-micro);
+  margin-bottom: 2px;
+}
+.link-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.link-group li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--hair);
+}
+.link-group li:last-child {
+  border-bottom: none;
+}
+.linked-key {
+  text-transform: none;
+  letter-spacing: var(--track-tight);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+/* Takes the free space so the status and the cross stay on the right edge,
+   whatever the summary's length. A button, because reading the linked issue is
+   the ordinary thing to want from a row — but one that looks like the text it
+   is until the pointer is on it. */
+.linked-summary {
+  flex: 1 1 12rem;
+  font-size: var(--fs-base);
+  overflow-wrap: anywhere;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+}
+.linked-summary:hover {
+  background: none;
+  border: none;
+  color: var(--accent-text);
+  text-decoration: none;
+}
+.linked-status {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.link-remove {
+  color: var(--muted);
+}
+.link-remove:hover:not(:disabled) {
+  color: var(--danger-text);
+}
+
+/* The relationship and the issue read as one sentence about this issue, so
+   they sit on one line where there is room for it. */
+.link-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  background: var(--fill-quaternary);
+  border: none;
+  border-radius: var(--r-card);
+  padding: var(--sp-3);
+}
+.link-form > label {
+  font-size: var(--fs-micro);
+}
+.link-form .panel-actions {
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+/* The search box grows into whatever the row has left; the dropdown under it
+   is positioned against this box, like the user field's.
+
+   Scoped to the link form on purpose: `.issue-select` is also the button in a
+   worklog or missing-worklog row, whose parent is a *column*, and there
+   `flex: 1 1 16rem` reads as a 16rem-tall row rather than a wide one. */
+.link-form .issue-select {
+  position: relative;
+  flex: 1 1 16rem;
+}
+.link-form .issue-select input {
+  width: 100%;
+}
+.issue-chosen {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex: 1 1 16rem;
+}
+
+/* ---------- Issue header: chip left, status picker right ---------- */
+.issue-head {
+  display: flex;
+  flex-wrap: wrap;
+  /* Bottom edges, not tops: the picker carries a label above it and the chip
+     does not, so aligning the tops leaves the two boxes ending at different
+     heights — which is the part the eye actually reads as crooked. */
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin: var(--sp-2) 0 var(--sp-5);
+}
+.issue-head .issue-chip {
+  flex: 1 1 260px;
+  margin: 0;
+}
+.status-picker-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  flex: 0 0 auto;
+}
+.status-picker-box > label {
+  font-size: var(--fs-micro);
+}
+.status-picker-box select {
+  min-width: 190px;
+}
+.status-current {
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+
+/* ---------- Attachment removal ---------- */
+.attachment-remove {
+  color: var(--muted);
+}
+.attachment-remove:hover:not(:disabled) {
+  color: var(--danger-text);
+}
+.attachment-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.attachment-actions .confirm-text {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--danger-text);
+  margin-right: var(--sp-1);
+}
+
+/* ---------- Issue description (clamped until opened) ---------- */
+.issue-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+}
+.issue-description.expanded,
+section.issue-fact .issue-description {
+  display: block;
+  overflow: visible;
+}
+
+/* ---------- Issue action row ---------- */
+.issue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.issue-actions button {
+  flex: 1 1 auto;
+}
+/* The chosen action's fields hang off the row, so they read as belonging to
+   it rather than as another section of the page. */
+.action-panel {
+  background: var(--fill-quaternary);
+  border: none;
+  border-radius: var(--r-card);
+  margin-top: var(--sp-2);
+  padding: var(--sp-4);
+}
+.action-panel .panel-actions {
+  margin-top: var(--sp-3);
+  align-items: baseline;
+}
+
+/* ---------- Mention picker ---------- */
+.comment-compose {
+  position: relative;
+}
+/* Over the text rather than pushing it down: the writer is mid-sentence, and
+   reflowing the box under the caret loses their place. */
+.mention-picker {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-card);
+}
+.mention-option {
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: var(--r-control);
+  text-align: left;
+  padding: 7px 10px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.mention-option:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+}
+.mention-name {
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+.mention-sub {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-micro);
+  color: var(--muted);
+}
+.mention-option:hover .mention-sub {
+  color: var(--accent-ink);
+}
+
+/* ---------- Mention highlighting inside the comment box ----------
+   A textarea cannot style part of its own value, so a marked-up copy is
+   painted behind one whose text is transparent. Every metric that decides
+   where a glyph lands has to match on both, or the highlight drifts off the
+   words it belongs to. */
+.comment-compose .comment-box,
+.comment-mirror {
+  font: inherit;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  width: 100%;
+}
+.comment-compose .comment-box {
+  position: relative;
+  z-index: 1;
+  border-color: var(--hair);
+  border-radius: var(--r-control);
+  background: transparent;
+  /* The mirror behind supplies every visible glyph; only the caret and any
+     selection come from the textarea itself. */
+  color: transparent;
+  caret-color: var(--ink);
+}
+.comment-compose .comment-box:focus {
+  border-color: var(--accent);
+}
+.comment-compose .comment-box::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.comment-mirror {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--ink);
+  pointer-events: none;
+}
+.mention-mark {
+  background: none;
+  color: var(--ink);
+  font-weight: 600;
+  /* Underlined as well as bold: weight alone is easy to miss in a wall of
+     text, and colour alone would not survive a colour-blind reader. */
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The keyboard's position in the picker, styled like hover so arrowing and
+   pointing look the same — they select the same thing. */
+.mention-option.active,
+.mention-option.active:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.mention-option.active .mention-sub {
+  color: var(--accent-ink);
+}
+
+/* ---------- User field (assignee, reporter, approver) ---------- */
+.user-select {
+  position: relative;
+  z-index: 1;
+}
+.user-select input {
+  width: 100%;
+}
+.user-chosen {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+/* An asset name is an address — it reads as part of the value, not as a
+   control, so it keeps the value's size rather than the link furniture. */
+.asset-link {
+  font-family: inherit;
+  font-size: var(--fs-base);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: var(--track-tight);
+  padding: 0;
+}
+
+/* ---------- Arranging the issue layout ---------- */
+.arrange-entry {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+.arrange-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border: 2px dashed var(--hair-strong);
+}
+.arrange-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.arrange-add select {
+  min-width: 190px;
+}
+
+/* A field being arranged is a thing to be moved, not read. */
+.issue-fact.arranging {
+  outline: 1px dashed var(--hair-strong);
+  outline-offset: 4px;
+}
+/* The one in hand. Kept visible rather than hidden: it is the thing being
+   moved, and losing sight of it is disorienting. */
+.issue-fact.dragging {
+  opacity: 0.45;
+  outline-style: solid;
+}
+/* Where the drop would land. */
+.issue-fact.drop-target {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.arrange-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.arrange-grip {
+  color: var(--muted);
+  cursor: grab;
+  font-size: var(--fs-sm);
+  /* The gesture is a drag; letting it select the glyph instead fights it. */
+  user-select: none;
+  touch-action: none;
+}
+.arrange-grip:active {
+  cursor: grabbing;
+  color: var(--ink);
+}
+.arrange-controls .icon {
+  padding: 0 3px;
+  font-size: var(--fs-xs);
+}
+
+/* Two cells instead of one, for a value that keeps wrapping in a single
+   column. Falls back to one where the grid itself only has one. */
+.issue-fact.span-2 {
+  grid-column: span 2;
+}
+@media (max-width: 520px) {
+  .issue-fact.span-2 {
+    grid-column: span 1;
+  }
+}
+
+/* Over everything and ignoring the pointer: the app stays usable while it
+   falls, because the point is to notice, not to wait. */
+.confetti {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Thick, because the moment deserves it. */
+.all-closed {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 64px 12px;
+  font-size: clamp(var(--fs-2xl), 5vw, 3.25rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  text-align: center;
+  color: var(--ink);
+  cursor: pointer;
+}
+.all-closed:hover {
+  background: none;
+  color: var(--ink);
+  border: none;
+}
+
+.week-rank {
+  /* Its own line above the charts; the gap is the flex `gap`, so no bottom
+     margin of its own. */
+  width: 100%;
+  margin: 0;
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+/* Over the page like the confetti, but slower and readable. */
+.achievement-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background: var(--surface);
+  /* Its own, because the base button rule's is the colour for text sitting on
+     the accent — which is dark in both themes, so on this surface the toast
+     read as black on black in dark mode. */
+  color: var(--ink);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-card);
+  cursor: pointer;
+  animation: achievement-in var(--dur-nav) var(--ease-spring);
+}
+.achievement-toast:hover {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--hair-strong);
+}
+.achievement-mark {
+  color: var(--accent-text);
+  flex: none;
+}
+.achievement-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.achievement-more {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+@keyframes achievement-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .achievement-toast {
+    animation: none;
+  }
+}

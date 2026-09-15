@@ -1,0 +1,148 @@
+/* ---------- Panels ---------- */
+/* A panel is a single grouped surface: one rounded card holding a form or a
+   block of content. */
+.panel {
+  background: var(--surface);
+  border-radius: var(--r-card);
+  padding: var(--sp-5);
+}
+/* A panel that only *hosts* grouped sections is not itself a surface — the
+   sections inside carry their own, and a surface inside a surface of the same
+   colour reads as neither. It goes back to being a plain container. */
+.panel.start,
+.panel.todo,
+.panel.issue-view {
+  background: none;
+  padding: 0;
+}
+.panel > button:not(.link):not(.icon) {
+  width: 100%;
+}
+/* The two ways out of the log form, side by side above the issue chip. */
+.back-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+/* ---------- Build info (settings screen) ---------- */
+.buildinfo {
+  margin: var(--sp-6) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Update notice ---------- */
+.update-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--hair);
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: 10px 14px;
+  margin: 18px 0;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+}
+.update-notice span {
+  flex: 1;
+}
+.update-notice .link {
+  color: var(--accent-ink);
+  white-space: nowrap;
+}
+.update-notice .link:hover {
+  background: var(--ink);
+  color: var(--surface);
+}
+.update-notice .icon {
+  color: var(--accent-ink);
+}
+.update-notice .icon:hover {
+  background: var(--ink);
+  color: var(--surface);
+}
+.update-notice .update-progress {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.update-notice .update-error {
+  flex: 2;
+}
+
+/* ---------- Running timer bar (signature) ---------- */
+/* Was a constant black instrument block framed in neon, in both themes — the
+   most Neo-Grid object in the app, and the only hunk in this pass that is a
+   design decision rather than a mechanical swap. A black slab on a light
+   grouped background has nowhere to sit in this language, so it becomes an
+   ordinary grouped surface and the accent survives as a tint on the running
+   dot and the clock. That also retires the three raw colours that used to
+   bypass the token system here. */
+.timer-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--r-card);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.timer-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  /* A pulse rather than a hard on/off: the step blink read as a fault light. */
+  animation: blink 2s var(--ease-spring) infinite;
+}
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+.timer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.timer-bar .key {
+  color: var(--accent-text);
+}
+.timer-info .summary {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.timer-clock {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  letter-spacing: var(--track-tight);
+  color: var(--accent-text);
+}
+/* A one-second wink when the clock hits a Schnapszahl or 13:37 — see
+   isPlayfulClock in timer.ts. Glow only: the digits are already accent
+   coloured, and anything that changed their size would nudge the layout.
+   The prefers-reduced-motion rule at the end of this file switches it off. */
+.timer-clock.wink {
+  animation: clock-wink 1s ease-out;
+}
+@keyframes clock-wink {
+  30% {
+    opacity: 0.45;
+  }
+}
+
+.timer-stop {
+  flex-shrink: 0;
+}

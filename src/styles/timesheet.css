@@ -1,0 +1,216 @@
+/* ---------- Timesheet (ledger) ---------- */
+.week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.week-nav button {
+  padding: 5px 14px;
+}
+.week-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-weight: 600;
+  font-size: var(--fs-base);
+  letter-spacing: var(--track-tight);
+}
+.week-label .muted {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.week-charts {
+  display: flex;
+  /* Wraps so a full-width child above the charts takes its own line instead of
+     competing with them for the row — without it the bars are squeezed to
+     nothing. */
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 30px;
+  margin: 16px 0 4px;
+}
+.day-bars {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.day-bars-plot {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  height: 120px;
+  border-bottom: 1px solid var(--hair);
+}
+.day-col {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+}
+/* An outlined neon bar was the old idiom. A plain accent bar with a rounded
+   cap is the current one — the shape carries the value, nothing frames it. */
+.day-bar {
+  width: 100%;
+  max-width: 20px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--r-control) var(--r-control) 0 0;
+}
+.day-target {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--hair-strong);
+  pointer-events: none;
+}
+.day-target span {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-micro);
+  letter-spacing: var(--track-tight);
+  color: var(--muted);
+}
+.day-labels {
+  display: flex;
+}
+.day-labels span {
+  flex: 1;
+  text-align: center;
+  font-size: var(--fs-micro);
+}
+.day-labels span.today {
+  color: var(--ink);
+  font-weight: 600;
+}
+.week-gauge {
+  position: relative;
+  width: 132px;
+  flex-shrink: 0;
+  align-self: center;
+}
+.week-gauge svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+/* A ring, drawn the way a progress ring is drawn here: a quiet track with the
+   accent laid over it and a round cap. The old version put an ink circle four
+   pixels wider underneath, to fake a border around the neon arc — there is no
+   neon and no border to fake now, so that circle is gone from the markup. */
+.gauge-track,
+.gauge-fill {
+  fill: none;
+}
+.gauge-track {
+  stroke: var(--fill-tertiary);
+  stroke-width: 10;
+}
+.gauge-fill {
+  stroke: var(--accent);
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dasharray var(--dur-state) var(--ease-spring);
+}
+.gauge-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+.gauge-center strong {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--ink);
+}
+.gauge-center span {
+  font-size: var(--fs-micro);
+}
+
+.week-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: var(--sp-3) 0 var(--sp-5);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--hair);
+  font-size: var(--fs-xs);
+}
+.week-total strong {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.day-group {
+  margin-bottom: 22px;
+}
+/* The header of a grouped section. It sits on the background above the
+   rounded section rather than being ruled off from it — the section's own
+   edge is what separates them. */
+.day-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--ink);
+  padding: 0 var(--sp-1);
+  margin-bottom: var(--sp-2);
+}
+/* The trailing half of the header is the section's running total or scope —
+   secondary to the name, and sized to match. */
+.day-head .muted {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+}
+/* Shared by the two inboxes and by the timesheet's day groups. Same anatomy
+   as an issue-list row — 44pt floor, hairline separator inset to the text —
+   drawn here with a border because these rows are siblings in a plain
+   container rather than list items. */
+.worklog-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--hair);
+}
+.worklog-row:last-child {
+  border-bottom: none;
+}
+.worklog-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.worklog-main .summary {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.comment {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

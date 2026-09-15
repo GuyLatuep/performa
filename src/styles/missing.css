@@ -1,0 +1,35 @@
+/* ---------- Missing worklog list ---------- */
+.missing-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--hair);
+}
+.missing-head .hint {
+  max-width: 48ch;
+}
+.missing-head .link {
+  white-space: nowrap;
+}
+.missing-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.missing-meta {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.missing-source {
+  margin: 0 0 20px;
+}
+/* Sits under the list as a footnote, not as another row. */
+.missing-hidden {
+  margin: 12px 0 0;
+}

@@ -1,0 +1,229 @@
+/* ---------- Issue list ---------- */
+/* The grouped-inset list, which is this design language's default layout
+   primitive: a rounded section filled with --surface, sitting on the grouped
+   background, with hairline separators between rows that are inset to line up
+   with the row's text rather than running the full width of the section.
+   Every other list in the app should end up wearing this. */
+.issue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border-radius: var(--r-card);
+}
+.issue-list li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: var(--tap);
+  padding-right: var(--sp-3);
+}
+/* The separator is a pseudo-element rather than a border so it can start at
+   the text and still stop at the section's edge. --row-inset is the width of
+   whatever leads the row; the pin star sets it here. */
+.issue-list li:not(.empty)::after {
+  content: "";
+  position: absolute;
+  left: var(--row-inset, var(--tap));
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--hair);
+}
+.issue-list li:not(.empty):last-child::after {
+  display: none;
+}
+.issue-select {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: baseline;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 0;
+  color: var(--ink);
+  padding: var(--sp-2) var(--sp-1);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: var(--fs-base);
+  letter-spacing: var(--track-tight);
+  text-transform: none;
+}
+.issue-select:hover {
+  background: var(--fill-quaternary);
+  color: var(--ink);
+}
+/* Issue key opens the issue in the browser; fixed width keeps summaries aligned. */
+.issue-open {
+  flex: 0 0 auto;
+  min-width: 10ch;
+  background: none;
+  border: none;
+  border-radius: var(--r-control);
+  padding: var(--sp-2) var(--sp-1);
+  letter-spacing: var(--track-tight);
+  text-transform: none;
+  text-align: left;
+}
+.issue-open:hover {
+  background: var(--fill-quaternary);
+  color: var(--accent-text);
+}
+/* Pin toggle: star buttons in the issue list. It is the row's leading element,
+   so its width is what the separator inset is measured from. */
+.pin-toggle {
+  flex: 0 0 auto;
+  font-size: var(--fs-base);
+  color: var(--faint);
+}
+.pin-toggle.pinned {
+  color: var(--accent-text);
+}
+/* The pinned block ends with a gap rather than a heavy rule: in a grouped list
+   a break between groups is space, not a thicker line. */
+.issue-list li.pinned-last:not(.empty) {
+  margin-bottom: var(--sp-2);
+}
+.issue-list li.pinned-last:not(.empty)::after {
+  left: 0;
+  background: var(--hair-strong);
+  opacity: 0.5;
+}
+/* The row the keyboard is on. A third treatment, because the two obvious ones
+   are taken: --accent-tint is what an unread mention wears, and the accent
+   outline is the focus ring. Nothing calls .focus() on a row — it holds four
+   buttons of its own, and a ring around the lot of them would compete with this
+   wash to mean the same thing — so this is the only thing saying where the
+   arrow keys are.
+
+   A wash plus a bar rather than a wash alone: at the one-step-from-nothing
+   contrast a selected row needs, a fill this quiet is easy to miss on a long
+   list, and the bar is what the eye catches while scrolling. */
+.issue-list li.selected {
+  background: var(--fill-tertiary);
+}
+.issue-list li.selected::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--accent-text);
+}
+
+/* The same on a worklog-shaped row, which is a flex div with a bottom border
+   rather than a list item — an inset shadow draws the bar without disturbing
+   that border the way an absolutely positioned ::before would. */
+.worklog-row.selected {
+  background: var(--fill-tertiary);
+  box-shadow: inset 3px 0 0 var(--accent-text);
+}
+
+/* Inline issue-key button (timesheet / missing worklog rows). */
+.key-link {
+  background: none;
+  border: none;
+  padding: 0;
+  align-self: flex-start;
+  letter-spacing: var(--track-tight);
+  text-transform: none;
+  text-align: left;
+}
+.key-link:hover {
+  background: none;
+  color: var(--accent-text);
+}
+/* Summary button in missing-worklog rows: stacked under the key. */
+.missing-select {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 2px 0;
+}
+/* Inside a worklog row the parent is a *column*, so a `flex` shorthand here
+   sizes the button's height rather than its width. It should be exactly as
+   tall as the lines it holds — never stretched, never squashed. */
+.worklog-main > .issue-select {
+  flex: 0 0 auto;
+}
+/* The key is an identifier and a link at once. Mono used to say the first
+   part; semibold plus the accent says both, in the app's one typeface. */
+.key {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+.summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.timer-start {
+  background: none;
+  border: none;
+  border-radius: var(--r-capsule);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: var(--track-tight);
+  padding: 0 var(--sp-3);
+  min-height: var(--tap-compact);
+  white-space: nowrap;
+}
+.timer-start:hover:not(:disabled) {
+  background: var(--fill-tertiary);
+  color: var(--accent-text);
+}
+.timer-start:disabled {
+  cursor: default;
+  background: none;
+  color: var(--faint);
+}
+.timer-start.running {
+  color: var(--accent-text);
+  background: var(--accent-tint);
+  opacity: 1;
+}
+
+/* The issue a form is about, shown as a single grouped row above it. */
+.issue-chip {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: baseline;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: none;
+  border-radius: var(--r-card);
+  margin: var(--sp-2) 0 var(--sp-5);
+}
+/* The key in a chip is a link, and `.key-link` aligns itself to the top of
+   whatever row it sits in — which here lifts it off the summary's baseline the
+   chip exists to share. */
+.issue-chip > .key-link {
+  align-self: baseline;
+}
+
+/* ---------- Issue history (shown under every form that logs time) ---------- */
+.issue-history {
+  margin-top: 30px;
+}
+.history-more {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  margin: 8px 0 0;
+}
+/* Inside a modal the list is a reference the user glances at, not the point of
+   the sheet: pulled closer to the form and capped so the buttons below it stay
+   on screen however much time the issue already carries. */
+.modal .issue-history {
+  margin-top: var(--sp-5);
+}
+.modal .issue-history-list {
+  max-height: 8.5rem;
+  overflow-y: auto;
+}

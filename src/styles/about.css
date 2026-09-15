@@ -1,0 +1,288 @@
+/* ---------- About ---------- */
+.about {
+  max-width: 640px;
+}
+.about-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px 24px;
+  margin: 26px 0 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--hair);
+}
+.about-facts dt {
+  font-size: var(--fs-micro);
+  margin-bottom: 3px;
+}
+.about-facts dd {
+  margin: 0;
+  font-size: var(--fs-base);
+  overflow-wrap: anywhere;
+}
+/* The address reads as part of the answer, not as a control. */
+.about-mail {
+  font-family: inherit;
+  font-size: var(--fs-base);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: 0;
+}
+.about-text p {
+  font-size: var(--fs-base);
+  line-height: 1.6;
+  max-width: 62ch;
+  margin: 0 0 16px;
+}
+
+/* Follows the cursor, because without it a pointer drag is invisible — the
+   browser draws no ghost of its own the way HTML5 drag-and-drop does. */
+.drag-ghost {
+  position: fixed;
+  z-index: 10000;
+  transform: translate(12px, 10px);
+  pointer-events: none;
+  padding: 5px 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 1px solid var(--hair);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ---------- Saved searches ----------
+   A table, not a stack of forms: one header row names the columns once and a
+   search becomes one line — a name and the JQL it runs.
+
+   Fixed tracks rather than `auto`, so every row's controls line up with the
+   header and with each other. The query gets the room: it is the long one. */
+.search-grid {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1fr) minmax(12rem, 3fr) auto;
+  gap: var(--sp-2) var(--sp-3);
+  /* The controls sit at the top of their row: the query box is two lines tall
+     and the name one, and centring would leave the name floating. */
+  align-items: start;
+}
+
+/* A query is code, so it reads as code: fixed-width, and resizable downwards
+   only, since sideways would push the grid out of line. */
+.search-grid > .search-jql {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  resize: vertical;
+  min-width: 0;
+}
+/* JQL with nowhere to put the term: the Rust side will refuse to run it. */
+.search-grid > .search-jql[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+/* The row's last cell: the ✕ on a saved search, Add on the blank one. */
+.search-grid > button {
+  justify-self: start;
+}
+
+/* ---------- Command palette ----------
+   The app's ordinary sheet, holding the typeahead the pickers already use — so
+   it looks like everything else and behaves like the one thing in the app that
+   is already a filtered list with a keyboard. */
+.command-palette {
+  /* The list does the scrolling, not the sheet, so the box stays put while a
+     hundred commands move inside it. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.command-palette input {
+  width: 100%;
+}
+
+/* Overrides the picker's popover positioning: here the list *is* the content of
+   the sheet rather than something floating under a field. */
+.command-list {
+  position: static;
+  max-height: 50vh;
+  margin: 0;
+  border: none;
+  /* The rows carry the reading rhythm; a border round them as well would box a
+     list that is already inside a box. */
+}
+
+/* One row: what it is called on the left, its chord on the right. */
+.command-list .mention-option {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--tap-compact);
+}
+.command-name {
+  flex: 1;
+  min-width: 0;
+  /* A long name gives way rather than pushing its chord off the row. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The same key cap the badges wear, at rest rather than mid-press — the whole
+   point of showing it here is that it is the thing you will press next time
+   instead of opening this. */
+.command-chord {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: var(--r-control);
+  background: var(--fill-secondary);
+  color: var(--muted);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* The second step: what the palette is now asking for, and whether what has been
+   typed is yet an answer. Takes the place of the list, because at that point
+   there is nothing to choose from — only something to type. */
+.command-hint {
+  margin: 0;
+  padding: 0 10px var(--sp-1);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* Section headings inside the list. Not a heading element: the list is a
+   listbox, and an option's parent may hold nothing that claims to be read
+   first. */
+.command-group {
+  margin: var(--sp-3) 0 var(--sp-1);
+  padding: 0 10px;
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  color: var(--muted);
+}
+.command-list li:first-child .command-group {
+  margin-top: 0;
+}
+
+/* For a screen reader and nothing else. Clipped to a single pixel rather than
+   `display: none` or `visibility: hidden`, both of which take an element out of
+   the accessibility tree along with the view — which is the opposite of what a
+   live region is for. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Shortcut badges ----------
+   Hold the modifier and every action within reach names its key. One layer for
+   all of them, drawn over the app and measured from the controls rather than
+   placed by them: a badge in the flow would shove its row sideways the moment
+   the key went down, and a badge inside a scrolling panel would be clipped by
+   it.
+
+   Above the drag ghost, which is the highest thing in the file, because the
+   whole point is that it reads over whatever is on screen — and nothing is ever
+   mid-drag while the modifier is held. Nothing in the layer takes the pointer:
+   the control underneath is still the thing you click. */
+.shortcut-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  pointer-events: none;
+}
+
+/* Centred on the control's top-right corner, half on and half off, so it reads
+   as attached without covering the label. `left`/`top` are set inline from the
+   measured rect; the translate does the centring without anyone having to know
+   how wide a badge turned out to be. */
+.shortcut-badge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 1.25rem;
+  padding: 1px 4px;
+
+  /* A rounded square rather than the capsule the other badges wear. Badges here
+     are filled and never outlined, and this one keeps that — but a lone
+     character in a capsule reads as a count, the way .nav-count does, and this
+     is not a count. A key cap is square. */
+  border-radius: var(--r-control);
+
+  /* The layer floats over anything — a white panel, the accent-filled active
+     nav row — so the fill needs something opaque behind it, or it would take
+     that row's blue through and --muted would stop being readable on it. The
+     gradient is --fill-secondary painted flat onto --surface: the same grey any
+     badge sitting on a panel has, wherever this one happens to land. */
+  background-color: var(--surface);
+  background-image: linear-gradient(
+    var(--fill-secondary),
+    var(--fill-secondary)
+  );
+
+  color: var(--muted);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  animation: shortcut-badge-in var(--dur-micro) var(--ease-spring);
+}
+
+/* The key is real but stands down this second: ⌘2 while a comment is half
+   written would throw the words away, so it does not fire. Dimmed rather than
+   dropped — an absent badge says "no such key", which is a different statement.
+   --faint is the token for a control that is present and disabled, and this is
+   the one place where falling under AA is the meaning. */
+.shortcut-badge.standing-down {
+  background-image: linear-gradient(
+    var(--fill-quaternary),
+    var(--fill-quaternary)
+  );
+  color: var(--faint);
+}
+
+@keyframes shortcut-badge-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* A pointer held down over a page of text selects it, which fights the drag
+   and leaves the grid highlighted afterwards. */
+body.dragging-field {
+  user-select: none;
+  cursor: grabbing;
+}
+
+.arrange-reset {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.arrange-reset .confirm-text {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--danger-text);
+  margin-right: var(--sp-1);
+}
+
+/* The buttons on the right of a section head. Grouped so the head keeps its
+   name-left / controls-right split as they come and go. */
+.head-actions {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}

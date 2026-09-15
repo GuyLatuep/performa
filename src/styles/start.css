@@ -1,0 +1,465 @@
+/* ---------- Start tab ---------- */
+.start-section {
+  margin-bottom: var(--sp-section);
+}
+.start-section:last-child {
+  margin-bottom: 0;
+}
+/* The dashboard is the exception: several sections share the view, so the due
+   list is capped to keep the ones below it in reach. Every other list is the
+   whole of its view and flows to its natural length inside the content
+   column's scroll. */
+.start-section .issue-list {
+  max-height: clamp(200px, 32vh, 420px);
+  overflow-y: auto;
+}
+/* Due-date marker on issue rows, in the .nb-tag idiom. */
+.due-badge {
+  flex: 0 0 auto;
+  font-size: var(--fs-micro);
+  white-space: nowrap;
+  background: var(--fill-tertiary);
+  border-radius: var(--r-capsule);
+  padding: 2px var(--sp-2);
+}
+.due-badge.due-today {
+  color: var(--accent-text);
+  background: var(--accent-tint);
+}
+.due-badge.overdue {
+  color: var(--danger-text);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+/* Jira's icon for the issue type. A fixed box whether or not it holds an
+   image: the icon is fetched after the row is drawn, and a cell that grows when
+   it arrives would shift every row on the list. */
+.type-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+.type-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* Status and priority markers on issue rows (todo tab), same idiom. Status
+   names are free-form per workflow, so the badge is sized to keep even a long
+   one from pushing the summary out of the row. */
+.status-badge,
+.priority-badge {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--fs-micro);
+  white-space: nowrap;
+  background: var(--fill-tertiary);
+  border-radius: var(--r-capsule);
+  padding: 2px var(--sp-2);
+}
+.priority-badge.urgent {
+  color: var(--danger-text);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  font-weight: 600;
+}
+.priority-badge.high {
+  color: var(--ink);
+  font-weight: 500;
+}
+/* Quieter than the other markers, but the text stays at full strength — it is
+   the border that softens, not the word. */
+.priority-badge.low {
+  border-color: var(--hair);
+}
+/* Todo tab: the same issue rows, but laid out as a table so priority and
+   status line up in their own columns instead of floating after summaries of
+   different lengths. The header is a row like any other, so it shares the
+   grid automatically. */
+/* The todo list is a sortable data grid rather than a plain list — one of the
+   few places the grouped-inset row anatomy legitimately does not apply, since
+   the columns are the point. It keeps the section's surface and separators and
+   swaps the row for a grid.
+
+   The key column went 6rem -> 7rem: the key sits at Subheadline now, which is
+   two points larger than the size these widths were originally tuned for. */
+.todo-list li {
+  display: grid;
+  grid-template-columns: 1.375rem 1rem 7rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
+  gap: 6px;
+  align-items: center;
+  /* Line the separator up with the key, past the pin and type-icon cells. */
+  --row-inset: 3.25rem;
+}
+/* Issue type icons turned off in Appearance: one column fewer, and the cells
+   after it follow because they are placed from the end of the row. */
+.todo-list.no-type-icons li {
+  grid-template-columns: 1.375rem 7rem minmax(0, 1fr) 5.25rem 7.25rem 5rem;
+  --row-inset: 2rem;
+}
+/* The pin is a 1.375rem grid cell here, so it cannot carry the 44pt minimum
+   the same control carries in the issue list — more tap-target debt for that
+   pass, listed with the rest. */
+.todo-list .pin-toggle {
+  min-width: 0;
+}
+/* Pin each cell to its column by hand: not every issue carries a priority or
+   a status, and auto-placement would let the cells after a missing one slide
+   left — the exact misalignment this layout exists to fix.
+
+   Everything from the key rightwards is counted from the *end* of the row, so
+   the same rules hold whether or not the type icon has a column of its own. */
+.todo-list li > .pin-toggle {
+  grid-column: 1;
+}
+.todo-list li > .type-icon {
+  grid-column: 2;
+}
+.todo-list li > .issue-open {
+  grid-column: -6;
+}
+.todo-list li > .issue-select {
+  grid-column: -5;
+}
+.todo-list li > .priority-badge {
+  grid-column: -4;
+}
+.todo-list li > .status-badge {
+  grid-column: -3;
+}
+.todo-list li > .timer-start {
+  grid-column: -2;
+}
+/* `.issue-list li` sets `position: relative` so the row can carry its
+   separator as a pseudo-element, and that selector outranks a bare
+   `.todo-columns` — which silently turned this header from sticky into
+   relative. It needs the row in the selector to win. */
+.issue-list li.todo-columns {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  font-size: var(--fs-micro);
+  padding: 7px 0;
+}
+/* The header is not a row of data, so it carries a full-width rule under it
+   rather than one inset to the text. */
+.issue-list li.todo-columns::after {
+  left: 0;
+}
+/* The key and summary cells carry the row's own padding; align the headers
+   with the text inside them rather than with the cell edge. Named rather than
+   counted: how many spans come before them depends on the type-icon setting. */
+.todo-columns .col-key,
+.todo-columns .col-summary {
+  padding-left: 8px;
+}
+/* A column name is a button — clicking it sorts the list — but it is still a
+   column name, so it inherits the header's type rather than looking like a
+   control parked in the row. */
+.todo-columns .col-sort {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.todo-columns .col-sort:hover,
+.todo-columns .col-sort:focus-visible {
+  color: var(--ink);
+}
+/* The sorted column says so by weight as well as by its arrow: the arrow is
+   four pixels of glyph on a row of small caps. */
+.todo-columns .col-sort.sorted {
+  color: var(--ink);
+  font-weight: 600;
+}
+/* Fixed width whether or not there is an arrow in it, so naming the column
+   doesn't shift as it is sorted and unsorted. */
+.todo-columns .sort-marker {
+  flex: 0 0 auto;
+  width: 7px;
+  font-size: var(--fs-micro);
+  line-height: 1;
+}
+/* The type, priority and status columns are all centred over what is under
+   them — an icon and two badges — rather than over the column's left edge. */
+.todo-columns .col-sort:not(.col-key):not(.col-summary) {
+  justify-content: center;
+}
+/* One line per row — a wrapping summary would break the column rhythm. */
+.todo-list .issue-select {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* In a column of their own the badges no longer need to be shrink-wrapped. */
+.todo-list .status-badge,
+.todo-list .priority-badge {
+  max-width: 100%;
+  text-align: center;
+}
+/* Worklog template chips on the start tab. */
+.template-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 6px;
+}
+.template-chip {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+  background: var(--surface);
+  border-radius: var(--r-control);
+}
+.template-use {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  max-width: 340px;
+  background: none;
+  border: none;
+  padding: 8px 4px 8px 10px;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  letter-spacing: normal;
+  text-transform: none;
+}
+.template-use:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+/* A long comment is cut to one line; key and duration always stay whole. */
+.template-use .key,
+.template-use .duration {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.template-chip .comment {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---------- Issue view (todo tab) ----------
+   A stack of grouped sections rather than one large card: the facts, the
+   description, the links, the attachments and the timeline each get their own
+   rounded surface on the grouped background, which is how a detail screen is
+   built in this language. */
+.issue-view .back-row {
+  justify-content: space-between;
+  margin-bottom: var(--sp-3);
+}
+
+.issue-view > .issue-facts,
+.issue-view > section.issue-fact,
+.issue-section {
+  background: var(--surface);
+  border-radius: var(--r-card);
+  padding: var(--sp-4) var(--sp-5);
+}
+.issue-section {
+  margin-top: var(--sp-5);
+}
+.issue-section h3 {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--ink);
+  padding: 0;
+  margin: 0 0 var(--sp-3);
+  border-bottom: none;
+}
+
+/* Wraps to as many columns as fit; a long value (a remote-access note, say)
+   keeps its own line rather than stretching the whole grid. */
+.issue-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px 20px;
+  margin: 0 0 4px;
+}
+.issue-fact dt {
+  font-size: var(--fs-micro);
+  margin-bottom: 2px;
+}
+.issue-fact {
+  /* The editor is anchored to its own fact, so each cell is its own frame. */
+  position: relative;
+}
+/* A full-width field is prose under a heading, like the description — the
+   grid's narrow column is what makes it unreadable. */
+section.issue-fact .issue-description {
+  margin: 0;
+}
+/* The first one sits directly under the title, where a section's usual top
+   margin would open a gap the header already provides. */
+.issue-view > section.issue-fact:first-of-type {
+  margin-top: 0;
+}
+.issue-view > section.issue-fact + .issue-facts {
+  margin-top: var(--sp-5);
+}
+section.issue-fact .field-editor {
+  min-width: min(100%, 420px);
+}
+/* Emptying the field is not the ordinary way out of this popover — Save and
+   Cancel are — so it sits at the far end of the row, past the gap. */
+.field-editor .field-clear {
+  margin-left: auto;
+}
+.issue-fact dd {
+  margin: 0;
+  font-size: var(--fs-base);
+  overflow-wrap: anywhere;
+}
+/* A value that can be changed says so quietly. Double-click is invisible
+   otherwise, and a link on every row was the clutter this replaced. */
+.issue-fact dd.editable {
+  cursor: pointer;
+  text-decoration: underline dotted var(--hair-strong);
+  text-underline-offset: 3px;
+}
+.issue-fact dd.editable:hover {
+  text-decoration-color: var(--accent-text);
+  color: var(--accent-text);
+}
+
+/* The backend flattens ADF to text and keeps the line breaks; honour them. */
+.issue-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-size: var(--fs-base);
+  line-height: 1.55;
+}
+
+/* Scrolls past a screenful, like the attachment list above it — a busy
+   service-desk issue can carry dozens of entries, and the whole point of this
+   view is that the parts stay reachable without a long scroll through one of
+   them. Taller than the attachment cap because entries vary from one line to
+   a paragraph, and this is the part people actually read. */
+.issue-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 32rem;
+  overflow-y: auto;
+}
+.timeline-entry {
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--hair);
+}
+.issue-timeline .timeline-entry:last-child {
+  border-bottom: none;
+}
+/* Only comments carry what somebody actually wrote; the other two are the
+   record of something happening, and read as secondary. Said with weight and
+   a tinted surface rather than with a rule down the side. */
+.timeline-entry.comment {
+  background: var(--fill-quaternary);
+  border-radius: var(--r-control);
+  padding-left: var(--sp-3);
+  padding-right: var(--sp-3);
+  margin: 0 calc(var(--sp-3) * -1);
+  border-bottom-color: transparent;
+}
+.timeline-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.timeline-author {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.timeline-when {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-left: auto;
+}
+.timeline-tag {
+  font-size: var(--fs-micro);
+  padding: 2px var(--sp-2);
+  background: var(--fill-tertiary);
+  border-radius: var(--r-capsule);
+}
+.timeline-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+}
+.timeline-status,
+.timeline-worklog {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.timeline-duration {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.comment-box {
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+}
+/* The button row at the foot of a panel — comment, log-work, field editor,
+   attachments. */
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.panel-actions + .hint {
+  margin-top: 10px;
+}
+
+.transition-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+/* A blocked move stays visible and stays legible: it is information, not a
+   greyed-out dead end the eye should skip. */
+.transition-actions button:disabled {
+  cursor: not-allowed;
+}
+.transition-blocked {
+  color: var(--muted);
+}
+.transition-actions + .hint,
+.transition-actions + .error {
+  margin-top: 10px;
+}
