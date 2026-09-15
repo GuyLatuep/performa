@@ -175,6 +175,20 @@ mod tests {
         assert_eq!(clock(3725), "1:02:05");
     }
 
+    // The tray title and the webview's timer bar are read at the same moment,
+    // side by side, so the second they disagree is a bug the user sees. The
+    // format changes shape here, which is where a drift between the two would
+    // start: `formatClock` in `src/timer.ts` asserts the same pair, and its
+    // "matches the Rust tray formatter" test is the other half of this one.
+    #[test]
+    fn the_shape_changes_only_once_the_hour_is_full() {
+        assert_eq!(clock(3599), "59:59");
+        assert_eq!(clock(3600), "1:00:00");
+        // Minutes stay padded past the hour; the hour itself does not.
+        assert_eq!(clock(3661), "1:01:01");
+        assert_eq!(clock(36_000), "10:00:00");
+    }
+
     #[test]
     fn sleeps_only_up_to_the_next_second_boundary() {
         // Woken mid-second: wait out the remainder, not a full second.
@@ -185,6 +199,21 @@ mod tests {
         assert_eq!(ms_to_next_second(2_000, 0), 1000);
         // The offset is measured against the timer's own start, not the epoch.
         assert_eq!(ms_to_next_second(5_250, 4_000), 750);
+        // The timer's very first tick, before any time has passed at all.
+        assert_eq!(ms_to_next_second(0, 0), 1000);
+    }
+
+    // `timer_started` sleeps this long inside a bare `loop`, so the bounds are
+    // not cosmetic: a zero would spin that loop hot for as long as the timer
+    // runs, and anything past a second would let the tray title skip one. The
+    // webview's own ticker asserts the same invariant over the same spread.
+    #[test]
+    fn the_sleep_stays_inside_one_second_however_long_the_timer_has_run() {
+        for elapsed in [0, 1, 999, 1_000, 60_000, 3_600_500, 86_400_123] {
+            let delay = ms_to_next_second(elapsed, 0);
+            assert!(delay > 0, "elapsed {elapsed} would spin the ticker");
+            assert!(delay <= 1000, "elapsed {elapsed} would skip a second");
+        }
     }
 
     #[test]
