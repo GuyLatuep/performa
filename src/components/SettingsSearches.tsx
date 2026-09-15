@@ -46,14 +46,18 @@ export default function SettingsSearches() {
       </div>
 
       <span className="hint">
-        Each one becomes “Search by …” in the palette (⌘P); searching plain text
-        is always offered and needs no setting up. Write{" "}
-        <code>{SEARCH_TERM_PLACEHOLDER}</code> where the text you type goes — on
-        its own it is quoted for you, as in{" "}
+        Write <code>{SEARCH_TERM_PLACEHOLDER}</code> where the text you type goes
+        and this becomes “Search by …” in the palette (⌘P), which asks for a
+        term. On its own the term is quoted for you, as in{" "}
         <code>"Plant no." ~ {SEARCH_TERM_PLACEHOLDER}</code>; inside quotes it
         leaves the rest of the string alone, so{" "}
         <code>"{SEARCH_TERM_PLACEHOLDER}*"</code> matches anything starting with
         it.
+      </span>
+      <span className="hint">
+        Leave the placeholder out and it becomes “View: …” instead — a fixed
+        list, like a filter on the site, shown the moment you pick it. Searching
+        plain text is always offered and needs no setting up.
       </span>
     </div>
   );
@@ -132,7 +136,9 @@ function NewSearch() {
   const [name, setName] = useState("");
   const [jql, setJql] = useState("");
 
-  const ready = name.trim() !== "" && hasSearchTerm(jql);
+  // JQL with nowhere to put a term is a view, not a mistake — so the only bar
+  // is that both boxes say something.
+  const ready = name.trim() !== "" && jql.trim() !== "";
 
   function add() {
     if (!ready) return;
@@ -161,8 +167,6 @@ function NewSearch() {
             add();
           }
         }}
-        // Blank is not yet a mistake here; only JQL that forgot the term is.
-        invalid={jql.trim() !== "" && !hasSearchTerm(jql)}
       />
       <button
         type="button"
@@ -177,33 +181,36 @@ function NewSearch() {
 }
 
 /**
- * The query box. Marked when the JQL has nowhere to put the term, since that
- * search would find the same issues whatever is typed — the Rust side refuses to
- * run it, and saying so here is sooner.
+ * The query box.
+ *
+ * Nothing here is marked wrong any more. JQL with nowhere to put a term used to
+ * be a broken search — the Rust side refused to run it — and is now a view, so
+ * the box says which of the two this query is rather than calling one of them a
+ * mistake. Blank is still neither, and says nothing.
  */
 function JqlBox({
   label,
   value,
-  invalid = !hasSearchTerm(value),
   ...rest
 }: {
   label: string;
   value: string;
   placeholder?: string;
-  invalid?: boolean;
   onChange: (e: { target: { value: string } }) => void;
   onBlur?: () => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }) {
+  const written = value.trim() !== "";
   return (
     <textarea
       className="search-jql"
       aria-label={label}
-      aria-invalid={invalid}
       title={
-        invalid
-          ? `Needs ${SEARCH_TERM_PLACEHOLDER} where the term goes`
-          : undefined
+        !written
+          ? undefined
+          : hasSearchTerm(value)
+            ? `Asks for a term, and runs it where ${SEARCH_TERM_PLACEHOLDER} is`
+            : "Runs as written — offered in the palette as a view"
       }
       rows={2}
       spellCheck={false}

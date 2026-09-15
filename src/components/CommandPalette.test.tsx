@@ -327,6 +327,8 @@ describe("the searches", () => {
   function Ran() {
     const search = useRequestedSearch();
     if (!search) return <p>no search</p>;
+    // A view carries no term — it is the whole request on its own.
+    if (search.kind === "view") return <p>{`viewing ${search.search.name}`}</p>;
     const what = search.kind === "text" ? "text" : search.search.name;
     return <p>{`searching ${what} for ${search.term}`}</p>;
   }
@@ -480,5 +482,64 @@ describe("the searches", () => {
     await userEvent.keyboard("{Enter}");
 
     expect(screen.queryByLabelText("Search by text")).toBeNull();
+  });
+});
+
+/**
+ * A definition whose JQL names no term.
+ *
+ * It is offered and run differently from a search, and that difference is the
+ * whole feature: a search has to ask for something before it can run, a view
+ * already describes the issues it means. Same stored shape, same list in
+ * settings — only the JQL decides which it is.
+ */
+describe("the views", () => {
+  function Ran() {
+    const search = useRequestedSearch();
+    if (!search) return <p>no search</p>;
+    if (search.kind === "view") return <p>{`viewing ${search.search.name}`}</p>;
+    return <p>{`searching for ${"term" in search ? search.term : ""}`}</p>;
+  }
+
+  function saveView(name = "Open escalations") {
+    addSavedSearch({ name, jql: "project = DEV AND statusCategory != Done" });
+  }
+
+  it("offers one under “View:”, not “Search by”", async () => {
+    saveView();
+    render(<Screen />);
+
+    await openPalette();
+
+    expect(names()).toContain("View: Open escalations");
+    expect(names()).not.toContain("Search by Open escalations");
+  });
+
+  it("runs on the spot, with no second step asking for a term", async () => {
+    saveView();
+    render(
+      <>
+        <Screen />
+        <Ran />
+      </>,
+    );
+    await openPalette();
+
+    await userEvent.type(box(), "Open escalations");
+    await userEvent.keyboard("{Enter}");
+
+    // Straight to the results: one Enter, not two.
+    expect(screen.getByText("viewing Open escalations")).toBeDefined();
+  });
+
+  it("offers a search and a view side by side, each in its own shape", async () => {
+    addSavedSearch({ name: "Plant number", jql: '"Plant-No." ~ %SEARCHTERM%' });
+    saveView();
+    render(<Screen />);
+
+    await openPalette();
+
+    expect(names()).toContain("Search by Plant number");
+    expect(names()).toContain("View: Open escalations");
   });
 });

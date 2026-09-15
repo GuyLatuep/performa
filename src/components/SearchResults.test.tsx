@@ -288,3 +288,57 @@ describe("the row grid", () => {
     );
   });
 });
+
+// A view reaches this same screen, which is the point of it being a kind of
+// request rather than a screen of its own.
+describe("showing a view", () => {
+  const VIEW: SearchRequest = {
+    kind: "view",
+    search: {
+      id: "v1",
+      name: "Open escalations",
+      jql: "project = DEV AND statusCategory != Done",
+    },
+  };
+
+  it("runs the JQL as written, with no term to put in it", async () => {
+    apiMock.viewIssues.mockResolvedValue(page([]));
+
+    renderResults(VIEW);
+
+    await act(async () => {});
+    expect(apiMock.viewIssues).toHaveBeenCalledWith(
+      "project = DEV AND statusCategory != Done",
+    );
+    expect(apiMock.searchJql).not.toHaveBeenCalled();
+  });
+
+  it("is headed by its name alone — there is no term to name", async () => {
+    apiMock.viewIssues.mockResolvedValue(page([issueSummary({ key: "ABC-1" })]));
+
+    renderResults(VIEW);
+
+    expect(await screen.findByText(/Results for Open escalations/)).toBeDefined();
+  });
+
+  it("lists what came back, as any other result does", async () => {
+    apiMock.viewIssues.mockResolvedValue(
+      page([issueSummary({ key: "ABC-1" }), issueSummary({ key: "ABC-2" })]),
+    );
+
+    renderResults(VIEW);
+
+    expect(await screen.findByText("ABC-1")).toBeDefined();
+    expect(screen.getByText("ABC-2")).toBeDefined();
+  });
+
+  it("says to narrow the view, not the term, when there is more", async () => {
+    apiMock.viewIssues.mockResolvedValue(
+      page([issueSummary({ key: "ABC-1" })], true),
+    );
+
+    renderResults(VIEW);
+
+    expect(await screen.findByText(/narrow the view/)).toBeDefined();
+  });
+});

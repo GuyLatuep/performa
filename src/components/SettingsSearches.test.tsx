@@ -86,17 +86,31 @@ describe("writing one", () => {
     });
   });
 
-  it("will not add JQL with nowhere to put the term, and says so", async () => {
-    // It would find the same issues whatever was typed.
-    await fillIn("Plant number", "project = DEV");
+  it("adds JQL with nowhere to put a term, which is a view", async () => {
+    // This was refused until views existed: JQL that names no term finds the
+    // same issues whatever is typed, which is the point of a view rather than a
+    // fault in a search.
+    await fillIn("Open escalations", "project = DEV AND statusCategory != Done");
+
+    expect(screen.getByRole("button", { name: "Add" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(getSavedSearches()[0]).toMatchObject({
+      name: "Open escalations",
+      jql: "project = DEV AND statusCategory != Done",
+    });
+  });
+
+  it("still wants a name and some JQL", async () => {
+    await fillIn("Open escalations", "   ");
 
     expect(screen.getByRole("button", { name: "Add" })).toHaveProperty(
       "disabled",
       true,
     );
-    expect(
-      screen.getByLabelText("JQL to run").getAttribute("aria-invalid"),
-    ).toBe("true");
   });
 
   it("adds on Enter in the JQL box", async () => {
@@ -210,12 +224,22 @@ describe("one already written", () => {
     expect(jqlBox()).toHaveProperty("value", PLANT_JQL);
   });
 
-  it("marks JQL that has lost its placeholder", () => {
+  it("does not mark JQL that names no term — it is a view now", () => {
     renderTab();
 
     typeInto(jqlBox(), "project = DEV");
 
-    expect(jqlBox().getAttribute("aria-invalid")).toBe("true");
+    expect(jqlBox().getAttribute("aria-invalid")).toBeNull();
+    // And says which of the two it has become, rather than nothing at all.
+    expect(jqlBox().getAttribute("title")).toContain("view");
+  });
+
+  it("says a query carrying the placeholder will ask for a term", () => {
+    renderTab();
+
+    typeInto(jqlBox(), '"Plant no." ~ %SEARCHTERM%');
+
+    expect(jqlBox().getAttribute("title")).toContain("term");
   });
 
   it("can be removed", async () => {

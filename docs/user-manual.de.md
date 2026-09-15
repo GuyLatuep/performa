@@ -210,6 +210,20 @@ sie wartet. **Escape** führt dort zurück zur Befehlsliste statt aus der Palett
 heraus — hast du die falsche von zwei Suchen erwischt, ist die andere einen
 Tastendruck entfernt.
 
+#### Views
+
+Eine eigene Abfrage ohne Suchbegriff ist keine Suche, sondern ein **View**: sie
+beschreibt die gemeinten Vorgänge bereits, so wie ein Filter auf der Jira-Seite.
+Solche Abfragen erscheinen in der Palette als **View: …** und brauchen keinen
+zweiten Schritt — beim Auswählen sind die Ergebnisse sofort da.
+
+Alles danach ist derselbe Bildschirm, auf dem auch eine Suche landet: dieselben
+Zeilen, dieselben Tasten, derselbe Weg zurück. Welches von beiden eine Abfrage
+wird, entscheidet die Abfrage selbst — steht `%SEARCHTERM%` darin, fragt sie
+einen Begriff ab; fehlt es, läuft sie so, wie sie geschrieben ist. Aus dem einen
+das andere zu machen, heißt also, die JQL zu ändern. Siehe
+[Einstellungen → Searches](#einstellungen).
+
 Die Ergebnisse nennen ihre Anzahl. Hatte Jira mehr, als die App angefragt hat,
 steht dort **first 100** mit dem Hinweis, den Begriff einzugrenzen: eine volle
 Seite ist kein Beweis, dass nichts dahinter kommt, und diese Suchen schließen
@@ -482,7 +496,7 @@ Der **Settings**-Link in der Kopfzeile öffnet denselben Bildschirm wie bei der 
 - **Daily work hours** — 0,5–24 h; daraus ergeben sich die Tagesziel-Linie und, × 5, der Wochenziel-Ring in den Diagrammen.
 - **Timesheet days** — **Mon–Fri** (Wochenenden ausgeblendet, außer sie enthalten erfasste Zeit) oder **Full week**.
 - **Todo** — welche Status der Todo-Tab ausblendet, pro Projekt. Die meisten Sites verwenden überall dieselben Status, deshalb gibt es ein **Copy to**, um die übrigen Projekte in einem Rutsch zu füllen.
-- **Searches** — eigene Suchen, von denen jede in der Befehlspalette ([⌘P](#die-befehlspalette)) als **Search by …** erscheint. Eine Zeile je Suche: ein **Name** und die **JQL**, die sie ausführt — genau so geschrieben wie ein Filter in Jira, mit `%SEARCHTERM%` an der Stelle, an der das in der Palette Eingetippte eingesetzt wird, zum Beispiel `project in (CTS, DEV, SD) AND "Plant Number[Short text]" ~ %SEARCHTERM% ORDER BY created ASC`. Steht `%SEARCHTERM%` für sich allein, wird es für dich in Anführungszeichen gesetzt; steht es innerhalb von Anführungszeichen, bleibt der Rest dieser Zeichenkette, wie du ihn geschrieben hast — `"%SEARCHTERM%*"` passt also auf alles, was mit dem Eingetippten *beginnt* (`DE_1979` findet dann auch `DE_1979_03`). Das Eingetippte wird beim Einsetzen maskiert, ein Anführungszeichen oder eine Klammer im Suchbegriff wird also gesucht und nicht als JQL gelesen. Eine Abfrage ohne `%SEARCHTERM%` bekommt einen roten Rahmen und lässt sich nicht hinzufügen, weil sie unabhängig vom Eingetippten immer dieselben Vorgänge fände; das JQL-Feld speichert beim Verlassen oder mit **Enter**. Suchen aus der Zeit vor der JQL-Form (ein Feld, **Whole value** und ausgeschlossene Projekte) werden beim ersten Start in die entsprechende JQL umgewandelt, es muss also nichts neu eingegeben werden. Die reine Textsuche muss nicht eingerichtet werden und wird immer angeboten.
+- **Searches** — eigene Suchen, von denen jede in der Befehlspalette ([⌘P](#die-befehlspalette)) als **Search by …** erscheint. Eine Zeile je Suche: ein **Name** und die **JQL**, die sie ausführt — genau so geschrieben wie ein Filter in Jira, mit `%SEARCHTERM%` an der Stelle, an der das in der Palette Eingetippte eingesetzt wird, zum Beispiel `project in (CTS, DEV, SD) AND "Plant Number[Short text]" ~ %SEARCHTERM% ORDER BY created ASC`. Steht `%SEARCHTERM%` für sich allein, wird es für dich in Anführungszeichen gesetzt; steht es innerhalb von Anführungszeichen, bleibt der Rest dieser Zeichenkette, wie du ihn geschrieben hast — `"%SEARCHTERM%*"` passt also auf alles, was mit dem Eingetippten *beginnt* (`DE_1979` findet dann auch `DE_1979_03`). Das Eingetippte wird beim Einsetzen maskiert, ein Anführungszeichen oder eine Klammer im Suchbegriff wird also gesucht und nicht als JQL gelesen. Eine Abfrage ohne `%SEARCHTERM%` ist statt einer Suche ein **View**: sie findet unabhängig vom Eingetippten immer dieselben Vorgänge, und genau das ist der Zweck — sie wird in der Palette als **View: …** angeboten und läuft, sobald du sie auswählst. Das JQL-Feld sagt, welches von beiden eine Abfrage geworden ist, und speichert beim Verlassen oder mit **Enter**. Suchen aus der Zeit vor der JQL-Form (ein Feld, **Whole value** und ausgeschlossene Projekte) werden beim ersten Start in die entsprechende JQL umgewandelt, es muss also nichts neu eingegeben werden. Die reine Textsuche muss nicht eingerichtet werden und wird immer angeboten.
 - **Logging** — die Ausführlichkeit des Debug-Logs (**Error**, **Warn**, **Info** oder **Debug**; siehe [Debug-Log](#debug-log)) sowie ein **Open log folder**-Button.
 - **Zugangsdaten** — Site, E-Mail oder Token ändern. Bleibt das Token-Feld leer, wird das gespeicherte Token beibehalten — du musst es also nicht neu eingeben, um z. B. einen Tippfehler in der E-Mail zu korrigieren. Beim Speichern wird erneut gegen Jira geprüft.
 
