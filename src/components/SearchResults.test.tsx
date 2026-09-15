@@ -24,6 +24,7 @@ import { getRequestedSearch, SearchRequest } from "../searchRequest";
 import { clearSelection } from "../selection";
 import { backTarget, clearForward, goBack, goForward } from "../back";
 import { AllKeys } from "../test-support/shortcuts";
+import { setShowIssueTypeIcons } from "../settings";
 import SearchResults from "./SearchResults";
 
 /** What the backend answers with: the rows, plus whether there were more. */
@@ -256,5 +257,34 @@ describe("leaving the results", () => {
       kind: "field",
       term: "DE_1979",
     });
+  });
+});
+
+describe("the row grid", () => {
+  // The rows draw a type-icon cell whenever the setting is on, and the grid
+  // only holds a column for it when the list says so. Getting that wrong left
+  // the icon in the key's column and pushed the key onto a second line.
+  it("reserves the type-icon column while the icons are shown", async () => {
+    setShowIssueTypeIcons(true);
+    apiMock.searchJql.mockResolvedValue(page([issueSummary({ key: "ABC-1" })]));
+
+    renderResults();
+    await act(async () => {});
+
+    expect(screen.getByLabelText("Search results").className).not.toContain(
+      "no-type-icons",
+    );
+  });
+
+  it("drops the column again when the icons are turned off", async () => {
+    setShowIssueTypeIcons(false);
+    apiMock.searchJql.mockResolvedValue(page([issueSummary({ key: "ABC-1" })]));
+
+    renderResults();
+    await act(async () => {});
+
+    expect(screen.getByLabelText("Search results").className).toContain(
+      "no-type-icons",
+    );
   });
 });
