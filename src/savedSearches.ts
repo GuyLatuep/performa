@@ -27,10 +27,24 @@ export interface SavedSearch {
  *  `SEARCH_TERM_PLACEHOLDER` in `src-tauri/src/jira/jql.rs`. */
 export const SEARCH_TERM_PLACEHOLDER = "%SEARCHTERM%";
 
-/** Does this JQL say where the term goes? Case-insensitive, as the Rust side is.
- *  One that does not is refused there when it runs. */
+/** Does this JQL say where the term goes? Case-insensitive, as the Rust side is. */
 export function hasSearchTerm(jql: string): boolean {
   return jql.toUpperCase().includes(SEARCH_TERM_PLACEHOLDER);
+}
+
+/**
+ * Whether this definition is a *view* rather than a search.
+ *
+ * The distinction is the placeholder and nothing else: JQL that says where a
+ * term goes is a search and asks for one, JQL that does not describes a fixed
+ * set of issues and is simply run. One stored shape covers both, so nothing had
+ * to be migrated and either can be turned into the other by editing its query.
+ *
+ * Before views existed this was the broken state — the settings screen refused
+ * to save it and the Rust side refused to run it.
+ */
+export function isView(search: SavedSearch): boolean {
+  return !hasSearchTerm(search.jql);
 }
 
 const KEY = "performa-saved-searches";

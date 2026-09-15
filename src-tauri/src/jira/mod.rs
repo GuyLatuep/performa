@@ -36,7 +36,9 @@ use futures_util::{stream, StreamExt, TryStreamExt};
 use serde::de::DeserializeOwned;
 
 use adf::{adf_paragraph, adf_to_text};
-pub use jql::{build_search_jql, build_text_jql, fill_search_template, is_issue_key};
+pub use jql::{
+    build_search_jql, build_text_jql, fill_search_template, is_issue_key, SEARCH_TERM_PLACEHOLDER,
+};
 use jql::{build_todo_jql, drop_ignored_statuses, open_status_names};
 use stamps::{jira_started, started_after_millis};
 use types::*;

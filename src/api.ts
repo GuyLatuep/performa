@@ -446,6 +446,15 @@ export const api = {
       found,
     );
   },
+  /** A view: one of the user's own saved queries that names no term, run as
+   *  written. Nothing is put into the query, so there is nothing to escape. */
+  viewIssues(jql: string): Promise<SearchResults> {
+    return logged(
+      `view_issues(jql=${JSON.stringify(jql)})`,
+      () => invoke("view_issues", { jql }),
+      found,
+    );
+  },
   /** My issues due between 7 days ago and 14 days ahead, soonest first. */
   dueIssues(): Promise<IssueSummary[]> {
     return cached("due_issues", () =>
