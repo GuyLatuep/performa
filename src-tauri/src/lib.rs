@@ -780,6 +780,59 @@ mod tests {
         assert_eq!(cfg.ignored_statuses["DEV"], ["Done"]);
     }
 
+    // The one piece of `SearchResults` that exists only because serde was told
+    // to rename it. The webview reads `hasMore` to decide whether to warn that
+    // a full page is not the whole answer; without the rename the field crosses
+    // as `has_more`, the view reads `undefined`, and every truncated search
+    // silently reads as complete — the exact misreading the struct's own doc
+    // comment says it exists to prevent.
+    #[test]
+    fn search_results_cross_to_the_webview_under_the_names_it_reads() {
+        let json = serde_json::to_value(SearchResults::from((Vec::new(), true))).unwrap();
+
+        assert_eq!(json["hasMore"], serde_json::json!(true));
+        assert_eq!(json["issues"], serde_json::json!([]));
+        assert!(json.get("has_more").is_none());
+    }
+
+    // Said out loud here because the omission is the decision: a window that
+    // happened to be hidden at exit would come back hidden, leaving only the
+    // tray to get it open again. Nothing else in the file would notice VISIBLE
+    // being added to the set.
+    #[test]
+    fn the_window_does_not_remember_having_been_hidden() {
+        assert!(!WINDOW_STATE_FLAGS.contains(StateFlags::VISIBLE));
+        assert!(!WINDOW_STATE_FLAGS.contains(StateFlags::DECORATIONS));
+        // What it does remember: where the window was, and how big.
+        assert!(WINDOW_STATE_FLAGS.contains(StateFlags::POSITION));
+        assert!(WINDOW_STATE_FLAGS.contains(StateFlags::SIZE));
+    }
+
+    #[test]
+    fn fresh_activity_is_spared_for_less_time_than_a_worklog_reaches() {
+        let cfg = missing_config();
+
+        // The grace is how long new activity is left unflagged; the window is
+        // how far a worklog reaches to cover activity. A grace wider than the
+        // window would open a stretch that is neither too fresh to flag nor
+        // near enough to any worklog to be cleared — a reminder nothing the
+        // user does can answer.
+        assert!(cfg.grace_secs < cfg.window_secs);
+        assert!(cfg.lookback_days >= 1);
+    }
+
+    #[test]
+    fn some_done_statuses_still_accept_worklogs() {
+        let cfg = missing_config();
+
+        // Not merely the shipped names: an *empty* list collapses
+        // `missing::bookable_clause` to "not done at all", and the scan then
+        // stops flagging anything resolved at all.
+        assert_eq!(cfg.bookable_done_statuses, ["Gel\u{f6}st", "Resolved"]);
+        assert_eq!(cfg.escalation_project, MISSING_ESCALATION_PROJECT);
+        assert_eq!(cfg.escalation_link, MISSING_ESCALATION_LINK);
+    }
+
     #[test]
     fn downloads_land_in_the_apps_own_scratch_folder() {
         // Beside the debug logs rather than in the user's Downloads: the app
