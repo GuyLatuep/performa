@@ -7,6 +7,8 @@ import {
   getSavedSearches,
   hasSearchTerm,
   removeSavedSearch,
+  isView,
+  SavedSearch,
   updateSavedSearch,
 } from "./savedSearches";
 
@@ -300,5 +302,31 @@ describe("whose searches these are", () => {
     addSavedSearch({ ...PLANT, name: "Customer ref" });
 
     expect(getSavedSearches().map((s) => s.name)).toEqual(["Customer ref"]);
+  });
+});
+
+// The one rule that decides what a stored definition is. Nothing else about the
+// shape changed when views arrived, which is why nothing had to be migrated.
+describe("isView", () => {
+  const search = (jql: string): SavedSearch => ({ id: "s1", name: "n", jql });
+
+  it("is a view when the JQL names no term", () => {
+    expect(isView(search("project = DEV AND statusCategory != Done"))).toBe(
+      true,
+    );
+  });
+
+  it("is not a view when the JQL says where a term goes", () => {
+    expect(isView(search('"Plant no." ~ %SEARCHTERM%'))).toBe(false);
+  });
+
+  it("reads the placeholder in any case, as the Rust side does", () => {
+    expect(isView(search('"Plant no." ~ %searchterm%'))).toBe(false);
+  });
+
+  it("turns from one into the other by editing the query alone", () => {
+    // The two are the same stored shape, so this is the whole migration story.
+    expect(isView(search("project = DEV"))).toBe(true);
+    expect(isView(search("project = DEV AND key = %SEARCHTERM%"))).toBe(false);
   });
 });

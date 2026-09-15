@@ -166,6 +166,27 @@ pub fn search_jql(jql: &str) -> Result<&str, String> {
     Ok(jql)
 }
 
+/// The JQL of a *view*: valid to run, and naming no search term.
+///
+/// A view runs exactly as written, so a query still carrying the placeholder is
+/// a search that was offered as a view — which can only be a mistake on the
+/// webview's side. Refused here with something the reader can act on, rather
+/// than passed to Jira, which would answer with a parser error about a
+/// character they never typed.
+pub fn view_jql(jql: &str) -> Result<&str, String> {
+    let jql = search_jql(jql)?;
+    if jql
+        .to_uppercase()
+        .contains(crate::jira::SEARCH_TERM_PLACEHOLDER)
+    {
+        return Err(format!(
+            "a view runs as written, but this one still has {} in it",
+            crate::jira::SEARCH_TERM_PLACEHOLDER
+        ));
+    }
+    Ok(jql)
+}
+
 /// What the comment box's mention picker asks for, or `None` when there is
 /// nothing worth asking. One character is enough for Jira and keeps the picker
 /// responsive from the first keystroke; an empty query would ask it for
@@ -327,6 +348,35 @@ mod tests {
         );
         assert!(search_jql("   ").is_err());
         assert!(search_jql(&"x".repeat(MAX_SEARCH_JQL_CHARS + 1)).is_err());
+    }
+
+    #[test]
+    fn a_view_runs_as_written_and_so_names_no_term() {
+        assert_eq!(
+            view_jql("  project = DEV AND statusCategory != Done  "),
+            Ok("project = DEV AND statusCategory != Done")
+        );
+    }
+
+    #[test]
+    fn a_view_still_carrying_the_placeholder_is_refused_here() {
+        // Jira would answer this with a parser error about a character the
+        // reader never typed, so it is turned back with something they can act
+        // on. It can only arrive from a search offered as a view, which is a
+        // bug on the webview's side.
+        let err = view_jql("summary ~ %SEARCHTERM%").unwrap_err();
+        assert!(err.contains("%SEARCHTERM%"), "unhelpful message: {err}");
+
+        // Matched without case, exactly as `fill_search_template` reads it —
+        // the two must agree on what counts as a placeholder or a query could
+        // be refused by both or accepted by both.
+        assert!(view_jql("summary ~ %searchterm%").is_err());
+    }
+
+    #[test]
+    fn a_view_inherits_the_bounds_every_saved_query_has() {
+        assert!(view_jql("   ").is_err());
+        assert!(view_jql(&"x".repeat(MAX_SEARCH_JQL_CHARS + 1)).is_err());
     }
 
     #[test]

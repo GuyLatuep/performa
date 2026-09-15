@@ -121,7 +121,8 @@ export default function SearchResults({
               the hundred-and-first does not exist. */}
           {found?.hasMore && (
             <span className="muted">
-              first {found.issues.length} · narrow the term to see the rest
+              first {found.issues.length} · narrow the{" "}
+              {search.kind === "view" ? "view" : "term"} to see the rest
             </span>
           )}
         </div>

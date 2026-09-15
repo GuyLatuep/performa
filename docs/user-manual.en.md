@@ -201,6 +201,19 @@ what you typed to *find* the search is not mistaken for what you want to search
 back to the list of commands rather than out of the palette — having picked the
 wrong one of two searches, the other is one press away.
 
+#### Views
+
+A query of your own that names no search term is a **view** rather than a search:
+it already describes the issues it means, the way a filter on the site does.
+Those appear in the palette as **View: …** and need no second step — picking one
+shows its results straight away.
+
+Everything after that is the same screen a search lands on: the same rows, the
+same keys, the same way back. Which of the two a query becomes is decided by the
+query alone — write `%SEARCHTERM%` somewhere in it and it asks for a term, leave
+it out and it runs as written — so turning one into the other is a matter of
+editing its JQL. See [Settings → Searches](#settings).
+
 Results say how many they found. Where Jira had more than the app asked for, they
 say **first 100** and suggest narrowing the term: a full page is not proof there
 is nothing after it, and these searches deliberately include finished issues, so
@@ -472,7 +485,7 @@ The **Settings** link in the header opens the same screen used for the first-run
 - **Daily work hours** — 0.5–24 h; this drives the daily target line and, × 5, the weekly target ring in the charts.
 - **Timesheet days** — **Mon–Fri** (weekends hidden unless they contain logged time) or **Full week**.
 - **Todo** — which statuses the Todo tab hides, per project. Most sites use the same statuses everywhere, so the list carries a **Copy to** for filling the rest in at once.
-- **Searches** — searches of your own, each becoming **Search by …** in the command palette ([⌘P](#the-command-palette)). One row each: a **Name** and the **JQL** it runs, written exactly as you would write a filter in Jira, with `%SEARCHTERM%` where the text you type into the palette goes — for example `project in (CTS, DEV, SD) AND "Plant Number[Short text]" ~ %SEARCHTERM% ORDER BY created ASC`. Written on its own, `%SEARCHTERM%` is quoted for you; written inside quotes, the rest of that string is left as you wrote it, so `"%SEARCHTERM%*"` matches anything *starting* with what you type (`DE_1979` then also finds `DE_1979_03`). Whatever you type is escaped on the way in, so a quote or a bracket in the term is searched for rather than read as JQL. A query without `%SEARCHTERM%` gets a red border and cannot be added, since it would find the same issues whatever you typed; the JQL box saves when you leave it or press **Enter**. Searches written before this took the JQL form (a field, **Whole value** and excluded projects) are converted to the equivalent JQL on first launch, so nothing needs re-entering. Searching plain text needs no setting up and is always offered.
+- **Searches** — searches of your own, each becoming **Search by …** in the command palette ([⌘P](#the-command-palette)). One row each: a **Name** and the **JQL** it runs, written exactly as you would write a filter in Jira, with `%SEARCHTERM%` where the text you type into the palette goes — for example `project in (CTS, DEV, SD) AND "Plant Number[Short text]" ~ %SEARCHTERM% ORDER BY created ASC`. Written on its own, `%SEARCHTERM%` is quoted for you; written inside quotes, the rest of that string is left as you wrote it, so `"%SEARCHTERM%*"` matches anything *starting* with what you type (`DE_1979` then also finds `DE_1979_03`). Whatever you type is escaped on the way in, so a quote or a bracket in the term is searched for rather than read as JQL. A query without `%SEARCHTERM%` is a **view** instead of a search: it finds the same issues whatever you type, which is the point of one, so it is offered in the palette as **View: …** and runs the moment you pick it. The JQL box says which of the two a query has become, and saves when you leave it or press **Enter**. Searches written before this took the JQL form (a field, **Whole value** and excluded projects) are converted to the equivalent JQL on first launch, so nothing needs re-entering. Searching plain text needs no setting up and is always offered.
 - **Logging** — the debug-log verbosity (**Error**, **Warn**, **Info**, or **Debug**; see [Debug log](#debug-log)) and an **Open log folder** button.
 - **Credentials** — change site, email, or token. Leaving the token field blank keeps the stored token, so you don't need to re-enter it to fix a typo in the email. Saving re-verifies against Jira.
 

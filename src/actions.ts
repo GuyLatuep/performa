@@ -3,8 +3,12 @@ import { api } from "./api";
 import { goBack, goForward } from "./back";
 import { HANDBOOK_URL, openExternal } from "./external";
 import { parseIssueKey } from "./issueKey";
-import { getSavedSearches } from "./savedSearches";
-import { requestSavedSearch, requestTextSearch } from "./searchRequest";
+import { getSavedSearches, isView } from "./savedSearches";
+import {
+  requestSavedSearch,
+  requestTextSearch,
+  requestView,
+} from "./searchRequest";
 import { requestIssue } from "./issueRequest";
 import { setFunMode } from "./settings";
 import {
@@ -126,18 +130,33 @@ function searchActions(): ActionSpec[] {
       submit: requestTextSearch,
     },
   };
-  const own = getSavedSearches().map((search): ActionSpec => ({
-    id: `search.${search.id}`,
-    name: `Search by ${search.name}`,
-    group: "Search",
-    keywords: "find",
-    prompt: {
-      title: `Search by ${search.name}`,
-      placeholder: search.name,
-      parse: (typed) => typed.trim() || null,
-      submit: (term) => requestSavedSearch(search, term),
-    },
-  }));
+  // One list, two shapes. Which one a definition takes is decided by its own
+  // JQL: one that says where a term goes has to ask for it, so it carries a
+  // prompt; one that does not already describes the issues it means, so picking
+  // it is the whole interaction and it runs on the spot.
+  const own = getSavedSearches().map((search): ActionSpec => {
+    if (isView(search)) {
+      return {
+        id: `view.${search.id}`,
+        name: `View: ${search.name}`,
+        group: "Search",
+        keywords: "filter list saved",
+        run: () => requestView(search),
+      };
+    }
+    return {
+      id: `search.${search.id}`,
+      name: `Search by ${search.name}`,
+      group: "Search",
+      keywords: "find",
+      prompt: {
+        title: `Search by ${search.name}`,
+        placeholder: search.name,
+        parse: (typed) => typed.trim() || null,
+        submit: (term) => requestSavedSearch(search, term),
+      },
+    };
+  });
   return [text, ...own];
 }
 

@@ -188,6 +188,25 @@ async fn search_jql(
     Ok(s.client.search_issues_rows(&jql).await?.into())
 }
 
+/// A view: one of the user's own saved queries that names no search term, run
+/// exactly as it was written.
+///
+/// The same trust as `search_jql`, for the same reasons — the query is the
+/// signed-in user's own, run with their own account against a read-only
+/// endpoint, and nothing it can say reaches further than Jira's own search
+/// already lets them. A narrower surface than that one, in fact: there is no
+/// term to interpolate, so nothing is put into the query here at all.
+#[tauri::command]
+async fn view_issues(state: State<'_, AppState>, jql: String) -> Result<SearchResults, String> {
+    let jql = checked::view_jql(&jql)?;
+    log::info!(
+        "view: jql = {}",
+        logging::one_line(jql, MAX_FRONTEND_LOG_CHARS)
+    );
+    let s = state.session().await?;
+    Ok(s.client.search_issues_rows(jql).await?.into())
+}
+
 /// Issues assigned to the current user with a due date between 7 days ago and
 /// 14 days ahead (shown on the start tab).
 #[tauri::command]
@@ -711,6 +730,7 @@ pub fn run() {
             search_issues,
             search_text,
             search_jql,
+            view_issues,
             due_issues,
             todo_issues,
             jira_projects,

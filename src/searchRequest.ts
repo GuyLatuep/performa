@@ -18,7 +18,10 @@ import { createStore } from "./store";
  */
 export type SearchRequest =
   | { kind: "text"; term: string }
-  | { kind: "saved"; term: string; search: SavedSearch };
+  | { kind: "saved"; term: string; search: SavedSearch }
+  /** A saved definition that names no term: run as written, nothing asked for.
+   *  Carries the whole definition for the same reason `saved` does. */
+  | { kind: "view"; search: SavedSearch };
 
 const store = createStore<SearchRequest | null>(null);
 
@@ -47,6 +50,12 @@ export function requestSavedSearch(search: SavedSearch, term: string): void {
   show({ kind: "saved", term, search });
 }
 
+/** Show a view. No term, so no second step in the palette — picking it is the
+ *  whole interaction. */
+export function requestView(search: SavedSearch): void {
+  show({ kind: "view", search });
+}
+
 /** Ask for this search again, as a fresh request so its results re-run. */
 export function repeatSearch(request: SearchRequest): void {
   show({ ...request });
@@ -54,9 +63,14 @@ export function repeatSearch(request: SearchRequest): void {
 
 /** Run it against Jira. */
 export function runSearch(request: SearchRequest): Promise<SearchResults> {
-  return request.kind === "text"
-    ? api.searchText(request.term)
-    : api.searchJql(request.search.jql, request.term);
+  switch (request.kind) {
+    case "text":
+      return api.searchText(request.term);
+    case "view":
+      return api.viewIssues(request.search.jql);
+    case "saved":
+      return api.searchJql(request.search.jql, request.term);
+  }
 }
 
 /** The search being shown, or null — which is every other moment. */
@@ -77,7 +91,14 @@ export function clearSearchRequest(): void {
 
 /** What this search is called, for a heading or an empty state. */
 export function describeSearch(search: SearchRequest): string {
-  return search.kind === "text"
-    ? `\u201c${search.term}\u201d`
-    : `${search.search.name} ${search.term}`;
+  switch (search.kind) {
+    case "text":
+      return `\u201c${search.term}\u201d`;
+    // Just the name: a view has no term, and "Results for Open escalations"
+    // reads as the whole sentence it is.
+    case "view":
+      return search.search.name;
+    case "saved":
+      return `${search.search.name} ${search.term}`;
+  }
 }
