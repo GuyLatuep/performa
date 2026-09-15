@@ -116,6 +116,14 @@ describe("fieldKind", () => {
     expect(fieldKind(meta({ schemaType: "any" }))).toBe("unsupported");
   });
 
+  it("does not mistake an inherited property name for a known type", () => {
+    // Both strings come from the site's schema, not from this app.
+    expect(fieldKind(meta({ schemaType: "toString" }))).toBe("unsupported");
+    expect(
+      fieldKind(meta({ schemaType: "any", schemaCustom: "…:constructor" })),
+    ).toBe("unsupported");
+  });
+
   it("treats the rich-text system fields as textareas", () => {
     // Their schema type is plain "string" with no custom URI to give them away.
     expect(fieldKind(meta({ schemaSystem: "description" }))).toBe("textarea");
@@ -467,6 +475,13 @@ describe("buildFacts", () => {
     const facts = buildFacts(DETAIL, ["Nothing Here"]);
 
     expect(facts).toHaveLength(1);
+    expect(facts[0].value).toBeUndefined();
+  });
+
+  it("keeps a field whose name is an inherited property name as it is", () => {
+    const facts = buildFacts(DETAIL, ["Constructor"]);
+
+    expect(facts[0].label).toBe("Constructor");
     expect(facts[0].value).toBeUndefined();
   });
 
