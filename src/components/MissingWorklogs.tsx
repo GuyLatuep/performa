@@ -22,6 +22,7 @@ import {
   WorklogFields,
 } from "./WorklogFields";
 import IssueHistory from "./IssueHistory";
+import { IssueKeyLink, IssueKeyText } from "./IssueKeyLink";
 import MissingRow, { missingRowKey } from "./MissingRow";
 import { recordEvent } from "../achievements";
 import AchievementToast from "./AchievementToast";
@@ -110,7 +111,14 @@ export default function MissingWorklogs({ site }: Props) {
   );
 
   if (logging) {
-    return <LogForm item={logging} onCancel={closeForm} onSaved={closeForm} />;
+    return (
+      <LogForm
+        item={logging}
+        site={site}
+        onCancel={closeForm}
+        onSaved={closeForm}
+      />
+    );
   }
 
   return (
@@ -169,10 +177,12 @@ export default function MissingWorklogs({ site }: Props) {
 
 function LogForm({
   item,
+  site,
   onCancel,
   onSaved,
 }: {
   item: MissingWorklog;
+  site: string;
   onCancel: () => void;
   onSaved: () => void;
 }) {
@@ -213,20 +223,25 @@ function LogForm({
         Back to the list
       </button>
       <div className="issue-chip">
-        <span className="key">{item.logKey}</span>
+        <IssueKeyLink issueKey={item.logKey} site={site} />
         <span className="summary">{item.logSummary}</span>
       </div>
       {item.logKey !== item.issueKey && (
         <p className="hint missing-source">
-          Escalation source of <span className="key">{item.issueKey}</span> —
-          the time is logged here.
+          Escalation source of{" "}
+          <IssueKeyLink issueKey={item.issueKey} site={site} /> — the time is
+          logged here.
         </p>
       )}
+      {/* The comment is the whole of the reminder's context, and it is often a
+          sentence about some other issue. The keys in it are links, so reading
+          further is a click rather than a retyped key. */}
       {item.detail && (
         <p className="hint missing-reason">
           {item.kind === "comment" ? "Your comment" : "Status change"}{" "}
-          {timeAgo(item.activityAt)}:{" "}
-          {item.kind === "comment" ? `“${item.detail}”` : item.detail}
+          {timeAgo(item.activityAt)}: {item.kind === "comment" && "“"}
+          <IssueKeyText text={item.detail} site={site} />
+          {item.kind === "comment" && "”"}
         </p>
       )}
 
