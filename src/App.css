@@ -1553,6 +1553,12 @@ main {
   border-radius: var(--r-card);
   margin: var(--sp-2) 0 var(--sp-5);
 }
+/* The key in a chip is a link, and `.key-link` aligns itself to the top of
+   whatever row it sits in — which here lifts it off the summary's baseline the
+   chip exists to share. */
+.issue-chip > .key-link {
+  align-self: baseline;
+}
 
 /* ---------- Issue history (shown under every form that logs time) ---------- */
 .issue-history {

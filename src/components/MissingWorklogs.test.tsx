@@ -308,3 +308,66 @@ describe("logging from a finding", () => {
     expect(apiMock.logWork).not.toHaveBeenCalled();
   });
 });
+
+// A reminder is only as useful as the context it carries, and the keys in that
+// context are the way to go and read the rest of it.
+describe("links to the issues the form names", () => {
+  async function openForm(item: MissingWorklog) {
+    store.items = [item];
+    renderTab();
+    await userEvent.click(screen.getByTitle(`Log work on ${item.logKey}`));
+  }
+
+  it("opens the issue the time is logged on", async () => {
+    await openForm(missingWorklog({ issueKey: "ABC-1", logKey: "ABC-1" }));
+
+    await userEvent.click(screen.getByTitle("Open ABC-1 in browser"));
+
+    expect(openUrl).toHaveBeenCalledWith(
+      "https://example.atlassian.net/browse/ABC-1",
+    );
+  });
+
+  it("opens the escalation source it was raised from", async () => {
+    await openForm(missingWorklog({ issueKey: "DEV-9", logKey: "ABC-1" }));
+
+    await userEvent.click(screen.getByTitle("Open DEV-9 in browser"));
+
+    expect(openUrl).toHaveBeenCalledWith(
+      "https://example.atlassian.net/browse/DEV-9",
+    );
+  });
+
+  it("opens an issue the comment mentions", async () => {
+    await openForm(
+      missingWorklog({ detail: "handled under DEV-12124 instead" }),
+    );
+
+    await userEvent.click(screen.getByTitle("Open DEV-12124 in browser"));
+
+    expect(openUrl).toHaveBeenCalledWith(
+      "https://example.atlassian.net/browse/DEV-12124",
+    );
+  });
+
+  it("leaves the rest of the comment as it was written", async () => {
+    await openForm(
+      missingWorklog({ detail: "handled under DEV-12124 instead" }),
+    );
+
+    expect(document.querySelector(".missing-reason")?.textContent).toContain(
+      "“handled under DEV-12124 instead”",
+    );
+  });
+
+  it("links nothing in a comment that names no issue", async () => {
+    await openForm(missingWorklog({ detail: "waiting on the customer" }));
+
+    // Only the two the form names itself — the chip and, here, the same key
+    // as the source — never one invented out of the prose.
+    expect(screen.queryByTitle("Open DEV-12124 in browser")).toBeNull();
+    expect(document.querySelector(".missing-reason")?.textContent).toContain(
+      "“waiting on the customer”",
+    );
+  });
+});
