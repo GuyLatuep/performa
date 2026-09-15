@@ -21,16 +21,12 @@ import {
   WorklogFields,
 } from "./WorklogFields";
 
-interface Props {
-  onLogged: () => void;
-}
-
 interface StopData {
   timer: ActiveTimer;
   seconds: number; // rounded-up elapsed
 }
 
-export default function TimerBar({ onLogged }: Props) {
+export default function TimerBar() {
   const timer = useTimer();
   const elapsed = useElapsedSeconds(timer);
   const [stopping, setStopping] = useState<StopData | null>(null);
@@ -83,28 +79,15 @@ export default function TimerBar({ onLogged }: Props) {
         </div>
       )}
       {stopping && (
-        <StopModal
-          data={stopping}
-          onClose={() => setStopping(null)}
-          onLogged={() => {
-            setStopping(null);
-            onLogged();
-          }}
-        />
+        <StopModal data={stopping} onClose={() => setStopping(null)} />
       )}
     </>
   );
 }
 
-function StopModal({
-  data,
-  onClose,
-  onLogged,
-}: {
-  data: StopData;
-  onClose: () => void;
-  onLogged: () => void;
-}) {
+/** `onClose` runs after a worklog is filed as well as on a discard: either way
+ *  the tracked time has been dealt with. */
+function StopModal({ data, onClose }: { data: StopData; onClose: () => void }) {
   const started = new Date(data.timer.startedAt);
   const { draft, patch, seconds } = useWorklogDraft({
     duration: formatDuration(data.seconds),
@@ -124,7 +107,7 @@ function StopModal({
     setError(null);
     try {
       await api.logWork(data.timer.issueKey, toWorklogInput(draft, seconds));
-      onLogged();
+      onClose();
     } catch (err) {
       setError(String(err));
     } finally {

@@ -35,7 +35,7 @@ import Mentions from "./components/Mentions";
 import UpdateNotice from "./components/UpdateNotice";
 import WhatsNew from "./components/WhatsNew";
 import Blockmark from "./components/Blockmark";
-import { refreshMissing, useMissing, useMissingUnseenCount } from "./missing";
+import { useMissing, useMissingUnseenCount } from "./missing";
 import { useMentionsUnreadCount } from "./mentions";
 import "./App.css";
 
@@ -71,7 +71,6 @@ export default function App() {
   // opinion about it (the todo-filter notice); cleared on the way out.
   const [settingsTab, setSettingsTab] = useState<"todo" | undefined>();
   const [tab, setTab] = useState<Tab>("start");
-  const [refreshKey, setRefreshKey] = useState(0);
   // Issue picked on the start tab, opened directly in the log-work form.
   const [logIssue, setLogIssue] = useState<IssueSummary | null>(null);
   // Counts entries into the log tab. Used as LogWork's key so every visit
@@ -246,12 +245,6 @@ export default function App() {
     showTab("log");
   }
 
-  function onLogged() {
-    setRefreshKey((k) => k + 1);
-    // A fresh worklog may resolve a reminder — recheck right away.
-    refreshMissing("post-log");
-  }
-
   /** One row of the source list. `count`, when there is one, rides in the
    *  accessible name as well as the badge — a screen reader gets "Mentions ·
    *  2" the way the eye does. */
@@ -381,7 +374,7 @@ export default function App() {
 
         <Confetti trigger={confetti} pieces={confettiPieces} />
         <AchievementToast queue={awards} />
-        <TimerBar onLogged={onLogged} />
+        <TimerBar />
 
         <main>
           {/* An issue reached by key replaces the tab's content rather than the
@@ -393,7 +386,6 @@ export default function App() {
               site={creds.site}
               backLabel={search ? "the results" : TAB_LABELS[tab]}
               onBack={clearIssueRequest}
-              onLogged={onLogged}
             />
           ) : search ? (
             <SearchResults
@@ -406,32 +398,23 @@ export default function App() {
               {tab === "start" && (
                 <Start
                   site={creds.site}
-                  refreshKey={refreshKey}
                   onSelectIssue={openLogTab}
                   onOpenMissing={() => showTab("missing")}
-                  onLogged={onLogged}
                 />
               )}
-              {tab === "todo" && <Todo site={creds.site} onLogged={onLogged} />}
+              {tab === "todo" && <Todo site={creds.site} />}
               {tab === "log" && (
                 <LogWork
                   key={logVisit}
                   site={creds.site}
-                  onLogged={onLogged}
                   initialIssue={logIssue}
                   backLabel={logOrigin ? TAB_LABELS[logOrigin] : undefined}
                   onBack={logOrigin ? () => setTab(logOrigin) : undefined}
                 />
               )}
-              {tab === "timesheet" && (
-                <Timesheet site={creds.site} refreshKey={refreshKey} />
-              )}
-              {tab === "missing" && (
-                <MissingWorklogs site={creds.site} onLogged={onLogged} />
-              )}
-              {tab === "mentions" && (
-                <Mentions site={creds.site} onLogged={onLogged} />
-              )}
+              {tab === "timesheet" && <Timesheet site={creds.site} />}
+              {tab === "missing" && <MissingWorklogs site={creds.site} />}
+              {tab === "mentions" && <Mentions site={creds.site} />}
             </>
           )}
         </main>

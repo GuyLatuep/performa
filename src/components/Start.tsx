@@ -6,6 +6,7 @@ import { usePinnedIssues } from "../pins";
 import { useRowSelected, useSelectionScope } from "../selection";
 import { useMissing } from "../missing";
 import { removeTemplate, useTemplates, WorklogTemplate } from "../templates";
+import { useWorklogsFiled } from "../worklogEvents";
 import IssueRow from "./IssueRow";
 import WeekChart from "./WeekChart";
 import RepeatModal from "./RepeatModal";
@@ -13,34 +14,23 @@ import MissingRow, { missingRowKey } from "./MissingRow";
 
 interface Props {
   site: string;
-  refreshKey: number;
   /** Jump to the log-work tab with this issue preselected. */
   onSelectIssue: (issue: IssueSummary) => void;
   /** Jump to the missing-worklog tab. */
   onOpenMissing: () => void;
-  /** A worklog was created (template chip) — refresh dependent views. */
-  onLogged: () => void;
 }
 
 // Start tab: due issues, this week's progress, worklog templates, and
 // unlogged activity at a glance.
-export default function Start({
-  site,
-  refreshKey,
-  onSelectIssue,
-  onOpenMissing,
-  onLogged,
-}: Props) {
+export default function Start({ site, onSelectIssue, onOpenMissing }: Props) {
   const missing = useMissing();
   const templates = useTemplates();
 
   return (
     <div className="panel start">
       <DueSection site={site} onSelectIssue={onSelectIssue} />
-      <WeekSection refreshKey={refreshKey} />
-      {templates.length > 0 && (
-        <TemplatesSection templates={templates} onLogged={onLogged} />
-      )}
+      <WeekSection />
+      {templates.length > 0 && <TemplatesSection templates={templates} />}
       {missing.length > 0 && (
         <MissingSection
           site={site}
@@ -135,10 +125,11 @@ function DueRow(props: Parameters<typeof IssueRow>[0]) {
 }
 
 /** This week's charts, same data as the timesheet's current week. */
-function WeekSection({ refreshKey }: { refreshKey: number }) {
+function WeekSection() {
   const [entries, setEntries] = useState<WorklogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const { start, end } = weekRange(0);
+  const filed = useWorklogsFiled();
 
   useEffect(() => {
     let cancelled = false;
@@ -153,7 +144,7 @@ function WeekSection({ refreshKey }: { refreshKey: number }) {
     return () => {
       cancelled = true;
     };
-  }, [start, end, refreshKey]);
+  }, [start, end, filed]);
 
   const total = entries.reduce((s, e) => s + e.timeSpentSeconds, 0);
 
@@ -170,13 +161,7 @@ function WeekSection({ refreshKey }: { refreshKey: number }) {
 }
 
 /** Saved templates as one-click chips; omitted while none are saved. */
-function TemplatesSection({
-  templates,
-  onLogged,
-}: {
-  templates: WorklogTemplate[];
-  onLogged: () => void;
-}) {
+function TemplatesSection({ templates }: { templates: WorklogTemplate[] }) {
   const [logging, setLogging] = useState<WorklogTemplate | null>(null);
 
   return (
@@ -216,10 +201,7 @@ function TemplatesSection({
             nonBillable: logging.nonBillable,
           }}
           onClose={() => setLogging(null)}
-          onSaved={() => {
-            setLogging(null);
-            onLogged();
-          }}
+          onSaved={() => setLogging(null)}
         />
       )}
     </section>

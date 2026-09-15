@@ -22,8 +22,6 @@ import {
 
 interface Props {
   site: string;
-  /** A worklog was filed from an opened issue — refresh what depends on it. */
-  onLogged: () => void;
 }
 
 /** This list's name in the selection registry. */
@@ -32,7 +30,7 @@ const SCOPE = "mentions";
 // Inbox of comments that tag the user. Opening the tab marks everything listed
 // as read; the rows stay highlighted for this visit so it is still visible
 // what was new when the tab was opened.
-export default function Mentions({ site, onLogged }: Props) {
+export default function Mentions({ site }: Props) {
   // A Mention means somebody wants something from you, and the expected
   // response is to go and look at the issue — so a row opens it.
   const [opened, setOpened] = useState<IssueSummary | null>(null);
@@ -102,7 +100,6 @@ export default function Mentions({ site, onLogged }: Props) {
           setOpened(null);
           void refreshMentions("manual");
         }}
-        onLogged={onLogged}
       />
     );
   }

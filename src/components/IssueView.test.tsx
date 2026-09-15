@@ -77,7 +77,7 @@ const ISSUE = issueSummary({ key: "ABC-1", summary: "Replace the pump" });
 beforeEach(clearForward);
 
 function renderView(props: Partial<Parameters<typeof IssueView>[0]> = {}) {
-  const handlers = { onBack: vi.fn(), onLogged: vi.fn() };
+  const handlers = { onBack: vi.fn() };
   render(
     <>
       {/* The app mounts the dispatcher once, in `App`. */}

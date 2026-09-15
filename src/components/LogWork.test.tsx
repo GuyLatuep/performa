@@ -39,26 +39,19 @@ import LogWork from "./LogWork";
 const ISSUE = issueSummary({ key: "ABC-1", summary: "Replace the pump" });
 
 function renderLogWork(props: Partial<Parameters<typeof LogWork>[0]> = {}) {
-  const onLogged = vi.fn();
   render(
     <>
       {/* The app mounts its key listeners once, in `App`. */}
       <AllKeys />
-      <LogWork
-        site="https://example.atlassian.net"
-        onLogged={onLogged}
-        {...props}
-      />
+      <LogWork site="https://example.atlassian.net" {...props} />
     </>,
   );
-  return onLogged;
 }
 
 /** Get to the form with an issue already chosen. */
 async function renderForm(props: Partial<Parameters<typeof LogWork>[0]> = {}) {
-  const onLogged = renderLogWork({ initialIssue: ISSUE, ...props });
+  renderLogWork({ initialIssue: ISSUE, ...props });
   await screen.findByLabelText(/Time spent/);
-  return onLogged;
 }
 
 beforeEach(() => {
@@ -192,7 +185,7 @@ describe("the way back", () => {
 
 describe("logging", () => {
   it("sends the draft and says what was logged", async () => {
-    const onLogged = await renderForm();
+    await renderForm();
 
     await userEvent.type(screen.getByLabelText(/Time spent/), "2h");
     await userEvent.click(screen.getByRole("button", { name: /Log work/ }));
@@ -204,7 +197,6 @@ describe("logging", () => {
       ),
     );
     expect(await screen.findByText(/Logged 2h on ABC-1/)).toBeDefined();
-    expect(onLogged).toHaveBeenCalledTimes(1);
   });
 
   it("empties the form afterwards, ready for the next entry", async () => {
@@ -219,26 +211,24 @@ describe("logging", () => {
   });
 
   it("refuses a duration it cannot read, without calling the backend", async () => {
-    const onLogged = await renderForm();
+    await renderForm();
 
     await userEvent.type(screen.getByLabelText(/Time spent/), "soon");
     await userEvent.click(screen.getByRole("button", { name: /Log work/ }));
 
     expect(apiMock.logWork).not.toHaveBeenCalled();
     expect(screen.getByText(/Enter a valid duration/)).toBeDefined();
-    expect(onLogged).not.toHaveBeenCalled();
   });
 
   it("keeps the draft and says why when Jira refuses", async () => {
     apiMock.logWork.mockRejectedValue(new Error("Jira returned 400"));
-    const onLogged = await renderForm();
+    await renderForm();
     await userEvent.type(screen.getByLabelText(/Time spent/), "2h");
 
     await userEvent.click(screen.getByRole("button", { name: /Log work/ }));
 
     expect(await screen.findByText(/Jira returned 400/)).toBeDefined();
     expect(screen.getByLabelText(/Time spent/)).toHaveProperty("value", "2h");
-    expect(onLogged).not.toHaveBeenCalled();
   });
 });
 

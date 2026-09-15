@@ -35,9 +35,7 @@ import TimerBar from "./TimerBar";
 const NOW = new Date(2026, 2, 18, 12, 0, 0);
 
 function renderBar() {
-  const onLogged = vi.fn();
-  render(<TimerBar onLogged={onLogged} />);
-  return onLogged;
+  render(<TimerBar />);
 }
 
 /** Start a timer that has been running for `minutes`. */
@@ -64,7 +62,7 @@ afterEach(() => {
 
 describe("with no timer running", () => {
   it("renders nothing at all", () => {
-    const { container } = render(<TimerBar onLogged={vi.fn()} />);
+    const { container } = render(<TimerBar />);
 
     expect(container).toHaveProperty("textContent", "");
   });
@@ -142,7 +140,7 @@ describe("the tray's stop", () => {
 
   it("stops listening when the bar goes away", async () => {
     runningFor(5);
-    const { unmount } = render(<TimerBar onLogged={vi.fn()} />);
+    const { unmount } = render(<TimerBar />);
     // `listen` is async, and the cleanup can only call an unlisten it already
     // holds — so let the subscription land before unmounting.
     await waitFor(() => expect(events.listen).toHaveBeenCalled());
@@ -155,9 +153,9 @@ describe("the tray's stop", () => {
 });
 
 describe("logging the tracked time", () => {
-  it("sends it and tells the caller", async () => {
+  it("sends it and closes the modal", async () => {
     runningFor(30);
-    const onLogged = renderBar();
+    renderBar();
     await userEvent.click(screen.getByRole("button", { name: "Stop" }));
 
     await userEvent.click(screen.getByRole("button", { name: "Log work" }));
@@ -168,19 +166,20 @@ describe("logging the tracked time", () => {
         expect.objectContaining({ timeSpentSeconds: 1800 }),
       ),
     );
-    expect(onLogged).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(screen.queryByText("Log time — ABC-1")).toBeNull(),
+    );
   });
 
   it("keeps the modal open and says why when Jira refuses", async () => {
     apiMock.logWork.mockRejectedValue(new Error("Jira returned 400"));
     runningFor(30);
-    const onLogged = renderBar();
+    renderBar();
     await userEvent.click(screen.getByRole("button", { name: "Stop" }));
 
     await userEvent.click(screen.getByRole("button", { name: "Log work" }));
 
     expect(await screen.findByText(/Jira returned 400/)).toBeDefined();
-    expect(onLogged).not.toHaveBeenCalled();
     expect(screen.getByText("Log time — ABC-1")).toBeDefined();
   });
 
@@ -222,7 +221,7 @@ describe("discarding", () => {
 
   it("closes without logging once confirmed", async () => {
     runningFor(30);
-    const onLogged = renderBar();
+    renderBar();
     await userEvent.click(screen.getByRole("button", { name: "Stop" }));
     await userEvent.click(screen.getByRole("button", { name: "Discard" }));
 
@@ -230,6 +229,5 @@ describe("discarding", () => {
 
     expect(screen.queryByText("Log time — ABC-1")).toBeNull();
     expect(apiMock.logWork).not.toHaveBeenCalled();
-    expect(onLogged).not.toHaveBeenCalled();
   });
 });
