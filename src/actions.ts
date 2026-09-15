@@ -4,7 +4,7 @@ import { goBack, goForward } from "./back";
 import { HANDBOOK_URL, openExternal } from "./external";
 import { parseIssueKey } from "./issueKey";
 import { getSavedSearches } from "./savedSearches";
-import { requestFieldSearch, requestTextSearch } from "./searchRequest";
+import { requestSavedSearch, requestTextSearch } from "./searchRequest";
 import { requestIssue } from "./issueRequest";
 import { setFunMode } from "./settings";
 import {
@@ -135,7 +135,7 @@ function searchActions(): ActionSpec[] {
       title: `Search by ${search.name}`,
       placeholder: search.name,
       parse: (typed) => typed.trim() || null,
-      submit: (term) => requestFieldSearch(search, term),
+      submit: (term) => requestSavedSearch(search, term),
     },
   }));
   return [text, ...own];

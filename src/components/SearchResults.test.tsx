@@ -38,7 +38,7 @@ const PLANT_SEARCH: SavedSearch = {
 };
 
 const PLANT: SearchRequest = {
-  kind: "field",
+  kind: "saved",
   term: "DE_1979",
   search: PLANT_SEARCH,
 };
@@ -253,7 +253,7 @@ describe("leaving the results", () => {
     });
 
     expect(getRequestedSearch()).toMatchObject({
-      kind: "field",
+      kind: "saved",
       term: "DE_1979",
     });
   });
