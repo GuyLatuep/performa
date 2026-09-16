@@ -112,11 +112,22 @@ const CREDS = {
   email: "me@example.com",
 };
 
-/** Render signed in, past the credential gate. */
+/**
+ * Render signed in, past the credential gate, and settled.
+ *
+ * The flush at the end is not ceremony. Signing in flips `signedIn`, and the
+ * effect keyed on it clears whatever issue or search was being requested — so
+ * between the tab appearing in the DOM and that effect running there is a
+ * window in which a request the test makes is silently wiped. `findByText`
+ * resolves on the DOM, which is the near side of that window; on a loaded
+ * machine the effect can land after it. That is what failed the v2.4.3 release
+ * on one timezone cell while the identical commit passed on the other.
+ */
 async function renderSignedIn() {
   apiMock.credentialsStatus.mockResolvedValue(CREDS);
   render(<App />);
   await screen.findByText("start panel");
+  await act(async () => {});
 }
 
 beforeEach(() => {
