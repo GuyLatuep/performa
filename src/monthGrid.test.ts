@@ -168,6 +168,43 @@ describe("buildMonthGrid", () => {
     expect(after.rows.map((r) => r.issueKey)).toEqual(order);
   });
 
+  describe("rowOrderOf", () => {
+    it("orders by issue key by default", () => {
+      const grid = buildMonthGrid(
+        [
+          log("ABC-9", "2026-08-03", 5),
+          log("ABC-1", "2026-08-03", 1),
+          log("ABC-4", "2026-08-03", 1),
+        ],
+        START,
+        END,
+      );
+      expect(rowOrderOf(grid)).toEqual(["ABC-1", "ABC-4", "ABC-9"]);
+    });
+
+    it("orders by total, most time first, when asked", () => {
+      const grid = buildMonthGrid(
+        [
+          log("ABC-9", "2026-08-03", 1),
+          log("ABC-1", "2026-08-03", 5),
+          log("ABC-4", "2026-08-03", 1),
+        ],
+        START,
+        END,
+      );
+      expect(rowOrderOf(grid, "total")).toEqual(["ABC-1", "ABC-4", "ABC-9"]);
+    });
+
+    it("breaks a tied total by issue key", () => {
+      const grid = buildMonthGrid(
+        [log("ABC-9", "2026-08-03", 1), log("ABC-1", "2026-08-03", 1)],
+        START,
+        END,
+      );
+      expect(rowOrderOf(grid, "total")).toEqual(["ABC-1", "ABC-9"]);
+    });
+  });
+
   it("puts an issue the pin never heard of at the end", () => {
     const grid = buildMonthGrid(
       [log("ABC-1", "2026-08-03", 1), log("NEW-1", "2026-08-03", 99)],

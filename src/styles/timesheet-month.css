@@ -6,6 +6,17 @@
   margin-bottom: 12px;
 }
 
+/* Which order the rows come in. Reuses the same segmented control as the
+   Week/Month switch — one visual idiom for "pick one of two shapes" rather
+   than a second one invented for this. */
+.month-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: var(--fs-xs);
+}
+
 /* Twenty-odd day columns do not fit any window worth having, so the grid
    scrolls sideways inside the panel while the issue column and the day header
    stay put.

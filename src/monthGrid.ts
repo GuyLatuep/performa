@@ -130,10 +130,28 @@ export function buildMonthGrid(
   };
 }
 
-/** The order to pin: the issues with the most time on top, and issue key as a
- *  tiebreak so two rows that add up the same don't swap places at random. */
-export function rowOrderOf(grid: MonthGrid): string[] {
-  return grid.rows.map((row) => row.issueKey);
+/** The two ways to lay the rows out: alphabetically by issue key, or with the
+ *  most time on top. Key is the default — a month is easier to scan for a
+ *  particular issue when the rows hold still in the same order every time,
+ *  rather than shuffling with whatever got booked most this month. */
+export type MonthSortBy = "key" | "total";
+
+/** The order to pin, in the chosen sort. Total-desc breaks ties by issue key,
+ *  the same way `orderRows` does, so two rows that add up the same don't swap
+ *  places at random. */
+export function rowOrderOf(
+  grid: MonthGrid,
+  sortBy: MonthSortBy = "key",
+): string[] {
+  const rows = [...grid.rows];
+  if (sortBy === "key") {
+    rows.sort((a, b) => a.issueKey.localeCompare(b.issueKey));
+  } else {
+    rows.sort(
+      (a, b) => b.total - a.total || a.issueKey.localeCompare(b.issueKey),
+    );
+  }
+  return rows.map((row) => row.issueKey);
 }
 
 /** Rows in `pinned` order, with anything the pin doesn't know about — an issue

@@ -251,6 +251,63 @@ describe("the grid", () => {
   });
 });
 
+describe("sorting the rows", () => {
+  beforeEach(() =>
+    serveWeeks([
+      worklogEntry({
+        id: "1",
+        date: "2026-03-17",
+        timeSpentSeconds: 5 * 3600,
+        issueKey: "ABC-9",
+      }),
+      worklogEntry({
+        id: "2",
+        date: "2026-03-17",
+        timeSpentSeconds: 3600,
+        issueKey: "ABC-1",
+      }),
+    ]),
+  );
+
+  function rowKeys() {
+    return screen
+      .getAllByRole("rowheader")
+      .filter((el) => el.querySelector(".key"))
+      .map((el) => el.querySelector(".key")!.textContent);
+  }
+
+  it("orders rows by issue key by default", async () => {
+    renderMonth();
+
+    await loaded();
+    expect(rowKeys()).toEqual(["ABC-1", "ABC-9"]);
+  });
+
+  it("switches to ordering by total logged, most first", async () => {
+    renderMonth();
+    await loaded();
+
+    await userEvent.click(screen.getByRole("button", { name: "Total logged" }));
+
+    // ABC-9 logged 5h against ABC-1's 1h.
+    expect(rowKeys()).toEqual(["ABC-9", "ABC-1"]);
+  });
+
+  it("remembers the chosen order on the next mount", async () => {
+    const { unmount } = render(
+      <TimesheetMonth site="https://example.atlassian.net" />,
+    );
+    await loaded();
+    await userEvent.click(screen.getByRole("button", { name: "Total logged" }));
+    unmount();
+
+    renderMonth();
+    await loaded();
+
+    expect(rowKeys()).toEqual(["ABC-9", "ABC-1"]);
+  });
+});
+
 describe("opening a cell", () => {
   beforeEach(() =>
     serveWeeks([

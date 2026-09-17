@@ -1,5 +1,6 @@
 import { api } from "./api";
 import { LOG_LEVELS, LogLevel, logError } from "./log";
+import { MonthSortBy } from "./monthGrid";
 import { persistedText } from "./persist";
 
 // Local app settings (nothing secret — credentials live in the OS keychain).
@@ -11,6 +12,7 @@ const LOG_LEVEL_KEY = "performa-log-level";
 const FUN_MODE_KEY = "performa-fun-mode";
 const TYPE_ICONS_KEY = "performa-show-issue-type-icons";
 const TIMESHEET_VIEW_KEY = "performa-timesheet-view";
+const MONTH_SORT_KEY = "performa-month-sort";
 const DEFAULT_DAILY_HOURS = 8;
 const DEFAULT_LOG_LEVEL: LogLevel = "error";
 
@@ -137,4 +139,22 @@ export function setTimesheetView(view: TimesheetView): void {
 
 export function useTimesheetView(): TimesheetView {
   return timesheetViewStore.use();
+}
+
+/** How the month matrix orders its rows. Remembered the same way the view
+ *  itself is: it belongs to the month grid, not the settings screen. */
+const monthSortStore = persistedText<MonthSortBy>(MONTH_SORT_KEY, (raw) =>
+  raw === "total" ? "total" : "key",
+);
+
+export function getMonthSortBy(): MonthSortBy {
+  return monthSortStore.get();
+}
+
+export function setMonthSortBy(sortBy: MonthSortBy): void {
+  monthSortStore.save(sortBy);
+}
+
+export function useMonthSortBy(): MonthSortBy {
+  return monthSortStore.use();
 }
