@@ -124,10 +124,14 @@
   display: block;
   text-align: right;
 }
+/* Right-aligned, not centred: every number below a day column — the cell
+   values, the row totals, the corner — reads flush right, and a centred
+   header over a right-aligned body made the two look unrelated, as if the
+   hours belonged to no day in particular. */
 .day-head-cell {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   gap: 1px;
   line-height: 1.2;
   border-bottom: 1px solid var(--hair-strong);
