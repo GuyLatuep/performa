@@ -11,8 +11,10 @@ import {
   dedupeEntries,
   MonthColumn,
   MonthRow,
+  MonthSortBy,
   rowOrderOf,
 } from "../monthGrid";
+import { getMonthSortBy, setMonthSortBy, useMonthSortBy } from "../settings";
 import {
   formatDayLabel,
   formatDuration,
@@ -74,6 +76,11 @@ export default function TimesheetMonth({ site }: Props) {
   } | null>(null);
   const [quickLog, setQuickLog] = useState<string | null>(null);
 
+  /** How the rows are ordered — remembered across launches, and read fresh
+   *  (not from this closure) wherever a load just finished, so a sort change
+   *  made while a fetch is in flight is not clobbered by it landing. */
+  const sortBy = useMonthSortBy();
+
   const { start, end } = monthRange(offset);
 
   // Whole weeks rather than one month-wide read: it reuses the per-week reads
@@ -110,7 +117,9 @@ export default function TimesheetMonth({ site }: Props) {
       () => {
         if (cancelled) return;
         setFailed(missed);
-        setRowOrder(rowOrderOf(buildMonthGrid(collected, start, end)));
+        setRowOrder(
+          rowOrderOf(buildMonthGrid(collected, start, end), getMonthSortBy()),
+        );
         setLoading(false);
       },
     );
@@ -172,6 +181,15 @@ export default function TimesheetMonth({ site }: Props) {
     ? grid.rows.find((r) => r.issueKey === openCell.issueKey)
     : undefined;
 
+  /** Re-pins the rows in the newly chosen order, from what is already on
+   *  screen — a sort is a reshuffle of rows already loaded, not a reason to
+   *  ask Jira for the month again. */
+  function changeSort(next: MonthSortBy) {
+    if (next === sortBy) return;
+    setMonthSortBy(next);
+    setRowOrder(rowOrderOf(buildMonthGrid(entries, start, end), next));
+  }
+
   // The same pair of keys the week view uses — one verb, one key, whichever view
   // is showing. A modal over the grid covers them, so they cannot step the month
   // out from under an open cell.
@@ -208,6 +226,26 @@ export default function TimesheetMonth({ site }: Props) {
           Next
           <ChevronRight size={15} strokeWidth={2} aria-hidden />
         </button>
+      </div>
+
+      <div className="month-sort">
+        <span className="muted">Sort by</span>
+        <div className="theme-toggle">
+          <button
+            type="button"
+            className={sortBy === "key" ? "active" : ""}
+            onClick={() => changeSort("key")}
+          >
+            Issue key
+          </button>
+          <button
+            type="button"
+            className={sortBy === "total" ? "active" : ""}
+            onClick={() => changeSort("total")}
+          >
+            Total logged
+          </button>
+        </div>
       </div>
 
       <div className="week-total">

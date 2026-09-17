@@ -209,3 +209,38 @@ describe("the timesheet view", () => {
     expect(getTimesheetView()).toBe("week");
   });
 });
+
+describe("the month sort order", () => {
+  const MONTH_SORT_KEY = "performa-month-sort";
+
+  it("starts on issue key", async () => {
+    const { getMonthSortBy } = await freshSettings();
+
+    expect(getMonthSortBy()).toBe("key");
+  });
+
+  it("remembers total once chosen", async () => {
+    const { setMonthSortBy, getMonthSortBy } = await freshSettings();
+
+    setMonthSortBy("total");
+
+    expect(getMonthSortBy()).toBe("total");
+    expect(localStorage.getItem(MONTH_SORT_KEY)).toBe("total");
+  });
+
+  it("restores the stored order on the next launch", async () => {
+    const { getMonthSortBy } = await freshSettings({
+      [MONTH_SORT_KEY]: "total",
+    });
+
+    expect(getMonthSortBy()).toBe("total");
+  });
+
+  it("falls back to issue key for anything it does not recognise", async () => {
+    const { getMonthSortBy } = await freshSettings({
+      [MONTH_SORT_KEY]: "date",
+    });
+
+    expect(getMonthSortBy()).toBe("key");
+  });
+});
