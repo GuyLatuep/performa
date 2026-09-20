@@ -203,6 +203,77 @@ describe("buildMonthGrid", () => {
       );
       expect(rowOrderOf(grid, "total")).toEqual(["ABC-1", "ABC-9"]);
     });
+
+    it("numbers a project's issues rather than spelling them", () => {
+      const grid = buildMonthGrid(
+        [
+          log("DEV-1224", "2026-08-03", 1),
+          log("DEV-90", "2026-08-03", 1),
+          log("DEV-9", "2026-08-03", 1),
+          log("ABC-100", "2026-08-03", 1),
+        ],
+        START,
+        END,
+      );
+      expect(rowOrderOf(grid)).toEqual([
+        "ABC-100",
+        "DEV-9",
+        "DEV-90",
+        "DEV-1224",
+      ]);
+    });
+
+    it("breaks a tied total by the same numeric key order", () => {
+      const grid = buildMonthGrid(
+        [log("DEV-1224", "2026-08-03", 1), log("DEV-90", "2026-08-03", 1)],
+        START,
+        END,
+      );
+      expect(rowOrderOf(grid, "total")).toEqual(["DEV-90", "DEV-1224"]);
+    });
+
+    it("groups the rows by issue type before their keys", () => {
+      const grid = buildMonthGrid(
+        [
+          log("ABC-1", "2026-08-03", 1),
+          log("ABC-2", "2026-08-03", 1),
+          log("ABC-3", "2026-08-03", 1),
+        ],
+        START,
+        END,
+      );
+      const types: Record<string, string> = { "ABC-1": "Task", "ABC-2": "Bug" };
+      expect(rowOrderOf(grid, "key", (key) => types[key])).toEqual([
+        "ABC-2", // Bug
+        "ABC-1", // Task
+        "ABC-3", // type not known yet — last, not first
+      ]);
+    });
+
+    it("leaves the key order alone while no type is known", () => {
+      const grid = buildMonthGrid(
+        [log("ABC-2", "2026-08-03", 1), log("ABC-1", "2026-08-03", 1)],
+        START,
+        END,
+      );
+      expect(rowOrderOf(grid, "key", () => undefined)).toEqual([
+        "ABC-1",
+        "ABC-2",
+      ]);
+    });
+
+    it("ignores the type when the rows go by total", () => {
+      const grid = buildMonthGrid(
+        [log("ABC-1", "2026-08-03", 1), log("ABC-2", "2026-08-03", 5)],
+        START,
+        END,
+      );
+      const types: Record<string, string> = { "ABC-1": "Bug", "ABC-2": "Task" };
+      expect(rowOrderOf(grid, "total", (key) => types[key])).toEqual([
+        "ABC-2",
+        "ABC-1",
+      ]);
+    });
   });
 
   it("puts an issue the pin never heard of at the end", () => {

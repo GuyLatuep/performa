@@ -96,15 +96,31 @@
   position: sticky;
   left: 0;
   z-index: 2;
-  /* Two tracks rather than a flex row, so every summary starts at the same x
+  /* Tracks rather than a flex row, so every summary starts at the same x
      down the whole table instead of each one beginning wherever its own key
      happened to end. The floor holds the longest key these projects produce;
      `auto` lets an unusually long one push its own summary across rather than
      be clipped — that row loses the alignment, never the key. */
   display: grid;
-  grid-template-columns: minmax(5rem, auto) minmax(0, 1fr);
-  align-items: baseline;
+  /* A track for the type icon, the key, then the summary. The icon cell is
+     drawn empty while an icon is on its way, so the two text tracks start at
+     the same x whether or not Jira had a mark for that type. Turned off in
+     Appearance the cell isn't rendered at all, and the grid drops its track
+     with it — see `.no-type-icons` below. */
+  grid-template-columns: 16px minmax(5rem, auto) minmax(0, 1fr);
+  align-items: center;
+  /* The cell is as tall as the tallest one in its row, so its content is
+     centred in the space rather than sitting at the top of it — the key and
+     the hours beside it should read as one line. */
+  align-content: center;
   gap: 6px;
+  /* A floor for the column. Its track is `fit-content(40%)`, and on a narrow
+     window 40% of the matrix is a few characters of summary and an ellipsis —
+     the summary stops being readable exactly when the window is small enough
+     that reading it matters. This is the item's own minimum, which is what
+     `fit-content` sizes the track up to meet; the grid scrolls sideways to
+     make room, the way it already does for the days. */
+  min-width: 18rem;
   text-align: left;
   /* One line, however long the summary is — a wrapping row would break the
      alignment every other column depends on. The full text is in the title. */
@@ -112,15 +128,21 @@
   white-space: nowrap;
   border-right: 1px solid var(--hair);
 }
+.month-grid.no-type-icons .col-issue {
+  grid-template-columns: minmax(5rem, auto) minmax(0, 1fr);
+}
 /* The key keeps its old hit area: a grid item would otherwise stretch across
    the whole track, making the empty space beside a short key open Jira. */
 .month-grid .col-issue .key-link {
   justify-self: start;
+  /* The grid's own size, not the lists'. A row here is one line among thirty
+     and the key is a label on it, not its heading — at `--fs-sm` it read as a
+     size larger than everything around it. Colour and weight still say link. */
+  font-size: inherit;
 }
 .month-grid .col-issue .summary {
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--muted);
 }
 .month-grid .row-head {
   position: sticky;
@@ -132,7 +154,9 @@
   font-weight: 600;
   /* One value, not a key and a summary, so it takes the whole issue column
      back off the two-track template and stays at its right edge. */
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   text-align: right;
 }
 /* Right-aligned, not centred: every number below a day column — the cell
@@ -143,6 +167,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  justify-content: center;
   gap: 1px;
   line-height: 1.2;
   border-bottom: 1px solid var(--hair-strong);
@@ -234,12 +259,16 @@
 .month-grid .col-total {
   border-left: 1px solid var(--hair-strong);
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 /* The row that logs on an issue not yet in the table. Quiet until hovered —
    it is a whole row of buttons and would otherwise shout over the data. */
 .quick-row .col-issue {
   /* A label, not a key and a summary — see .corner. */
-  display: block;
+  display: flex;
+  align-items: center;
   font-size: var(--fs-micro);
 }
 .quick-cell {

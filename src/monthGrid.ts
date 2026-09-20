@@ -130,25 +130,80 @@ export function buildMonthGrid(
   };
 }
 
-/** The two ways to lay the rows out: alphabetically by issue key, or with the
- *  most time on top. Key is the default — a month is easier to scan for a
- *  particular issue when the rows hold still in the same order every time,
- *  rather than shuffling with whatever got booked most this month. */
+/** Two issue keys in the order a reader expects them: the project alphabetically,
+ *  then the issue *as a number*.
+ *
+ *  Plain string order puts DEV-1224 above DEV-90, because "1" sorts before "9"
+ *  — true of the text and wrong about the issues. Splitting the key at its last
+ *  hyphen and comparing the two halves on their own terms is what makes a
+ *  project's rows read 90, 91, 1224 the way its issues were numbered.
+ *
+ *  Anything that isn't key-shaped falls back to comparing the whole string, so
+ *  an odd key still has a definite place rather than an arbitrary one. */
+export function compareIssueKeys(a: string, b: string): number {
+  const left = splitKey(a);
+  const right = splitKey(b);
+  if (!left || !right) return a.localeCompare(b);
+  return (
+    left.project.localeCompare(right.project) || left.number - right.number
+  );
+}
+
+function splitKey(key: string): { project: string; number: number } | null {
+  const at = key.lastIndexOf("-");
+  if (at < 1) return null;
+  const number = key.slice(at + 1);
+  if (!/^[0-9]+$/.test(number)) return null;
+  return { project: key.slice(0, at).toUpperCase(), number: Number(number) };
+}
+
+/** Issue types in the order their rows should come in: alphabetically, with the
+ *  types that aren't known yet — or at all — after every type that is.
+ *
+ *  A worklog doesn't carry its issue's type, so the grid looks it up and the
+ *  answer lands after the rows are already on screen (see `issueTypes`). A row
+ *  still waiting on one belongs at the end rather than under whichever type
+ *  happens to sort first. */
+function compareTypes(a?: string, b?: string): number {
+  if (a === b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a.localeCompare(b);
+}
+
+/** The two ways to lay the rows out: by issue — type first, then key — or with
+ *  the most time on top. Issue is the default: a month is easier to scan for a
+ *  particular row when the order holds still every time, rather than shuffling
+ *  with whatever got booked most this month, and grouping the types puts the
+ *  bugs together, the tasks together, and so on.
+ *
+ *  ("key" rather than "issue" in the persisted value: the setting predates the
+ *  type being part of the order, and renaming it would reset the choice of
+ *  everyone who had made one.) */
 export type MonthSortBy = "key" | "total";
 
 /** The order to pin, in the chosen sort. Total-desc breaks ties by issue key,
  *  the same way `orderRows` does, so two rows that add up the same don't swap
- *  places at random. */
+ *  places at random.
+ *
+ *  `typeOf` answers with an issue's type name, or nothing while it is still
+ *  being looked up — the key sort groups by it, and falls back to key order
+ *  alone for as long as no type is known. */
 export function rowOrderOf(
   grid: MonthGrid,
   sortBy: MonthSortBy = "key",
+  typeOf: (issueKey: string) => string | undefined = () => undefined,
 ): string[] {
   const rows = [...grid.rows];
   if (sortBy === "key") {
-    rows.sort((a, b) => a.issueKey.localeCompare(b.issueKey));
+    rows.sort(
+      (a, b) =>
+        compareTypes(typeOf(a.issueKey), typeOf(b.issueKey)) ||
+        compareIssueKeys(a.issueKey, b.issueKey),
+    );
   } else {
     rows.sort(
-      (a, b) => b.total - a.total || a.issueKey.localeCompare(b.issueKey),
+      (a, b) => b.total - a.total || compareIssueKeys(a.issueKey, b.issueKey),
     );
   }
   return rows.map((row) => row.issueKey);
@@ -158,7 +213,7 @@ export function rowOrderOf(
  *  first booked since the order was taken — sorted onto the end. */
 function orderRows(rows: MonthRow[], pinned?: string[]): MonthRow[] {
   const byTotal = [...rows].sort(
-    (a, b) => b.total - a.total || a.issueKey.localeCompare(b.issueKey),
+    (a, b) => b.total - a.total || compareIssueKeys(a.issueKey, b.issueKey),
   );
   if (!pinned) return byTotal;
   const rank = new Map(pinned.map((key, i) => [key, i]));

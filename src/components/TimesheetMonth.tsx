@@ -14,7 +14,18 @@ import {
   MonthSortBy,
   rowOrderOf,
 } from "../monthGrid";
-import { getMonthSortBy, setMonthSortBy, useMonthSortBy } from "../settings";
+import {
+  getMonthSortBy,
+  setMonthSortBy,
+  useMonthSortBy,
+  useShowIssueTypeIcons,
+} from "../settings";
+import {
+  issueTypeName,
+  useIssueType,
+  useIssueTypeNames,
+  useIssueTypes,
+} from "../issueTypes";
 import {
   formatDayLabel,
   formatDuration,
@@ -24,6 +35,7 @@ import {
   weekChunks,
 } from "../time";
 import IssuePicker from "./IssuePicker";
+import TypeIcon from "./TypeIcon";
 import RepeatModal from "./RepeatModal";
 import WorklogEditModal from "./WorklogEditModal";
 import WorklogRow from "./WorklogRow";
@@ -118,7 +130,13 @@ export default function TimesheetMonth({ site }: Props) {
         if (cancelled) return;
         setFailed(missed);
         setRowOrder(
-          rowOrderOf(buildMonthGrid(collected, start, end), getMonthSortBy()),
+          rowOrderOf(
+            buildMonthGrid(collected, start, end),
+            getMonthSortBy(),
+            // Whatever the cache already holds — a month whose issues were
+            // seen before is in its final order from the first paint.
+            (key) => issueTypeName(key),
+          ),
         );
         setLoading(false);
       },
@@ -174,6 +192,36 @@ export default function TimesheetMonth({ site }: Props) {
     ...col,
     label: formatDayLabel(col.date, DAY_FORMAT),
   }));
+  // A worklog carries no issue type, so the type behind each row is looked up
+  // by key — one search for the whole month. Asked for whether or not the
+  // icons are shown: the rows are *ordered* by type, so the lookup is what the
+  // table reads like, not only what it draws.
+  const showTypeIcons = useShowIssueTypeIcons();
+  const types = useIssueTypeNames();
+  useIssueTypes(grid.rows.map((row) => row.issueKey));
+  const typeOf = useCallback(
+    (issueKey: string) => types[issueKey]?.name,
+    [types],
+  );
+
+  // The types land a moment after the rows do, so the order taken at load time
+  // knew nothing about them: this re-pins it once they arrive. Read through a
+  // ref rather than named as dependencies — a reshuffle belongs to the types
+  // landing, and nothing else, least of all a month still filling in.
+  const latest = useRef({ entries, start, end });
+  latest.current = { entries, start, end };
+  useEffect(() => {
+    const { entries, start, end } = latest.current;
+    if (entries.length === 0) return;
+    setRowOrder(
+      rowOrderOf(
+        buildMonthGrid(entries, start, end),
+        getMonthSortBy(),
+        (key) => types[key]?.name,
+      ),
+    );
+  }, [types]);
+
   // Looked up per render rather than held in state: the drill-down edits the
   // worklogs it lists, and a row captured when it opened would go on showing
   // the ones from before the edit.
@@ -187,7 +235,7 @@ export default function TimesheetMonth({ site }: Props) {
   function changeSort(next: MonthSortBy) {
     if (next === sortBy) return;
     setMonthSortBy(next);
-    setRowOrder(rowOrderOf(buildMonthGrid(entries, start, end), next));
+    setRowOrder(rowOrderOf(buildMonthGrid(entries, start, end), next, typeOf));
   }
 
   // The same pair of keys the week view uses — one verb, one key, whichever view
@@ -236,7 +284,7 @@ export default function TimesheetMonth({ site }: Props) {
             className={sortBy === "key" ? "active" : ""}
             onClick={() => changeSort("key")}
           >
-            Issue key
+            Type & key
           </button>
           <button
             type="button"
@@ -269,7 +317,7 @@ export default function TimesheetMonth({ site }: Props) {
 
       <div className="month-scroll">
         <div
-          className="month-grid"
+          className={`month-grid${showTypeIcons ? "" : " no-type-icons"}`}
           role="table"
           style={{ "--month-cols": columns.length } as React.CSSProperties}
         >
@@ -312,18 +360,7 @@ export default function TimesheetMonth({ site }: Props) {
 
           {grid.rows.map((row) => (
             <div className="month-row" role="row" key={row.issueKey}>
-              <div className="col-issue" role="rowheader">
-                <button
-                  className="key-link key"
-                  title={`Open ${row.issueKey} in browser`}
-                  onClick={() => openExternal(`${site}/browse/${row.issueKey}`)}
-                >
-                  {row.issueKey}
-                </button>
-                <span className="summary" title={row.issueSummary}>
-                  {row.issueSummary}
-                </span>
-              </div>
+              <IssueHead row={row} site={site} />
               {columns.map((col) => {
                 const cell = row.cells.get(col.date);
                 const count = cell?.entries.length ?? 0;
@@ -386,6 +423,29 @@ export default function TimesheetMonth({ site }: Props) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/** The sticky first column of a row: type icon, key link, summary.
+ *
+ *  Its own component because the type is fetched per key — a hook, which a
+ *  callback inside the grid's `map` could not hold. */
+function IssueHead({ row, site }: { row: MonthRow; site: string }) {
+  const type = useIssueType(row.issueKey);
+  return (
+    <div className="col-issue" role="rowheader">
+      <TypeIcon type={type?.name} url={type?.iconUrl} />
+      <button
+        className="key-link key"
+        title={`Open ${row.issueKey} in browser`}
+        onClick={() => openExternal(`${site}/browse/${row.issueKey}`)}
+      >
+        {row.issueKey}
+      </button>
+      <span className="summary" title={row.issueSummary}>
+        {row.issueSummary}
+      </span>
     </div>
   );
 }
