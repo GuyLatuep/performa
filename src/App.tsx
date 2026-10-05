@@ -4,6 +4,7 @@ import {
   CalendarRange,
   LayoutDashboard,
   ListChecks,
+  ListFilter,
   Timer,
   TriangleAlert,
   type LucideIcon,
@@ -15,7 +16,12 @@ import { useSelectionKeys } from "./selection";
 import { clearIssueRequest, useRequestedIssue } from "./issueRequest";
 import IssueView from "./components/IssueView";
 import SearchResults from "./components/SearchResults";
-import { clearSearchRequest, useRequestedSearch } from "./searchRequest";
+import {
+  clearSearchRequest,
+  requestView,
+  useRequestedSearch,
+} from "./searchRequest";
+import { favoriteViews, useSavedSearches } from "./savedSearches";
 import { ShortcutProps, useShortcut, useShortcutKeys } from "./shortcuts";
 import { logInfo } from "./log";
 import Settings from "./components/Settings";
@@ -90,6 +96,12 @@ export default function App() {
   const typedIssue = useRequestedIssue();
   /** A search run from the palette. Like the issue above, it belongs to no tab. */
   const search = useRequestedSearch();
+  /** The views starred in settings, kept in the sidebar under the tabs. */
+  const favorites = favoriteViews(useSavedSearches());
+  /** Which of them is on screen, if one is. While it is, its row is the
+   *  selected one and the tab underneath is not — one row lit, the one in view. */
+  const shownView =
+    !typedIssue && search?.kind === "view" ? search.search.id : null;
 
   const missingItems = useMissing();
   const missingUnseen = useMissingUnseenCount();
@@ -257,14 +269,15 @@ export default function App() {
   ) {
     const Icon = TAB_ICONS[t];
     const label = TAB_LABELS[t];
+    const active = tab === t && !shownView;
     return (
       <button
         {...tabKeys[t]}
-        className={`nav-row${tab === t ? " active" : ""}${alert ? " alert" : ""}${
+        className={`nav-row${active ? " active" : ""}${alert ? " alert" : ""}${
           arrived && tab !== t ? " arrived" : ""
         }`}
         aria-label={count > 0 ? `${label} · ${count}` : label}
-        aria-current={tab === t ? "page" : undefined}
+        aria-current={active ? "page" : undefined}
         onClick={onSelect}
       >
         <Icon className="nav-icon" size={18} strokeWidth={1.75} aria-hidden />
@@ -304,6 +317,37 @@ export default function App() {
             mentionsArrived,
           )}
         </nav>
+
+        {/* Views starred in settings. The palette offers them too; this is the
+            one-click way for the few that are opened every day. */}
+        {favorites.length > 0 && (
+          <nav className="nav" aria-labelledby="nav-views-heading">
+            <span id="nav-views-heading" className="nav-heading">
+              Views
+            </span>
+            {favorites.map((view) => {
+              const active = shownView === view.id;
+              return (
+                <button
+                  key={view.id}
+                  className={`nav-row${active ? " active" : ""}`}
+                  aria-label={view.name}
+                  aria-current={active ? "page" : undefined}
+                  title={view.name}
+                  onClick={() => requestView(view)}
+                >
+                  <ListFilter
+                    className="nav-icon"
+                    size={18}
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                  <span className="nav-label">{view.name}</span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         <div className="account">
           <span className="muted">{creds.email}</span>

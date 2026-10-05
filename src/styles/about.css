@@ -84,6 +84,15 @@
 .search-grid > button {
   justify-self: start;
 }
+/* A saved search's last cell: the star on a view, then the ✕. A search keeps
+   the star's slot empty so the ✕ lines up down the column either way. */
+.search-row-actions {
+  display: flex;
+  gap: var(--sp-1);
+}
+.favorite-slot {
+  min-width: var(--tap);
+}
 
 /* ---------- Command palette ----------
    The app's ordinary sheet, holding the typeahead the pickers already use — so

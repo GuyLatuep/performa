@@ -21,6 +21,14 @@ export interface SavedSearch {
    * what gets typed into the palette can never rewrite it.
    */
   jql: string;
+  /**
+   * Kept in the sidebar, under the tabs, as well as in the palette.
+   *
+   * Only a view is offered there — a search asks for a term, and the sidebar has
+   * nowhere to type one — but the flag is kept whatever the JQL says, so editing
+   * a favourite into a search and back again does not lose it.
+   */
+  favorite?: boolean;
 }
 
 /** Where the palette's term goes in a search's JQL. Mirrors
@@ -90,7 +98,10 @@ function fromStored(stored: unknown): SavedSearch | null {
   if (name === "") return null;
   if (typeof s.jql === "string") {
     const jql = s.jql.trim();
-    return jql === "" ? null : { id: s.id, name, jql };
+    if (jql === "") return null;
+    return s.favorite === true
+      ? { id: s.id, name, jql, favorite: true }
+      : { id: s.id, name, jql };
   }
   if (
     typeof s.field === "string" &&
@@ -162,7 +173,7 @@ function sanitise(
   const name = search.name.trim();
   const jql = search.jql.trim();
   if (name === "" || jql === "") return null;
-  return { name, jql };
+  return search.favorite ? { name, jql, favorite: true } : { name, jql };
 }
 
 /** Add one, and hand back what it was given an id of. */
@@ -200,6 +211,11 @@ export function updateSavedSearch(
       return clean ? { ...clean, id } : s;
     }),
   );
+}
+
+/** The views kept in the sidebar, in the order they were written. */
+export function favoriteViews(searches: SavedSearch[]): SavedSearch[] {
+  return searches.filter((s) => s.favorite === true && isView(s));
 }
 
 /**
