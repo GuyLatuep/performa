@@ -3,22 +3,101 @@ name: CI
 # Runs on every push to main and every pull request. Also callable from
 # release.yml (`workflow_call`), so a tag build is gated on the same checks
 # instead of duplicating them.
+#
+# And weekly on a schedule, for the dependency audit alone: an advisory can be
+# published against a lockfile nobody has touched, and without this main would
+# only find out on the next push. `workflow_dispatch` runs everything by hand.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC, alongside Dependabot's run
 
-# A newer push to the same ref makes the running check obsolete.
+# A newer push to the same ref makes the running check obsolete. The event is
+# part of the key so the scheduled audit and a push to main don't cancel each
+# other.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
+  # Known vulnerabilities in either lockfile fail the run. Its own job so it
+  # reports separately from tests, and the only job the weekly schedule runs.
+  #
+  # When an advisory has no fix yet and has been judged not to apply, ignore it
+  # with a comment saying why: `pnpm.auditConfig.ignoreGhsas` in package.json,
+  # or `[advisories] ignore` in src-tauri/.cargo/audit.toml.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # Prebuilt binary, the same as cargo-llvm-cov below. cargo-audit reads
+      # Cargo.lock only, so no toolchain or build is needed.
+      - uses: taiki-e/install-action@cargo-audit
+
+      # Dev dependencies included: they run in CI and in the release build,
+      # which is where a compromised one does its damage. High and critical
+      # only — moderate advisories in build tooling are mostly unreachable
+      # DoS paths, and failing on them would keep the build red for nothing.
+      # Reads pnpm-lock.yaml directly; no install needed.
+      - name: Audit npm packages
+        id: npm
+        run: |
+          set -o pipefail
+          pnpm audit --audit-level=high 2>&1 | tee /tmp/pnpm-audit.log
+
+      # Vulnerabilities fail the run; RustSec's "unmaintained" and "unsound"
+      # notices are printed as warnings, cargo-audit's default.
+      - name: Audit Rust crates
+        id: cargo
+        if: always()
+        working-directory: src-tauri
+        run: |
+          set -o pipefail
+          cargo audit 2>&1 | tee /tmp/cargo-audit.log
+
+      # Both outputs on the run page, so a red audit says what to bump without
+      # opening the log. Runs even when an audit failed — that is when it
+      # matters.
+      - name: Audit report
+        if: always()
+        run: |
+          set +e
+          {
+            echo "## Dependency audit"
+            echo
+            echo "- npm: ${{ steps.npm.outcome == 'success' && '✅ no high or critical advisories' || '❌ advisories found' }}"
+            echo "- Rust: ${{ steps.cargo.outcome == 'success' && '✅ no vulnerabilities' || '❌ vulnerabilities found' }}"
+            for log in pnpm-audit cargo-audit; do
+              [ -f /tmp/$log.log ] || continue
+              echo
+              echo "<details><summary>$log</summary>"
+              echo
+              echo '```'
+              sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g' /tmp/$log.log | tail -200
+              echo '```'
+              echo "</details>"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
   frontend:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -143,6 +222,7 @@ jobs:
   # `--no-bundle` skips the installer (the artifact is release.yml's job) and
   # `--debug` skips optimisation; between them this compiles rather than builds.
   rust-windows:
+    if: github.event_name != 'schedule'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -171,6 +251,7 @@ jobs:
         run: pnpm tauri build --debug --no-bundle
 
   rust:
+    if: github.event_name != 'schedule'
     # macOS mirrors the primary release target and needs no system packages,
     # unlike Linux where Tauri pulls in webkit2gtk & friends.
     runs-on: macos-latest

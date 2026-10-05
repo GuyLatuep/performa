@@ -1,0 +1,51 @@
+# Weekly update PRs for all three kinds of dependency this repo has. Each PR
+# runs the full CI, so the test suites vet an update before anyone reads it.
+#
+# Minor and patch updates are grouped into one PR per ecosystem: a week's
+# bugfixes are one review, not a dozen. Majors stay on their own, because those
+# are the ones that change behaviour and deserve a look each.
+#
+# Security fixes do not wait for Monday: "Dependabot security updates" in the
+# repo settings opens those as soon as an advisory is published.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # The JS API and the Rust crates speak one protocol and must move in
+      # step; grouped here and below so neither side is bumped alone.
+      tauri:
+        patterns: ["@tauri-apps/*"]
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      tauri:
+        patterns: ["tauri", "tauri-*"]
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns: ["*"]
