@@ -34,7 +34,7 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # Full history + tags, needed to diff commits against the last release.
           fetch-depth: 0
@@ -53,7 +53,7 @@ jobs:
         with:
           version: 10
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -100,7 +100,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Build and release
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # --- macOS signing & notarization (optional; set as repo secrets) ---
