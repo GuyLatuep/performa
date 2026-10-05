@@ -103,6 +103,19 @@ then paste it into the app's connect screen along with your Jira site and email.
 The Rust side has its own: `cargo test`, `cargo clippy --all-targets -- -D warnings`
 and `cargo fmt --check`, from `src-tauri/`. CI runs all of them.
 
+### Dependencies
+
+- **Updates:** Dependabot opens PRs every Monday for npm packages, Rust crates
+  and GitHub Actions. Minor and patch updates come grouped into one PR per
+  ecosystem, majors one PR each, and every PR runs the full CI.
+- **Security:** the `audit` job in CI runs `pnpm audit --audit-level=high` and
+  `cargo audit` on every push and PR, and on main every Monday. A known
+  vulnerability fails the run. To check locally, run `pnpm audit` and, from
+  `src-tauri/`, `cargo audit` (`cargo install cargo-audit`).
+- **An advisory with no fix that doesn't apply** can be ignored with a comment
+  saying why: `pnpm.auditConfig.ignoreGhsas` in `package.json`, or
+  `[advisories] ignore = ["RUSTSEC-…"]` in `src-tauri/.cargo/audit.toml`.
+
 ## 🏗️ Architecture
 
 ```
