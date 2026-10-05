@@ -253,3 +253,36 @@ describe("one already written", () => {
     expect(getSavedSearches()).toEqual([]);
   });
 });
+
+describe("starring a view for the sidebar", () => {
+  const star = (name: string) =>
+    screen.queryByRole("button", { name: new RegExp(`${name} view`) });
+
+  it("offers a star on a view", () => {
+    addSavedSearch({ name: "Open escalations", jql: "project = ESC" });
+    renderTab();
+
+    expect(star("Open escalations")?.getAttribute("aria-pressed")).toBe(
+      "false",
+    );
+  });
+
+  it("offers none on a search, which the sidebar could not ask a term for", () => {
+    addSavedSearch({ name: "Plant number", jql: PLANT_JQL });
+    renderTab();
+
+    expect(star("Plant number")).toBeNull();
+  });
+
+  it("stars and unstars it", async () => {
+    addSavedSearch({ name: "Open escalations", jql: "project = ESC" });
+    renderTab();
+
+    await userEvent.click(star("Open escalations")!);
+    expect(getSavedSearches()[0].favorite).toBe(true);
+    expect(star("Open escalations")?.getAttribute("aria-pressed")).toBe("true");
+
+    await userEvent.click(star("Open escalations")!);
+    expect(getSavedSearches()[0].favorite).toBeUndefined();
+  });
+});

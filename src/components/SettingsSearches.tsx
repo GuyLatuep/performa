@@ -1,8 +1,9 @@
-import { X } from "lucide-react";
+import { Star, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   addSavedSearch,
   hasSearchTerm,
+  isView,
   removeSavedSearch,
   SavedSearch,
   SEARCH_TERM_PLACEHOLDER,
@@ -58,6 +59,9 @@ export default function SettingsSearches() {
         Leave the placeholder out and it becomes “View: …” instead — a fixed
         list, like a filter on the site, shown the moment you pick it. Searching
         plain text is always offered and needs no setting up.
+      </span>
+      <span className="hint">
+        Star a view to keep it in the sidebar, under the tabs, one click away.
       </span>
     </div>
   );
@@ -119,14 +123,47 @@ function SearchRow({ search }: { search: SavedSearch }) {
         {...name}
       />
       <JqlBox label={`JQL the ${search.name} search runs`} {...jql} />
-      <button
-        className="icon danger-icon"
-        title={`Remove the ${search.name} search`}
-        onClick={() => removeSavedSearch(search.id)}
-      >
-        <X size={16} strokeWidth={1.75} aria-hidden />
-      </button>
+      <span className="search-row-actions">
+        {/* Only a view can sit in the sidebar: a search asks for a term, and
+            the sidebar has nowhere to type one. */}
+        {isView(search) ? (
+          <FavoriteToggle search={search} />
+        ) : (
+          <span className="favorite-slot" />
+        )}
+        <button
+          className="icon danger-icon"
+          title={`Remove the ${search.name} search`}
+          onClick={() => removeSavedSearch(search.id)}
+        >
+          <X size={16} strokeWidth={1.75} aria-hidden />
+        </button>
+      </span>
     </>
+  );
+}
+
+/** The star that puts a view in the sidebar, or takes it out again. */
+function FavoriteToggle({ search }: { search: SavedSearch }) {
+  const on = search.favorite === true;
+  return (
+    <button
+      className={`icon${on ? " on" : ""}`}
+      aria-pressed={on}
+      title={
+        on
+          ? `Take the ${search.name} view out of the sidebar`
+          : `Keep the ${search.name} view in the sidebar`
+      }
+      onClick={() => updateSavedSearch(search.id, { favorite: !on })}
+    >
+      <Star
+        size={16}
+        strokeWidth={1.75}
+        fill={on ? "currentColor" : "none"}
+        aria-hidden
+      />
+    </button>
   );
 }
 

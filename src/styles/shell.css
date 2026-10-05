@@ -57,6 +57,14 @@
   font-weight: 400;
   text-align: left;
 }
+/* Names a group of rows below the tabs. Caption size in the secondary label
+   colour — weight and size carry it, not case or colour. */
+.nav-heading {
+  padding: 0 var(--sp-2) var(--sp-1);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
 .nav-row:hover {
   background: var(--fill-quaternary);
 }
@@ -218,6 +226,7 @@ main {
   }
   .brand,
   .nav-label,
+  .nav-heading,
   .account .muted,
   .account-actions {
     display: none;

@@ -106,6 +106,7 @@ import { clearIssueRequest, requestIssue } from "./issueRequest";
 import { clearSearchRequest, requestTextSearch } from "./searchRequest";
 import { clearForward } from "./back";
 import { setTimesheetView } from "./settings";
+import { addSavedSearch, clearSavedSearches } from "./savedSearches";
 
 const CREDS = {
   site: "https://example.atlassian.net",
@@ -585,5 +586,113 @@ describe("results reached from the command palette", () => {
 
     expect(screen.getByText(/results, back to Start/)).toBeDefined();
     expect(screen.queryByText(/viewing ABC-12/)).toBeNull();
+  });
+});
+
+describe("views kept in the sidebar", () => {
+  const OPEN = { name: "Open escalations", jql: "project = ESC" };
+
+  // Added after signing in: signing in claims the stored searches for the
+  // account, which clears any written for nobody in particular.
+  beforeEach(() => {
+    clearSavedSearches();
+    clearSearchRequest();
+    clearIssueRequest();
+  });
+
+  afterEach(() => {
+    clearSavedSearches();
+    clearSearchRequest();
+  });
+
+  it("lists nothing, not even a heading, while none is starred", async () => {
+    await renderSignedIn();
+    await act(async () => {
+      addSavedSearch(OPEN);
+    });
+
+    expect(screen.queryByText("Views")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Open escalations" }),
+    ).toBeNull();
+  });
+
+  it("lists a starred view under the tabs", async () => {
+    await renderSignedIn();
+    await act(async () => {
+      addSavedSearch({ ...OPEN, favorite: true });
+    });
+
+    expect(screen.getByRole("navigation", { name: "Views" })).toBeDefined();
+    expect(
+      screen.getByRole("button", { name: "Open escalations" }),
+    ).toBeDefined();
+  });
+
+  it("leaves out a starred search, which would need a term", async () => {
+    await renderSignedIn();
+    await act(async () => {
+      addSavedSearch({
+        name: "Plant number",
+        jql: '"Plant no." ~ %SEARCHTERM%',
+        favorite: true,
+      });
+    });
+
+    expect(screen.queryByRole("button", { name: "Plant number" })).toBeNull();
+  });
+
+  it("shows the view's results when it is clicked", async () => {
+    await renderSignedIn();
+    await act(async () => {
+      addSavedSearch({ ...OPEN, favorite: true });
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open escalations" }),
+    );
+
+    expect(screen.getByText(/results, back to Start/)).toBeDefined();
+  });
+
+  it("marks the view as the selected row rather than the tab under it", async () => {
+    await renderSignedIn();
+    await act(async () => {
+      addSavedSearch({ ...OPEN, favorite: true });
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open escalations" }),
+    );
+
+    expect(
+      screen
+        .getByRole("button", { name: "Open escalations" })
+        .getAttribute("aria-current"),
+    ).toBe("page");
+    expect(
+      screen
+        .getByRole("button", { name: "Start" })
+        .getAttribute("aria-current"),
+    ).toBeNull();
+  });
+
+  it("gives the tab back its selection when the tab is asked for", async () => {
+    await renderSignedIn();
+    await act(async () => {
+      addSavedSearch({ ...OPEN, favorite: true });
+    });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open escalations" }),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(screen.getByText("start panel")).toBeDefined();
+    expect(
+      screen
+        .getByRole("button", { name: "Start" })
+        .getAttribute("aria-current"),
+    ).toBe("page");
   });
 });

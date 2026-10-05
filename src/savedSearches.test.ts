@@ -4,6 +4,7 @@ import {
   addSavedSearch,
   claimSearchesFor,
   clearSavedSearches,
+  favoriteViews,
   getSavedSearches,
   hasSearchTerm,
   removeSavedSearch,
@@ -328,5 +329,73 @@ describe("isView", () => {
     // The two are the same stored shape, so this is the whole migration story.
     expect(isView(search("project = DEV"))).toBe(true);
     expect(isView(search("project = DEV AND key = %SEARCHTERM%"))).toBe(false);
+  });
+});
+
+describe("a favourite", () => {
+  const OPEN = { name: "Open escalations", jql: "project = ESC" };
+
+  it("is not one until it is starred", () => {
+    const added = addSavedSearch(OPEN)!;
+
+    expect(added.favorite).toBeUndefined();
+    expect(favoriteViews(getSavedSearches())).toEqual([]);
+  });
+
+  it("is starred and unstarred by a patch", () => {
+    const added = addSavedSearch(OPEN)!;
+
+    updateSavedSearch(added.id, { favorite: true });
+    expect(favoriteViews(getSavedSearches()).map((s) => s.id)).toEqual([
+      added.id,
+    ]);
+
+    updateSavedSearch(added.id, { favorite: false });
+    expect(favoriteViews(getSavedSearches())).toEqual([]);
+  });
+
+  it("stays starred through an edit of its name or JQL", () => {
+    const added = addSavedSearch({ ...OPEN, favorite: true })!;
+
+    updateSavedSearch(added.id, { name: "Escalations" });
+
+    expect(getSavedSearches()[0].favorite).toBe(true);
+  });
+
+  it("is not offered while its JQL asks for a term, and is again once it does not", () => {
+    // The sidebar has nowhere to type a term. The flag is kept regardless, so
+    // editing a view into a search and back does not lose it.
+    const added = addSavedSearch({ ...OPEN, favorite: true })!;
+
+    updateSavedSearch(added.id, { jql: "key = %SEARCHTERM%" });
+    expect(favoriteViews(getSavedSearches())).toEqual([]);
+
+    updateSavedSearch(added.id, { jql: "project = ESC" });
+    expect(favoriteViews(getSavedSearches())).toHaveLength(1);
+  });
+
+  it("keeps the order they were written in", () => {
+    addSavedSearch({ ...OPEN, favorite: true });
+    addSavedSearch({ name: "Mine", jql: "assignee = currentUser()" });
+    addSavedSearch({
+      name: "Blocked",
+      jql: "status = Blocked",
+      favorite: true,
+    });
+
+    expect(favoriteViews(getSavedSearches()).map((s) => s.name)).toEqual([
+      "Open escalations",
+      "Blocked",
+    ]);
+  });
+
+  it("comes back starred from storage, and anything but true is not a star", async () => {
+    const loaded = await loadedFrom([
+      { id: "a", name: "Starred", jql: "project = A", favorite: true },
+      { id: "b", name: "Odd", jql: "project = B", favorite: "yes" },
+      { id: "c", name: "Plain", jql: "project = C" },
+    ]);
+
+    expect(loaded.map((s) => s.favorite)).toEqual([true, undefined, undefined]);
   });
 });
