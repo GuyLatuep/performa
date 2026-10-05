@@ -498,7 +498,7 @@ Vorlagen werden lokal auf deinem Rechner gespeichert, nicht in Jira.
 
 Der **Settings**-Link in der Kopfzeile öffnet denselben Bildschirm wie bei der ersten Verbindung:
 
-- **General** — die Verbindung zu Jira (siehe unten) sowie app-weite Schalter.
+- **General** — die Verbindung zu Jira (siehe unten) sowie app-weite Schalter und **Check for updates** (siehe [Updates](#updates)).
 - **Appearance** — heller / dunkler Modus, die **Akzentfarbe** und **Show issue type icons in lists** (standardmäßig an; ausgeschaltet verschwindet das Symbol aus jeder Vorgangszeile und mit ihm die Spalte **T** im Todo-Tab).
 - **Daily work hours** — 0,5–24 h; daraus ergeben sich die Tagesziel-Linie und, × 5, der Wochenziel-Ring in den Diagrammen.
 - **Timesheet days** — **Mon–Fri** (Wochenenden ausgeblendet, außer sie enthalten erfasste Zeit) oder **Full week**.
@@ -537,6 +537,10 @@ performa prüft **stündlich** auf ein neueres Release auf GitHub. Gibt es eins,
 - **Update & restart** — lädt das Update mit Fortschrittsanzeige herunter, installiert es und startet die App neu
 - **Release notes** — öffnet die Release-Seite im Browser
 - **✕** — blendet das Banner **für diese Version** aus; das nächste Release bringt es zurück
+
+Die stündliche Prüfung läuft auch weiter, während die Einstellungen offen sind.
+
+Um sofort zu prüfen, öffne **Einstellungen → General → Updates** und klicke auf **Check for updates**. Die Zeile unter dem Button sagt, was dabei herauskam: dass du die neueste Version hast (und wann geprüft wurde), dass eine neuere Version verfügbar ist, oder warum die Prüfung fehlgeschlagen ist. Gibt es eine neuere Version, erscheint neben dem Button **Update & restart**, sodass du sie installieren kannst, ohne die Einstellungen zu verlassen. Eine so ausgelöste Prüfung bringt auch ein Banner zurück, das du für diese Version ausgeblendet hattest.
 
 ## Debug-Log
 

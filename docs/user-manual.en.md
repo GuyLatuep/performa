@@ -486,7 +486,7 @@ Templates are stored locally on your machine, not in Jira.
 
 The **Settings** link in the header opens the same screen used for the first-run connection:
 
-- **General** — the connection to Jira (below), plus app-wide switches.
+- **General** — the connection to Jira (below), plus app-wide switches and **Check for updates** (see [Updates](#updates)).
 - **Appearance** — light / dark theme toggle, the **accent colour**, and **Show issue type icons in lists** (on by default; turning it off drops the icon from every issue row, and the **T** column from the Todo tab with it).
 - **Daily work hours** — 0.5–24 h; this drives the daily target line and, × 5, the weekly target ring in the charts.
 - **Timesheet days** — **Mon–Fri** (weekends hidden unless they contain logged time) or **Full week**.
@@ -525,6 +525,10 @@ performa checks GitHub for a newer release **once per hour**. When one exists, a
 - **Update & restart** — downloads the update with a progress display, installs it, and relaunches the app
 - **Release notes** — opens the release page in your browser
 - **✕** — dismisses the banner **for this version**; the next release brings it back
+
+The hourly check keeps running while Settings is open.
+
+To check right away, open **Settings → General → Updates** and press **Check for updates**. The line below the button says what came back: that you're on the latest version (and when it checked), that a newer version is available, or why the check failed. If there is a newer version, **Update & restart** appears next to the button, so you can install it without leaving Settings. Checking this way also brings back a banner you dismissed for that version.
 
 ## Debug log
 

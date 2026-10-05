@@ -25,6 +25,7 @@ import SettingsTimesheet from "./SettingsTimesheet";
 import SettingsSearches from "./SettingsSearches";
 import SettingsTodo from "./SettingsTodo";
 import SettingsLogging from "./SettingsLogging";
+import SettingsUpdates from "./SettingsUpdates";
 
 interface Props {
   existing: CredentialsMeta | null;
@@ -156,6 +157,7 @@ export default function Settings({
             onCancel={onCancel ? cancel : undefined}
           />
           <SettingsFun />
+          <SettingsUpdates />
         </>
       )}
       {tab === "appearance" && <SettingsAppearance />}
