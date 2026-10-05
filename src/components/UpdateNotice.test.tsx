@@ -1,8 +1,9 @@
 /** @vitest-environment happy-dom */
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
+import { resetUpdateState, startUpdateChecks } from "../updates";
 import UpdateNotice from "./UpdateNotice";
 
 // The banner talks to three Tauri plugins, none of which exist under vitest.
@@ -39,10 +40,17 @@ function update({
   return { version, currentVersion, downloadAndInstall };
 }
 
+/** The banner, with the checks running the way launch starts them. */
+let stopChecks: (() => void) | null = null;
+function mount() {
+  render(<UpdateNotice />);
+  stopChecks = startUpdateChecks();
+}
+
 /** Mount the banner over an available update and wait for it to appear. */
 async function showing(found = update()) {
   plugins.check.mockResolvedValue(found);
-  render(<UpdateNotice />);
+  mount();
   await screen.findByText(/is available/);
   return found;
 }
@@ -52,12 +60,18 @@ const banner = () => screen.queryByText(/is available/);
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  resetUpdateState();
   plugins.check.mockResolvedValue(null);
+});
+
+afterEach(() => {
+  stopChecks?.();
+  stopChecks = null;
 });
 
 describe("whether the banner shows at all", () => {
   it("stays away when the app is current", async () => {
-    render(<UpdateNotice />);
+    mount();
     await act(async () => {});
 
     expect(banner()).toBeNull();
@@ -67,7 +81,7 @@ describe("whether the banner shows at all", () => {
     // Update checks are best-effort; a GitHub outage must not put an error in
     // front of someone trying to log time.
     plugins.check.mockRejectedValue(new Error("no network"));
-    render(<UpdateNotice />);
+    mount();
     await act(async () => {});
 
     expect(banner()).toBeNull();
@@ -84,7 +98,7 @@ describe("whether the banner shows at all", () => {
     localStorage.setItem(DISMISSED_KEY, "0.5.0");
     plugins.check.mockResolvedValue(update({ version: "0.5.0" }));
 
-    render(<UpdateNotice />);
+    mount();
     await act(async () => {});
 
     expect(banner()).toBeNull();
@@ -95,7 +109,7 @@ describe("whether the banner shows at all", () => {
     localStorage.setItem(DISMISSED_KEY, "0.5.0");
     plugins.check.mockResolvedValue(update({ version: "0.6.0" }));
 
-    render(<UpdateNotice />);
+    mount();
 
     expect(await screen.findByText("0.6.0")).toBeDefined();
   });
@@ -291,7 +305,7 @@ describe("installing", () => {
       plugins.check.mockResolvedValue(
         update({ version: "0.5.0", downloadAndInstall }),
       );
-      render(<UpdateNotice />);
+      mount();
       await act(async () => {});
       await act(async () => {
         screen.getByRole("button", { name: "Update & restart" }).click();

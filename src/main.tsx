@@ -9,6 +9,7 @@ import { applyTheme, onThemeChange } from "./theme";
 import { applyAccent } from "./accent";
 import { applyTextScale } from "./textScale";
 import { applyVibrancy } from "./vibrancy";
+import { startUpdateChecks } from "./updates";
 import "./fonts.css";
 
 // Set the saved theme, accent and text size before the first paint to avoid a
@@ -23,6 +24,10 @@ applyVibrancy();
 
 // Keep that variant honest when the theme is switched at runtime.
 onThemeChange(applyAccent);
+
+// Look for a newer release now and hourly after. Started here rather than in
+// the banner, which unmounts while Settings or About is open.
+startUpdateChecks();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
