@@ -7,6 +7,16 @@
 #
 # Security fixes do not wait for Monday: "Dependabot security updates" in the
 # repo settings opens those as soon as an advisory is published.
+#
+# Tauri is the exception to all of the above. Its build refuses to run unless
+# the npm packages and the Rust crates are on the same major.minor, and
+# Dependabot updates npm and Cargo in separate jobs — it cannot put both sides
+# in one PR. A Tauri minor from Dependabot is therefore always two PRs that
+# each fail alone (#59, #61). So minors and majors are ignored on both sides
+# and done by hand, both halves in one PR; patches still come, since they do
+# not cross the line the check draws. The ignore is limited to update-types,
+# which GitHub applies to version updates only, so security updates still
+# arrive.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -17,9 +27,11 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "@tauri-apps/*"
+        update-types: [version-update:semver-minor, version-update:semver-major]
     groups:
-      # The JS API and the Rust crates speak one protocol and must move in
-      # step; grouped here and below so neither side is bumped alone.
+      # Tauri's patches as one PR of their own, apart from everything else.
       tauri:
         patterns: ["@tauri-apps/*"]
       minor-and-patch:
@@ -33,6 +45,11 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "tauri"
+        update-types: [version-update:semver-minor, version-update:semver-major]
+      - dependency-name: "tauri-*"
+        update-types: [version-update:semver-minor, version-update:semver-major]
     groups:
       tauri:
         patterns: ["tauri", "tauri-*"]
