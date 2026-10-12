@@ -115,16 +115,18 @@ export default function App() {
 
   useAccountWatchers(creds);
 
-  async function refreshStatus() {
-    try {
-      setCreds(await api.credentialsStatus());
-      setLoadError(null);
-    } catch (err) {
-      // A keychain read failure must not leave the app stuck on "Loading…".
-      setLoadError(String(err));
-    } finally {
-      setLoaded(true);
-    }
+  function refreshStatus(): Promise<void> {
+    return api
+      .credentialsStatus()
+      .then(
+        (status) => {
+          setCreds(status);
+          setLoadError(null);
+        },
+        // A keychain read failure must not leave the app stuck on "Loading…".
+        (err) => setLoadError(String(err)),
+      )
+      .finally(() => setLoaded(true));
   }
 
   useEffect(() => {

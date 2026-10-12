@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { IssueSummary, SearchResults as Results } from "../api";
 import { clearForward, useBackTarget } from "../back";
 import { requestIssue } from "../issueRequest";
+import { useResetOn } from "../resetOn";
 import {
   clearSearchRequest,
   describeSearch,
@@ -50,10 +51,12 @@ export default function SearchResults({
   const typeIcons = useShowIssueTypeIcons();
   const issues = found?.issues ?? null;
 
-  useEffect(() => {
-    let cancelled = false;
+  useResetOn(search, () => {
     setFound(null);
     setError(null);
+  });
+  useEffect(() => {
+    let cancelled = false;
     runSearch(search).then(
       (result) => {
         if (!cancelled) setFound(result);

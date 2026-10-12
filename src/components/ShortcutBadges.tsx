@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useChordRevealed, useChordWatcher } from "../chordReveal";
+import { useResetOn } from "../resetOn";
 import { BadgePlacement, placeBadges } from "../shortcuts";
 
 /**
@@ -19,12 +20,11 @@ export default function ShortcutBadges() {
   const [badges, setBadges] = useState<BadgePlacement[]>([]);
   const shown = useRef("");
 
+  useResetOn(revealed, () => {
+    if (!revealed) setBadges([]);
+  });
   useEffect(() => {
-    if (!revealed) {
-      shown.current = "";
-      setBadges([]);
-      return;
-    }
+    if (!revealed) return;
     /**
      * Re-measured every frame while the key is held, rather than listening for
      * the things that could move a control.
@@ -49,7 +49,11 @@ export default function ShortcutBadges() {
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      // The next hold starts from nothing, so its first frame always lands.
+      shown.current = "";
+    };
   }, [revealed]);
 
   if (badges.length === 0) return null;

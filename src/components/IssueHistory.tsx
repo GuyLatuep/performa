@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, WorklogEntry } from "../api";
+import { useResetOn } from "../resetOn";
 import { formatDayLabel, formatDuration } from "../time";
 
 // The user's own worklogs on one issue, shown next to every form that logs
@@ -33,9 +34,9 @@ export default function IssueHistory({
   const [history, setHistory] = useState<WorklogEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  useResetOn(`${issueKey}|${refreshKey}`, () => setError(null));
   useEffect(() => {
     let cancelled = false;
-    setError(null);
     api.issueWorklogs(issueKey).then(
       (list) => {
         if (!cancelled) setHistory(list);

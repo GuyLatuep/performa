@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, invalidateCachedReads, IssueSummary } from "../api";
 import { clearForward } from "../back";
+import { useResetOn } from "../resetOn";
 import { useShortcut } from "../shortcuts";
 import { useScreenActions } from "../actions";
 import { useRowSelected, useSelectionScope } from "../selection";
@@ -70,10 +71,16 @@ export default function Todo({ site }: Props) {
   // ordering somebody picked is still theirs at the next launch.
   const sort = useTodoSort();
 
-  useEffect(() => {
-    let cancelled = false;
+  // Either one is a fresh list. The statuses come from the store, which hands
+  // out the same object until the setting changes, so identity is enough.
+  const startOver = () => {
     setIssues(null);
     setError(null);
+  };
+  useResetOn(reloadKey, startOver);
+  useResetOn(ignoredStatuses, startOver);
+  useEffect(() => {
+    let cancelled = false;
     api.todoIssues(ignoredStatuses).then(
       (list) => {
         if (!cancelled) setIssues(list);

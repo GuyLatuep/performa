@@ -1,7 +1,14 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { api, IssueSummary, WorklogEntry } from "../api";
 import { openExternal } from "../external";
+import { useResetOn } from "../resetOn";
 import { useShortcut } from "../shortcuts";
 import { useWorklogsFiled } from "../worklogEvents";
 import {
@@ -73,7 +80,8 @@ export default function TimesheetMonth({ site }: Props) {
    *  failed. Setting the offset to the value it already holds changes nothing. */
   const [reloadKey, setReloadKey] = useState(0);
   const [entries, setEntries] = useState<WorklogEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  // True from the start: the first month's load begins on mount.
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   /** Weeks whose fetch failed. The rest of the month is still worth showing,
    *  so this is a warning above the grid and not a replacement for it. */
@@ -99,13 +107,15 @@ export default function TimesheetMonth({ site }: Props) {
   // the week view and the start tab already have cached, keeps each search
   // inside the backend's single result page, and lets the grid fill in as the
   // weeks land instead of after all of them.
-  useEffect(() => {
-    let cancelled = false;
-    const queue = weekChunks(start, end);
+  useResetOn(`${start}|${end}|${reloadKey}`, () => {
     setLoading(true);
     setError(null);
     setFailed([]);
     setEntries([]);
+  });
+  useEffect(() => {
+    let cancelled = false;
+    const queue = weekChunks(start, end);
 
     const collected: WorklogEntry[] = [];
     const missed: string[] = [];
@@ -158,17 +168,16 @@ export default function TimesheetMonth({ site }: Props) {
    *  behind themselves and an effect; none of them is still there to answer a
    *  rejection, and a re-read that quietly did nothing leaves the grid showing
    *  a day the write already changed. */
-  const refreshChunk = useCallback(async (date: string) => {
+  const refreshChunk = useCallback((date: string): Promise<void> => {
     const [chunk] = weekChunks(date, date);
-    try {
-      const got = await api.listWorklogs(chunk.start, chunk.end);
-      setEntries((prev) => [
-        ...prev.filter((e) => e.date < chunk.start || e.date > chunk.end),
-        ...got,
-      ]);
-    } catch (err) {
-      setError(String(err));
-    }
+    return api.listWorklogs(chunk.start, chunk.end).then(
+      (got) =>
+        setEntries((prev) => [
+          ...prev.filter((e) => e.date < chunk.start || e.date > chunk.end),
+          ...got,
+        ]),
+      (err) => setError(String(err)),
+    );
   }, []);
 
   // A worklog filed anywhere else in the app can only have landed on today, so
@@ -209,7 +218,10 @@ export default function TimesheetMonth({ site }: Props) {
   // ref rather than named as dependencies — a reshuffle belongs to the types
   // landing, and nothing else, least of all a month still filling in.
   const latest = useRef({ entries, start, end });
-  latest.current = { entries, start, end };
+  // A layout effect, so it has run by the time the passive one below reads it.
+  useLayoutEffect(() => {
+    latest.current = { entries, start, end };
+  });
   useEffect(() => {
     const { entries, start, end } = latest.current;
     if (entries.length === 0) return;

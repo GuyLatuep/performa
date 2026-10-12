@@ -40,7 +40,8 @@ export default function IssuePicker({
 }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<IssueSummary[]>([]);
-  const [searching, setSearching] = useState(false);
+  // True from the start: the first search runs on mount.
+  const [searching, setSearching] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const pinnedIssues = usePinnedIssues();
@@ -49,30 +50,33 @@ export default function IssuePicker({
   const showPinned = query.trim() === "" && pinnedIssues.length > 0;
   const debounce = useRef<number | undefined>(undefined);
 
-  // Load issues assigned to me on mount.
+  // The query is interpreted on the Rust side (blank = my open issues,
+  // issue key = exact lookup, anything else = text search).
+  function fetchResults(value: string): Promise<void> {
+    return api
+      .searchIssues(value)
+      .then(setResults, (err) => {
+        setError(String(err));
+        setResults([]);
+      })
+      .finally(() => setSearching(false));
+  }
+
+  function runSearch(value: string) {
+    setSearching(true);
+    setError(null);
+    void fetchResults(value);
+  }
+
+  // Load issues assigned to me on mount — `searching` already starts out true.
   useEffect(() => {
-    runSearch("");
+    void fetchResults("");
   }, []);
 
   function onQueryChange(value: string) {
     setQuery(value);
     window.clearTimeout(debounce.current);
     debounce.current = window.setTimeout(() => runSearch(value), DEBOUNCE_MS);
-  }
-
-  // The query is interpreted on the Rust side (blank = my open issues,
-  // issue key = exact lookup, anything else = text search).
-  async function runSearch(value: string) {
-    setSearching(true);
-    setError(null);
-    try {
-      setResults(await api.searchIssues(value));
-    } catch (err) {
-      setError(String(err));
-      setResults([]);
-    } finally {
-      setSearching(false);
-    }
   }
 
   /** The rows as they are on screen: the pinned issues lead, then the results

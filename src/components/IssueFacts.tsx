@@ -16,6 +16,7 @@ import {
   visibleFacts,
 } from "../issueFields";
 import { logInfo } from "../log";
+import { useResetOn } from "../resetOn";
 import {
   FieldSize,
   fieldSize,
@@ -73,9 +74,9 @@ export default function IssueFacts({
 
   // Which fields accept a value, keyed by name. Failing is not worth surfacing:
   // the fields still read fine, they just cannot be changed here.
+  useResetOn(issueKey, () => setEditing(null));
   useEffect(() => {
     let cancelled = false;
-    setEditing(null);
     api.issueEditFields(issueKey).then(
       (metas) => {
         if (cancelled) return;

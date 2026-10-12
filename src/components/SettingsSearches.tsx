@@ -1,5 +1,6 @@
 import { Star, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useResetOn } from "../resetOn";
 import {
   addSavedSearch,
   hasSearchTerm,
@@ -86,7 +87,7 @@ function useCommitted(
   onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
 } {
   const [value, setValue] = useState(stored);
-  useEffect(() => setValue(stored), [stored]);
+  useResetOn(stored, () => setValue(stored));
   return {
     value,
     onChange: (e) => setValue(e.target.value),
