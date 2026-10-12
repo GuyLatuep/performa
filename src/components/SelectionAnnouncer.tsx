@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useSelectedRow } from "../selection";
 
 /**
@@ -17,12 +17,17 @@ import { useSelectedRow } from "../selection";
  * which would take away the very path that makes those actions reachable today.
  */
 export default function SelectionAnnouncer() {
-  const [said, setSaid] = useState("");
+  // Written straight into the region rather than through state: the text is
+  // read out of the DOM after a commit, and putting it back through React
+  // would cost a second render to say what the first one already showed.
+  const region = useRef<HTMLDivElement>(null);
   const selected = useSelectedRow();
 
   useEffect(() => {
+    const node = region.current;
+    if (!node) return;
     if (!selected) {
-      setSaid("");
+      node.textContent = "";
       return;
     }
     // Read from the DOM rather than from the store, which holds an id and not a
@@ -30,12 +35,15 @@ export default function SelectionAnnouncer() {
     // mark is there to find. `aria-current="true"` is the selection's own; the
     // sidebar's nav rows use `"page"`, so they are not candidates.
     const row = document.querySelector('[aria-current="true"]');
-    setSaid((row?.textContent ?? "").replace(/\s+/g, " ").trim());
+    node.textContent = (row?.textContent ?? "").replace(/\s+/g, " ").trim();
   }, [selected]);
 
   return (
-    <div className="visually-hidden" role="status" aria-live="polite">
-      {said}
-    </div>
+    <div
+      ref={region}
+      className="visually-hidden"
+      role="status"
+      aria-live="polite"
+    />
   );
 }

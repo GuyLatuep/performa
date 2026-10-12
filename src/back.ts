@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { drafting, overlayOpen } from "./keys";
 import { hasPrimaryModifier } from "./platform";
@@ -51,10 +51,13 @@ export function backTarget(): BackTarget | null {
  */
 export function useBackTarget(target: BackTarget, active = true): void {
   const slot = useRef(target);
-  // Published during render, the same as the shortcut and selection registries:
-  // a gesture arriving in the same frame as a re-render would otherwise be
-  // answered by the target from the render before it.
-  slot.current = target;
+  // Published in a layout effect, the same as the shortcut and selection
+  // registries: it runs before the frame paints, where a passive effect would
+  // leave a gesture arriving in that frame to be answered by the target from
+  // the render before it.
+  useLayoutEffect(() => {
+    slot.current = target;
+  });
 
   useEffect(() => {
     if (!active) return;

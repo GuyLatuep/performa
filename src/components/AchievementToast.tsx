@@ -1,5 +1,6 @@
 import { Star } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useResetOn } from "../resetOn";
 
 /** How long one stays up before making way for the next. */
 const SHOW_MS = 4200;
@@ -15,9 +16,9 @@ export default function AchievementToast({ queue }: { queue: string[] }) {
   const [shown, setShown] = useState<string[]>([]);
 
   // Appended rather than replaced: whatever is already up keeps its turn.
-  useEffect(() => {
+  useResetOn(queue, () => {
     if (queue.length > 0) setShown((s) => [...s, ...queue]);
-  }, [queue]);
+  });
 
   useEffect(() => {
     if (shown.length === 0) return;

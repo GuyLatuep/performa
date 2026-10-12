@@ -137,10 +137,6 @@ export default function CommandPalette() {
     }
   }
 
-  // Headings only where the group changes, so the list reads as sections without
-  // anything having to group it first.
-  let lastGroup = "";
-
   return (
     <div className="modal-backdrop" onClick={close}>
       <div
@@ -177,8 +173,10 @@ export default function CommandPalette() {
         ) : (
           <ul className="mention-picker command-list" role="listbox">
             {matches.map((action, i) => {
-              const heading = action.group !== lastGroup ? action.group : null;
-              lastGroup = action.group;
+              // Headings only where the group changes, so the list reads as
+              // sections without anything having to group it first.
+              const heading =
+                action.group !== matches[i - 1]?.group ? action.group : null;
               return (
                 <li key={action.id}>
                   {heading && <p className="command-group">{heading}</p>}

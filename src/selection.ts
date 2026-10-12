@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { isActivatable, overlayOpen, typingIn } from "./keys";
 import { createStore } from "./store";
 
@@ -159,16 +159,19 @@ export function openSelected(): boolean {
  */
 export function useSelectionScope(scope: SelectionScope, active = true): void {
   const slot = useRef<Slot>({ current: scope, seq: 0 });
-  // Published during render rather than from an effect.
+  // Published from a layout effect rather than a passive one.
   //
   // An arrow press can land in the same frame a list first paints — a list whose
   // rows arrived from a cache, or a second list on a screen where the first is
-  // still loading — and an effect publishes after that frame. Until it ran, the
-  // scope still held the empty row list it mounted with, so the press went to
-  // whichever list *had* published, or to nothing at all. Assigning a plain box
-  // is idempotent and repeating it costs nothing, which is what makes it safe to
-  // do here.
-  slot.current.current = scope;
+  // still loading — and a passive effect publishes after that frame. Until it
+  // ran, the scope still held the empty row list it mounted with, so the press
+  // went to whichever list *had* published, or to nothing at all. A layout
+  // effect runs before the paint, so the frame that shows the rows is never
+  // ahead of the box. Not during render: React may throw a render away, and it
+  // reads refs written there as a bug.
+  useLayoutEffect(() => {
+    slot.current.current = scope;
+  });
 
   useEffect(() => {
     if (!active) return;

@@ -10,6 +10,7 @@ import {
   Transition,
 } from "../api";
 import { clearForward, useBackTarget } from "../back";
+import { useResetOn } from "../resetOn";
 import { useShortcut, useShortcutBadge } from "../shortcuts";
 import { OfferedTransition } from "../transitions";
 import { useIssueFieldConfig } from "../issueFieldNames";
@@ -56,7 +57,7 @@ export default function IssueView({
   const cameFrom = trail.length > 0 ? (trail[trail.length - 2] ?? issue) : null;
 
   // A different issue opened from the list is a fresh start, not a step deeper.
-  useEffect(() => setTrail([]), [issue.key]);
+  useResetOn(issue.key, () => setTrail([]));
 
   const [detail, setDetail] = useState<IssueDetail | null>(null);
   const [activity, setActivity] = useState<IssueActivity | null>(null);
@@ -73,9 +74,12 @@ export default function IssueView({
   // them in settings has to re-run the effect.
   const fieldNames = fieldConfig.detail.join("|");
 
+  useResetOn(`${open.key}|${reloadKey}|${fieldNames}`, () => {
+    setError(null);
+    setWorkflowError(null);
+  });
   useEffect(() => {
     let cancelled = false;
-    setError(null);
     logInfo(`opened issue view for ${open.key}`);
     // Two requests rather than one: the detail is cached and the timeline
     // deliberately is not, so joining them would drag the whole view back to
@@ -90,7 +94,6 @@ export default function IssueView({
       (a) => !cancelled && setActivity(a),
       (err) => !cancelled && setError(String(err)),
     );
-    setWorkflowError(null);
     api.issueTransitions(open.key).then(
       (t) => !cancelled && setTransitions(t),
       (err) => !cancelled && setWorkflowError(String(err)),
@@ -147,7 +150,7 @@ export default function IssueView({
 
   // A move changes the status, so the picker must not keep showing a screen
   // opened from the status the issue has just left.
-  useEffect(() => setScreen(null), [open.key]);
+  useResetOn(open.key, () => setScreen(null));
 
   /** One step out: an open transition screen first, then the link trail, then
    *  the list. The order is what is on top of what — leaving the issue while a

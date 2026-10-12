@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ProjectSummary } from "../api";
+import { useResetOn } from "../resetOn";
 import {
   copyIgnoredStatuses,
   projectIgnoredStatuses,
@@ -44,15 +45,17 @@ export default function SettingsTodo() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!project) return;
-    let cancelled = false;
+  useResetOn(project, () => {
     setStatuses(null);
     setError(null);
     // A copy is about the project that was on screen when it was opened.
     setCopying(false);
     setCopyTargets([]);
     setCopied(0);
+  });
+  useEffect(() => {
+    if (!project) return;
+    let cancelled = false;
     api.projectStatuses(project).then(
       (list) => {
         if (!cancelled) setStatuses(list);

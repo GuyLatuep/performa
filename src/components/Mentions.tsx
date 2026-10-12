@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { openExternal } from "../external";
 import { IssueSummary, Mention } from "../api";
+import { useResetOn } from "../resetOn";
 import { clearForward } from "../back";
 import { useShortcut } from "../shortcuts";
 import { useRowSelected, useSelectionScope } from "../selection";
@@ -49,16 +50,22 @@ export default function Mentions({ site }: Props) {
   // looked yet", which is not an achievement.
   useEffect(() => {
     if (lastChecked && items.length === 0)
+      // recordEvent writes to the achievement store, so it belongs in an effect,
+      // and what it earned is only known once it has run.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAwards(recordEvent({ kind: "mentionsEmpty" }));
   }, [items, lastChecked]);
 
-  useEffect(() => {
-    // A poll landing while the tab is open brings its own new mentions; they
-    // join the highlighted set rather than appearing already read.
+  // A poll landing while the tab is open brings its own new mentions; they join
+  // the highlighted set rather than appearing already read. Read during the
+  // render, which comes before the effect below acknowledges them.
+  useResetOn(items, () => {
     setUnread((current) => {
       const fresh = unreadMentionIds();
       return fresh.size === 0 ? current : new Set([...current, ...fresh]);
     });
+  });
+  useEffect(() => {
     markMentionsRead();
   }, [items]);
 

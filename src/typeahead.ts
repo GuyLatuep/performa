@@ -1,4 +1,5 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useResetOn } from "./resetOn";
 
 /** How long the typing has to stop before Jira is asked. One request per
  *  keystroke would be one Jira request per keystroke. */
@@ -34,11 +35,12 @@ export function useTypeahead<T>(
   const [matches, setMatches] = useState<T[]>([]);
   const [active, setActive] = useState(0);
 
+  // Closing empties the list, so opening it again does not show the last one.
+  useResetOn(query, () => {
+    if (query === null) setMatches([]);
+  });
   useEffect(() => {
-    if (query === null) {
-      setMatches([]);
-      return;
-    }
+    if (query === null) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
       search(query).then(

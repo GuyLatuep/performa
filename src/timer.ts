@@ -87,23 +87,20 @@ export function useElapsedSeconds(timer: ActiveTimer | null): number {
   const startedAt = timer?.startedAt;
   useEffect(() => {
     if (startedAt === undefined) return;
-    setNow(Date.now());
     // Each tick aims at the moment the count actually changes instead of a
     // flat second later. A fixed interval drifts — every wake-up lands a little
     // late and the error accumulates — until the displayed clock visibly skips
     // a second. Re-aiming from the current time each round keeps it honest,
     // and keeps it in step with the tray's copy of the same clock.
     let id: number;
-    const schedule = () => {
-      id = window.setTimeout(
-        () => {
-          setNow(Date.now());
-          schedule();
-        },
-        msToNextSecond(Date.now(), startedAt),
-      );
+    const tick = () => {
+      setNow(Date.now());
+      id = window.setTimeout(tick, msToNextSecond(Date.now(), startedAt));
     };
-    schedule();
+    // The first tick straight away rather than at the next whole second: a
+    // timer started while the clock stood still would otherwise show the old
+    // reading for up to a second.
+    id = window.setTimeout(tick, 0);
     return () => window.clearTimeout(id);
   }, [startedAt]);
   if (!timer) return 0;

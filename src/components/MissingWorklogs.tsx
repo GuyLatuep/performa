@@ -64,6 +64,9 @@ export default function MissingWorklogs({ site }: Props) {
   // emptied by ignoring everything in it.
   useEffect(() => {
     if (lastChecked && items.length === 0 && hidden === 0)
+      // recordEvent writes to the achievement store, so it belongs in an effect,
+      // and what it earned is only known once it has run.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAwards(recordEvent({ kind: "missingEmpty" }));
   }, [items, hidden, lastChecked]);
 

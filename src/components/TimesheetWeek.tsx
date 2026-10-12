@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, WorklogEntry } from "../api";
+import { useResetOn } from "../resetOn";
 import { useShortcut } from "../shortcuts";
 import { useRowSelected, useSelectionScope } from "../selection";
 import { formatDayLabel, formatDuration, weekRange } from "../time";
@@ -33,7 +34,8 @@ function WeekRow(props: Parameters<typeof WorklogRow>[0]) {
 export default function TimesheetWeek({ site }: Props) {
   const [offset, setOffset] = useState(0);
   const [entries, setEntries] = useState<WorklogEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  // True from the start: the first week's load begins on mount.
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<WorklogEntry | null>(null);
   const [repeating, setRepeating] = useState<WorklogEntry | null>(null);
@@ -42,21 +44,30 @@ export default function TimesheetWeek({ site }: Props) {
   const { start, end } = weekRange(offset);
   const filed = useWorklogsFiled();
 
-  const load = useCallback(async () => {
+  /** The read itself, without announcing it — for the effect below, whose
+   *  reset already happened during render. */
+  const fetchWeek = useCallback(
+    (): Promise<void> =>
+      api
+        .listWorklogs(start, end)
+        .then(setEntries, (err) => setError(String(err)))
+        .finally(() => setLoading(false)),
+    [start, end],
+  );
+
+  const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    try {
-      setEntries(await api.listWorklogs(start, end));
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [start, end]);
+    return fetchWeek();
+  }, [fetchWeek]);
 
+  useResetOn(`${start}|${end}|${filed}`, () => {
+    setLoading(true);
+    setError(null);
+  });
   useEffect(() => {
-    load();
-  }, [load, filed]);
+    void fetchWeek();
+  }, [fetchWeek, filed]);
 
   const total = entries.reduce((sum, e) => sum + e.timeSpentSeconds, 0);
 
