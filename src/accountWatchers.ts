@@ -11,6 +11,7 @@ import {
   stopMissingPolling,
   useMissingUnseenCount,
 } from "./missing";
+import { remindAboutDrafts } from "./drafts";
 import { claimSearchesFor } from "./savedSearches";
 import { onWorklogFiled } from "./worklogEvents";
 
@@ -39,6 +40,12 @@ export function useAccountWatchers(creds: CredentialsMeta | null): void {
       unsubscribe();
       stopMissingPolling();
     };
+  }, [signedIn]);
+
+  // Parked time is reminded of once per sign-in, which is once per app start
+  // for anyone who stays signed in: a nudge each time the day begins.
+  useEffect(() => {
+    if (signedIn) remindAboutDrafts();
   }, [signedIn]);
 
   // Same for @-mentions — the tab badge has to be right before it is opened.

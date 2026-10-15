@@ -37,6 +37,7 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: events.listen }));
 
 import { apiMock, resetApiMock, worklogEntry } from "../test-support/api";
 import { ShortcutKeys } from "../test-support/shortcuts";
+import { discardDraft, getDrafts } from "../drafts";
 import {
   doneLogging,
   getTimer,
@@ -83,6 +84,7 @@ beforeEach(() => {
   // The queue of stopped timers lives as long as the module; a form one test
   // left open must not greet the next.
   while (getTimersToLog().length > 0) doneLogging();
+  for (const d of getDrafts()) discardDraft(d.id);
   events.listen.mockClear();
   events.unlisten.mockClear();
   events.reset();
@@ -387,5 +389,52 @@ describe("switching to another issue", () => {
     await userEvent.click(screen.getByRole("button", { name: "Discard" }));
 
     expect(await screen.findByText("Log time — XYZ-2")).toBeDefined();
+  });
+});
+
+describe("Later", () => {
+  it("parks the stopped time as a draft instead of logging it", async () => {
+    runningFor(20);
+    renderBar();
+
+    await userEvent.click(screen.getByRole("button", { name: "Stop" }));
+    await userEvent.click(screen.getByRole("button", { name: "Later" }));
+
+    await waitFor(() => expect(screen.queryByText(/Log time/)).toBeNull());
+    expect(apiMock.logWork).not.toHaveBeenCalled();
+    expect(getDrafts()).toEqual([
+      expect.objectContaining({
+        issueKey: "ABC-1",
+        seconds: 30 * 60,
+        time: "11:40",
+      }),
+    ]);
+  });
+});
+
+describe("a timer without a ticket", () => {
+  it("says so in the bar", () => {
+    vi.setSystemTime(new Date(NOW.getTime() - 5 * 60_000));
+    startTimer(null, "Walk-in request");
+    vi.setSystemTime(NOW);
+
+    renderBar();
+
+    expect(screen.getByText("No ticket")).toBeDefined();
+    expect(screen.getByText("Walk-in request")).toBeDefined();
+  });
+
+  it("goes straight to the drafts on Stop, with no form", async () => {
+    vi.setSystemTime(new Date(NOW.getTime() - 5 * 60_000));
+    startTimer(null, "Walk-in request");
+    vi.setSystemTime(NOW);
+    renderBar();
+
+    await userEvent.click(screen.getByRole("button", { name: "Stop" }));
+
+    expect(screen.queryByText(/Log time/)).toBeNull();
+    expect(getDrafts()).toEqual([
+      expect.objectContaining({ note: "Walk-in request", issueKey: null }),
+    ]);
   });
 });

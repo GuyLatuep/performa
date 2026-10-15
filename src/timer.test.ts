@@ -394,3 +394,100 @@ describe("switching", () => {
     expect(t.getTimersToLog().map((s) => s.timer.issueKey)).toEqual(["XYZ-2"]);
   });
 });
+
+describe("a timer without a ticket", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("parks its time as a draft when stopped", async () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 15, 9, 0) });
+    const t = await freshTimer();
+    const drafts = await import("./drafts");
+    t.startTimer(null, "Printer on 3rd floor");
+    vi.setSystemTime(new Date(2026, 9, 15, 9, 20));
+
+    t.stopForLogging();
+
+    expect(t.getTimer()).toBeNull();
+    // Nothing for the log form: there is no issue to log to.
+    expect(t.getTimersToLog()).toEqual([]);
+    expect(drafts.getDrafts()).toEqual([
+      expect.objectContaining({
+        seconds: 30 * 60,
+        date: "2026-10-15",
+        time: "09:00",
+        note: "Printer on 3rd floor",
+        issueKey: null,
+      }),
+    ]);
+  });
+
+  it("moves no issue in Jira", async () => {
+    const t = await freshTimer();
+    const { api } = await import("./api");
+    const nudge = vi.spyOn(api, "startIssueWork");
+
+    t.startTimer(null, "Walk-in request");
+
+    expect(nudge).not.toHaveBeenCalled();
+  });
+
+  it("survives a restart", async () => {
+    const seed = {
+      issueKey: null,
+      issueSummary: "Walk-in request",
+      segments: [{ from: 1_000, to: null }],
+    };
+    const { getTimer } = await freshTimer(seed);
+    expect(getTimer()).toEqual(seed);
+  });
+
+  it("is switched away from like any other, into a draft", async () => {
+    vi.useFakeTimers({ now: 0 });
+    const t = await freshTimer();
+    const drafts = await import("./drafts");
+    t.startTimer(null, "Walk-in request");
+    vi.setSystemTime(10 * 60_000);
+
+    t.switchTimer("ABC-1", "The ticket");
+
+    expect(t.getTimer()?.issueKey).toBe("ABC-1");
+    expect(t.getTimersToLog()).toEqual([]);
+    expect(drafts.getDrafts()).toHaveLength(1);
+  });
+
+  it("starts a second ticket-less timer as a switch, not a no-op", async () => {
+    const t = await freshTimer();
+    const drafts = await import("./drafts");
+    t.startTimer(null, "First");
+
+    t.switchTimer(null, "Second");
+
+    expect(t.getTimer()?.issueSummary).toBe("Second");
+    expect(drafts.getDrafts().map((d) => d.note)).toEqual(["First"]);
+  });
+});
+
+describe("Later", () => {
+  it("parks a stopped timer with its issue", async () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 15, 14, 0) });
+    const t = await freshTimer();
+    const drafts = await import("./drafts");
+    t.startTimer("ABC-1", "Fix the thing");
+    vi.setSystemTime(new Date(2026, 9, 15, 14, 40));
+    t.stopForLogging();
+
+    t.parkStopped(t.getTimersToLog()[0]);
+
+    expect(drafts.getDrafts()).toEqual([
+      expect.objectContaining({
+        seconds: 45 * 60,
+        time: "14:00",
+        issueKey: "ABC-1",
+        issueSummary: "Fix the thing",
+      }),
+    ]);
+    vi.useRealTimers();
+  });
+});

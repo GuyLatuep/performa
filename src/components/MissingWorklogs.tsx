@@ -24,6 +24,8 @@ import {
 import IssueHistory from "./IssueHistory";
 import { IssueKeyLink, IssueKeyText } from "./IssueKeyLink";
 import MissingRow, { missingRowKey } from "./MissingRow";
+import { DraftBookForm, DraftList } from "./Drafts";
+import { Draft, useDrafts } from "../drafts";
 import { recordEvent } from "../achievements";
 import AchievementToast from "./AchievementToast";
 
@@ -52,6 +54,9 @@ export default function MissingWorklogs({ site }: Props) {
   const lastChecked = useMissingLastChecked();
   const [busy, setBusy] = useState(false);
   const [logging, setLogging] = useState<MissingWorklog | null>(null);
+  // A parked draft being booked — the other kind of thing this tab holds.
+  const [booking, setBooking] = useState<Draft | null>(null);
+  const drafts = useDrafts();
   const [awards, setAwards] = useState<string[]>([]);
 
   // Viewing the tab acknowledges the current findings (stops the blinking).
@@ -81,7 +86,7 @@ export default function MissingWorklogs({ site }: Props) {
   const refreshKeys = useShortcut(
     "refresh",
     refresh,
-    !busy && logging === null,
+    !busy && logging === null && booking === null,
   );
 
   const startLogging = useCallback((item: MissingWorklog) => {
@@ -101,7 +106,20 @@ export default function MissingWorklogs({ site }: Props) {
         if (item) startLogging(item);
       },
     },
-    logging === null,
+    logging === null && booking === null,
+  );
+
+  const startBooking = useCallback((draft: Draft) => {
+    clearForward();
+    setBooking(draft);
+  }, []);
+  const closeBooking = useCallback(() => setBooking(null), []);
+  const reopenBooking = useCallback(() => {
+    if (booking) setBooking(booking);
+  }, [booking]);
+  useBackTarget(
+    { label: "the list", back: closeBooking, forward: reopenBooking },
+    booking !== null,
   );
 
   const closeForm = useCallback(() => setLogging(null), []);
@@ -112,6 +130,17 @@ export default function MissingWorklogs({ site }: Props) {
     { label: "the list", back: closeForm, forward: reopenForm },
     logging !== null,
   );
+
+  if (booking) {
+    return (
+      <DraftBookForm
+        key={booking.id}
+        draft={booking}
+        site={site}
+        onDone={closeBooking}
+      />
+    );
+  }
 
   if (logging) {
     return (
@@ -150,9 +179,15 @@ export default function MissingWorklogs({ site }: Props) {
 
       {error && <p className="error">{error}</p>}
       {!error && !lastChecked && <p className="muted empty">Checking…</p>}
-      {!error && lastChecked && items.length === 0 && hidden === 0 && (
-        <p className="muted empty">Nothing unlogged. All caught up.</p>
-      )}
+      <DraftList onBook={startBooking} />
+
+      {!error &&
+        lastChecked &&
+        items.length === 0 &&
+        hidden === 0 &&
+        drafts.length === 0 && (
+          <p className="muted empty">Nothing unlogged. All caught up.</p>
+        )}
 
       {items.map((item) => (
         <TabMissingRow

@@ -9,6 +9,7 @@ import {
   getTimer,
   isPaused,
   isPlayfulClock,
+  parkStopped,
   pauseTimer,
   resumeTimer,
   StoppedTimer,
@@ -84,7 +85,7 @@ export default function TimerBar() {
         <div className={`timer-bar${paused ? " paused" : ""}`}>
           <span className="timer-dot" aria-hidden="true" />
           <div className="timer-info">
-            <span className="key">{timer.issueKey}</span>
+            <span className="key">{timer.issueKey ?? "No ticket"}</span>
             <span className="summary">{timer.issueSummary}</span>
           </div>
           <span
@@ -111,6 +112,10 @@ export default function TimerBar() {
           key={`${stopping.timer.issueKey}@${timerStartedAt(stopping.timer)}`}
           data={stopping}
           onClose={doneLogging}
+          onLater={() => {
+            parkStopped(stopping);
+            doneLogging();
+          }}
         />
       )}
     </>
@@ -122,10 +127,15 @@ export default function TimerBar() {
 function StopModal({
   data,
   onClose,
+  onLater,
 }: {
   data: StoppedTimer;
   onClose: () => void;
+  /** Park the time as a draft instead of logging it now. */
+  onLater: () => void;
 }) {
+  // Only timers with an issue reach this form; one without is parked on stop.
+  const issueKey = data.timer.issueKey ?? "";
   // When the work began, however often it was paused since.
   const started = new Date(timerStartedAt(data.timer));
   const { draft, patch, seconds } = useWorklogDraft({
@@ -145,7 +155,7 @@ function StopModal({
     setBusy(true);
     setError(null);
     try {
-      await api.logWork(data.timer.issueKey, toWorklogInput(draft, seconds));
+      await api.logWork(issueKey, toWorklogInput(draft, seconds));
       onClose();
     } catch (err) {
       setError(String(err));
@@ -158,7 +168,7 @@ function StopModal({
     // No backdrop-click close here — tracked time shouldn't be lost by accident.
     <div className="modal-backdrop">
       <div className="modal">
-        <h3>Log time — {data.timer.issueKey}</h3>
+        <h3>Log time — {issueKey}</h3>
         <p className="muted modal-sub">{data.timer.issueSummary}</p>
 
         <WorklogFields
@@ -170,7 +180,7 @@ function StopModal({
 
         {error && <p className="error">{error}</p>}
 
-        <IssueHistory issueKey={data.timer.issueKey} />
+        <IssueHistory issueKey={issueKey} />
 
         <div className="row">
           {confirmDiscard ? (
@@ -193,6 +203,13 @@ function StopModal({
                 onClick={() => setConfirmDiscard(true)}
               >
                 Discard
+              </button>
+              <button
+                className="secondary"
+                title="Park the time as a draft and book it later"
+                onClick={onLater}
+              >
+                Later
               </button>
               <button onClick={save} disabled={busy}>
                 {busy ? "Logging…" : "Log work"}

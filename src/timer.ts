@@ -4,6 +4,8 @@ import { api } from "./api";
 import { logDebug, logInfo } from "./log";
 import { persisted } from "./persist";
 import { createStore } from "./store";
+import { addDraft } from "./drafts";
+import { toDateInput, toTimeInput } from "./time";
 
 /** One stretch of running time. `to` is null while it is still running. */
 export interface TimerSegment {
@@ -12,7 +14,10 @@ export interface TimerSegment {
 }
 
 export interface ActiveTimer {
-  issueKey: string;
+  /** Null for a timer started before its ticket exists. Stopping one of those
+   *  parks its time as a draft, with the summary as the note. */
+  issueKey: string | null;
+  /** The issue's summary — or, with no issue, the note it was started with. */
   issueSummary: string;
   /** Oldest first. Only the last one may be open; when none is, the timer is
    *  paused. Never empty. */
@@ -52,7 +57,8 @@ const store = persisted<ActiveTimer | null>(STORAGE_KEY, (stored) => {
       }
     | null
     | undefined;
-  if (!t || typeof t.issueKey !== "string") return null;
+  if (!t || (typeof t.issueKey !== "string" && t.issueKey !== null))
+    return null;
   const segments =
     t.segments !== undefined
       ? parseSegments(t.segments)
@@ -134,9 +140,15 @@ export function getTimer(): ActiveTimer | null {
   return store.get();
 }
 
-export function startTimer(issueKey: string, issueSummary: string): void {
+export function startTimer(
+  issueKey: string | null,
+  issueSummary: string,
+): void {
   save({ issueKey, issueSummary, segments: [{ from: Date.now(), to: null }] });
-  logInfo(`timer started on ${issueKey}`);
+  logInfo(`timer started on ${issueKey ?? "no ticket"}`);
+  // Without a ticket there is nothing to move, and nothing else may be moved
+  // in its place.
+  if (!issueKey) return;
   // Best-effort nudge to "In Arbeit" — must never block or fail the timer.
   // Only on a genuine start, not when a persisted timer is restored on launch.
   // api.startIssueWork already logs its own outcome (incl. failures); nothing
@@ -180,23 +192,51 @@ export interface StoppedTimer {
 // earlier form is still open cannot push that earlier time out.
 const toLog = createStore<StoppedTimer[]>([]);
 
-/** Take the timer off the clock and queue its time for the log form. */
+/** Take the timer off the clock and queue its time for the log form. A timer
+ *  with no issue has nowhere to log to, so its time is parked as a draft
+ *  straight away instead. */
 export function stopForLogging(): void {
   const timer = store.get();
   if (!timer) return;
   const seconds = roundUpToQuarterHour(elapsedSeconds(timer, Date.now()));
   stopTimer();
-  toLog.set([...toLog.get(), { timer, seconds }]);
+  if (timer.issueKey === null) parkStopped({ timer, seconds });
+  else toLog.set([...toLog.get(), { timer, seconds }]);
+}
+
+/** Park a stopped timer's time as a draft rather than logging it now — the
+ *  log form's "Later". */
+export function parkStopped({ timer, seconds }: StoppedTimer): void {
+  const started = new Date(timerStartedAt(timer));
+  addDraft({
+    seconds,
+    date: toDateInput(started),
+    time: toTimeInput(started),
+    note:
+      timer.issueKey === null
+        ? timer.issueSummary || "Timer without a ticket"
+        : "",
+    issueKey: timer.issueKey,
+    issueSummary: timer.issueKey === null ? "" : timer.issueSummary,
+    billable: true,
+  });
 }
 
 /** Start timing `issueKey`, handing any timer already there — running or
  *  paused — to the log form rather than refusing. The new clock starts at
  *  once, so filling in the old one's form costs the new one nothing. */
-export function switchTimer(issueKey: string, issueSummary: string): void {
+export function switchTimer(
+  issueKey: string | null,
+  issueSummary: string,
+): void {
   const current = store.get();
-  if (current?.issueKey === issueKey) return;
+  // Already timing that issue. Two ticket-less timers are two different
+  // pieces of work, though, so a second one does switch.
+  if (current && issueKey !== null && current.issueKey === issueKey) return;
   if (current) {
-    logInfo(`timer switched from ${current.issueKey} to ${issueKey}`);
+    logInfo(
+      `timer switched from ${current.issueKey ?? "no ticket"} to ${issueKey ?? "no ticket"}`,
+    );
     stopForLogging();
   }
   startTimer(issueKey, issueSummary);

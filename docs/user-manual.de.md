@@ -18,6 +18,7 @@ performa ist eine kleine Desktop-App (macOS + Windows) zum Erfassen deiner Arbei
 - [System-Tray / Menüleiste](#system-tray--menüleiste)
 - [Timesheet](#timesheet)
 - [Missing Worklogs](#missing-worklogs)
+- [Geparkte Zeit (Drafts)](#geparkte-zeit-drafts)
 - [Erwähnungen](#erwähnungen)
 - [Vorlagen](#vorlagen)
 - [Einstellungen](#einstellungen)
@@ -414,7 +415,7 @@ Mit **Stop** (in der Timer-Leiste oder im Tray) beendest du ihn. Das Erfassungsf
 - **Time spent**, vorbelegt mit der verstrichenen Zeit, **aufgerundet auf die nächsten 15 Minuten** (mindestens 15 Minuten) — vor dem Speichern frei änderbar. Pausen zählen nicht mit, und aufgerundet wird einmal auf die Summe, damit ein Tag mit vielen kurzen Pausen keine zusätzlichen Viertelstunden ergibt.
 - **Datum und Startzeit**, vorbelegt mit dem ersten Start des Timers — nicht mit dem letzten Fortsetzen.
 
-Du kannst das Worklog vervollständigen (Kommentar, Abrechenbarkeit) und speichern — oder die erfasste Zeit mit **Discard** verwerfen; das Verwerfen fragt nach Bestätigung, weil die Zeit sonst verloren wäre.
+Du kannst das Worklog vervollständigen (Kommentar, Abrechenbarkeit) und speichern, die erfasste Zeit mit **Discard** verwerfen — das Verwerfen fragt nach Bestätigung, weil die Zeit sonst verloren wäre — oder mit **Later** [als Draft parken](#geparkte-zeit-drafts) und buchen, wenn du dazu kommst.
 
 > Der Timer basiert auf der Uhrzeit (Wanduhr) und überlebt App-Neustarts: Beendest du die App mit laufendem Timer (siehe [Schutz beim Beenden](#schutz-beim-beenden)) und öffnest sie später wieder, läuft der Timer mit der korrekten Gesamtzeit weiter.
 
@@ -480,6 +481,49 @@ Jeder Fund zeigt:
 Ein Klick auf einen Fund öffnet ein Inline-Erfassungsformular, vorbelegt mit **Datum und Uhrzeit der gemeldeten Aktivität** — das entstehende Worklog deckt sie ab, und die Erinnerung verschwindet bei der nächsten Prüfung.
 
 > **Eskalationsvorgänge:** Bei Vorgängen im Projekt `DEV` wird die Zeit stattdessen auf dem **verknüpften Ursprungsvorgang** erfasst (dem Vorgang mit der Verknüpfung „is an escalation for“) — allerdings nur, wenn dieser Ursprungsvorgang dir selbst zugewiesen ist. Auf dem Ticket einer Kollegin oder eines Kollegen landet deine Zeit nie: Gehört der Ursprungsvorgang jemand anderem oder niemandem, bleibt die Zeit auf dem `DEV`-Vorgang, an dem du tatsächlich gearbeitet hast. Das Formular zeigt beide Vorgänge, damit immer klar ist, wohin die Zeit geht. Steht der Ursprungsvorgang selbst schon auf der Liste, entfällt die `DEV`-Zeile — ein Worklog räumt ohnehin beide ab, und zwei Zeilen für dieselbe Arbeit sind nur Rauschen.
+
+## Geparkte Zeit (Drafts)
+
+Manchmal kommt die Arbeit vor dem Ticket — jemand steht mit einem Problem in der
+Tür, und das Ticket kommt einen Tag später, wenn überhaupt. **Geparkte Zeit**
+hält diese Zeit fest, bis es einen Ort gibt, sie zu buchen: eine Dauer, wann es
+war, eine Notiz, worum es ging, und — sobald bekannt — der Vorgang, auf den sie
+gehört.
+
+Ein Draft ist kein [Missing Worklog](#missing-worklogs). Die werden beim Scannen
+von Jira *gefunden*; einen Draft legst *du* an, deshalb verschwindet er nie von
+selbst. Er geht, wenn du ihn vollständig gebucht hast oder ihn verwirfst (mit
+Rückfrage).
+
+**Zeit parken:**
+
+- **Park time…** in der [Befehlspalette](#die-befehlspalette) öffnet das
+  Park-Formular: Dauer, Datum, Startzeit, eine Notiz und optional der Vorgang.
+- Findet eine Suche in der Vorgangsauswahl nichts, bietet die Liste **No ticket
+  yet — park it** an, mit dem Suchbegriff als Notiz.
+- **Start a timer without a ticket** in der Palette startet einen Timer, der zu
+  keinem Vorgang gehört — er fragt, woran du arbeitest, und das Tray zeigt ihn
+  als `▶ No ticket 12:34`. Beim Stoppen wird seine Zeit sofort geparkt, ohne
+  Formular.
+- Das Erfassungsfenster, das sich bei **Stop** oder beim [Wechseln](#der-timer)
+  öffnet, hat einen Button **Later**: Die Zeit wird geparkt statt erfasst.
+
+**Wo sie wartet:** in einem eigenen Abschnitt **Parked time** oben im Tab
+[Missing worklog](#missing-worklogs), mit der noch zu buchenden Summe. Drafts
+zählen zur Markierung am Tab, und bei jeder Anmeldung — normalerweise bei jedem
+App-Start — meldet eine Desktop-Benachrichtigung, wie viel noch geparkt ist.
+Ein Draft, der eine Woche oder länger wartet, wird bernsteinfarben und sagt, wie
+lange schon.
+
+**Buchen:** **Book** öffnet das normale Erfassungsformular, vorbelegt aus dem
+Draft — seine Notiz wird zum Worklog-Kommentar. Ein Draft ohne Vorgang fragt
+zuerst nach einem. Buchst du weniger als alles, bleibt der Rest geparkt und
+beginnt dort, wo der gebuchte Teil endete: So verteilst du eine Zeitspanne auf
+mehrere Vorgänge. **Edit** öffnet das Park-Formular für den Draft; **Discard**
+entfernt ihn nach einer Bestätigung.
+
+Drafts liegen nur auf diesem Rechner, wie deine übrigen Einstellungen, und
+nichts davon erreicht Jira, bevor du sie buchst.
 
 ## Erwähnungen
 

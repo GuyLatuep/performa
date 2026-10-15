@@ -18,6 +18,7 @@ performa is a small desktop app (macOS + Windows) for logging your work hours on
 - [System tray / menu bar](#system-tray--menu-bar)
 - [Timesheet](#timesheet)
 - [Missing worklogs](#missing-worklogs)
+- [Parked time (drafts)](#parked-time-drafts)
 - [Mentions](#mentions)
 - [Templates](#templates)
 - [Settings](#settings)
@@ -401,7 +402,7 @@ Press **Stop** (in the timer bar or the tray) to finish. The log modal opens wit
 - **Time spent** prefilled with the elapsed time, **rounded up to the next 15 minutes** (minimum 15 minutes) — you can edit it freely before saving. Paused stretches are left out, and the rounding is applied once to the total, so a day of short breaks does not add up to extra quarter hours.
 - **Date and start time** prefilled from when the timer was first started — not from the last resume.
 
-You can complete the worklog (comment, billability) and save, or **Discard** the tracked time — discarding asks for confirmation, because the time would be lost.
+You can complete the worklog (comment, billability) and save, **Discard** the tracked time — discarding asks for confirmation, because the time would be lost — or press **Later** to [park it as a draft](#parked-time-drafts) and book it when you have the moment.
 
 > The timer is based on wall-clock time and survives app restarts: if you quit with a timer running (see [Close protection](#close-protection)) and reopen the app later, the timer resumes with the correct total elapsed time.
 
@@ -467,6 +468,46 @@ Each finding shows:
 Clicking a finding opens an inline log form, prefilled with the **date and time of the flagged activity**, so the resulting worklog covers it and the reminder clears on the next check.
 
 > **Escalation issues:** for issues in the `DEV` project, the time is logged on the **linked escalation-source issue** instead (the issue linked as "is an escalation for") — but only when that source issue is assigned to you. Somebody else's ticket never receives your hours: if the source belongs to a colleague or to nobody, the time stays on the `DEV` issue you were actually working. The form shows both issues so it's always clear where the time goes. When the source issue is on the list in its own right, the `DEV` row is left out — one worklog would clear both, and two rows for the same piece of work only add noise.
+
+## Parked time (drafts)
+
+Sometimes the work comes before the ticket — somebody walks up with a problem,
+and the ticket arrives a day later, if at all. **Parked time** holds that time
+until there is somewhere to book it: a duration, when it happened, a note on
+what it was, and — once known — the issue it belongs on.
+
+A draft is not a [missing worklog](#missing-worklogs). Those are *found* by
+scanning Jira; a draft is something *you* put down, so it never disappears on
+its own. It goes when you have booked all of it, or when you discard it (which
+asks first).
+
+**Parking time:**
+
+- **Park time…** in the [command palette](#the-command-palette) opens the park
+  form: duration, date, start time, a note and, optionally, the issue.
+- When a search in the issue picker finds nothing, the list offers **No ticket
+  yet — park it**, with what you searched for as the note.
+- **Start a timer without a ticket** in the palette starts a timer that belongs
+  to no issue — it asks what you are working on, and the tray shows it as
+  `▶ No ticket 12:34`. Stopping it parks its time straight away, without a form.
+- The log form that opens on **Stop** or on a [switch](#the-timer) has a
+  **Later** button: the time is parked instead of logged.
+
+**Where it waits:** in its own **Parked time** section at the top of the
+[Missing worklog](#missing-worklogs) tab, with the total still to book. Drafts
+count towards the tab's badge, and every time you sign in — normally, every
+time the app starts — a desktop notification says how much is still parked.
+A draft that has waited a week or more turns amber and says how long.
+
+**Booking it:** **Book** opens the ordinary log form, filled in from the draft —
+its note becomes the worklog comment. A draft without an issue asks for one
+first. Book less than the whole and the rest stays parked, starting where the
+booked part ended: that is how one stretch is split across several issues.
+**Edit** opens the park form on the draft; **Discard** removes it after a
+confirmation.
+
+Drafts are kept on this computer only, like your other settings, and nothing
+about them reaches Jira until you book them.
 
 ## Mentions
 

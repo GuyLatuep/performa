@@ -166,7 +166,8 @@ export default function CommandPalette() {
           <p className="command-hint">
             {argument === null
               ? `${asking.prompt.title} — e.g. ${asking.prompt.placeholder}`
-              : `Press Enter to search for ${argument}`}
+              : (asking.prompt.confirm?.(argument) ??
+                `Press Enter to search for ${argument}`)}
           </p>
         ) : matches.length === 0 ? (
           <p className="muted empty">Nothing matches.</p>

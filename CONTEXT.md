@@ -35,6 +35,23 @@ badge — but they are **not two kinds of one thing**. One is an incoming
 request to look at; the other is a reminder about your own past. Keeping them
 apart is intentional; do not merge them behind a shared concept.
 
+## Draft worklog
+
+Time **you put down** as owed to Jira but not booked yet: a duration, when it
+happened, a note on what it was, and — once known — the issue it belongs on.
+
+A Draft worklog means *you know you worked, and have not booked it*. Usually
+the ticket did not exist yet, or there was no moment to fill in a form. The
+expected response is to book it, possibly in parts, possibly on several
+issues.
+
+A Draft worklog is **not** a Missing worklog, though both wait in the same
+place. A Missing worklog is *found* — the app guesses at it from activity in
+Jira, and it disappears when the guess no longer holds. A Draft worklog is
+*made* — you stated it, so it only ever goes when you book all of it or throw
+it away. Showing them side by side is about where unbooked time waits, not a
+claim that they are one thing.
+
 ## Comment
 
 Something a person wrote on an issue. Distinct from a **Mention**, which is

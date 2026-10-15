@@ -64,6 +64,8 @@ interface Props {
   patch: (p: Partial<WorklogDraft>) => void;
   seconds: number | null;
   durationLabel?: string;
+  /** The park form keeps a draft's note in the comment box. */
+  commentLabel?: string;
   /** Keep Tab on the straight path duration → comment → submit, leaving the
    *  fields that usually stay at their default (date, start time, billability,
    *  the quick-add buttons) reachable by click or shift-tab only. */
@@ -75,6 +77,7 @@ export function WorklogFields({
   patch,
   seconds,
   durationLabel = "Time spent",
+  commentLabel = "Comment (optional)",
   fastTabOrder = false,
 }: Props) {
   const skip = fastTabOrder ? -1 : undefined;
@@ -137,7 +140,7 @@ export function WorklogFields({
       </div>
 
       <label>
-        Comment (optional)
+        {commentLabel}
         <textarea
           rows={3}
           value={draft.comment}
