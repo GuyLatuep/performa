@@ -331,11 +331,24 @@ export function parkAway(from: number, to: number): void {
 }
 
 /** Idle time, answered "I was done": the timer ends where the user left, and
- *  the log form opens with only the time before that. */
+ *  the log form opens with only the time before that. When less than a
+ *  minute is left there is nothing to log: the timer just ends, rather than
+ *  the quarter-hour minimum turning nothing into fifteen minutes. */
 export function stopAtAway(from: number): void {
   const timer = store.get();
   if (!timer) return;
-  save({ ...timer, segments: removeInterval(timer.segments, from, Infinity) });
+  const kept = {
+    ...timer,
+    segments: removeInterval(timer.segments, from, Infinity),
+  };
+  if (elapsedSeconds(kept, Date.now()) < 60) {
+    logInfo(
+      `timer on ${timer.issueKey ?? "no ticket"} ended with no time left`,
+    );
+    stopTimer();
+    return;
+  }
+  save(kept);
   stopForLogging();
 }
 

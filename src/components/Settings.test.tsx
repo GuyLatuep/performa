@@ -53,6 +53,7 @@ const stores = vi.hoisted(() => ({
   setShowWeekends: vi.fn(),
   setShowIssueTypeIcons: vi.fn(),
   setLogLevel: vi.fn(),
+  setIdleMinutes: vi.fn(),
   setIgnoredStatuses: vi.fn(),
 }));
 vi.mock("../theme", () => ({
@@ -82,6 +83,8 @@ vi.mock("../settings", () => ({
   getShowWeekends: () => true,
   getShowIssueTypeIcons: () => false,
   getLogLevel: () => "debug",
+  getIdleMinutes: () => 25,
+  setIdleMinutes: stores.setIdleMinutes,
   setShowWeekends: stores.setShowWeekends,
   setShowIssueTypeIcons: stores.setShowIssueTypeIcons,
   setLogLevel: stores.setLogLevel,
@@ -245,6 +248,7 @@ describe("save and cancel", () => {
     expect(stores.setShowWeekends).toHaveBeenCalledWith(true);
     expect(stores.setShowIssueTypeIcons).toHaveBeenCalledWith(false);
     expect(stores.setLogLevel).toHaveBeenCalledWith("debug");
+    expect(stores.setIdleMinutes).toHaveBeenCalledWith(25);
     expect(stores.setIgnoredStatuses).toHaveBeenCalledWith(["Done"]);
     expect(onCancel).toHaveBeenCalledTimes(1);
   });

@@ -211,6 +211,14 @@ describe("idle time", () => {
     expect(settings.setIdleMinutes).toHaveBeenLastCalledWith(0);
   });
 
+  it("does not switch the watch off while the box is cleared to retype", async () => {
+    render(<SettingsTimesheet />);
+
+    await userEvent.clear(idleField());
+
+    expect(settings.setIdleMinutes).not.toHaveBeenCalled();
+  });
+
   it("snaps back to the stored value when the field is left", async () => {
     render(<SettingsTimesheet />);
 

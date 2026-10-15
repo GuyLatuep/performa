@@ -4,9 +4,11 @@ import { CredentialsMeta } from "../api";
 import { useBackTarget } from "../back";
 import { useShortcut } from "../shortcuts";
 import {
+  getIdleMinutes,
   getLogLevel,
   getShowIssueTypeIcons,
   getShowWeekends,
+  setIdleMinutes,
   setLogLevel,
   setShowIssueTypeIcons,
   setShowWeekends,
@@ -72,8 +74,8 @@ export default function Settings({
     initialTab ?? (existing ? "appearance" : "connection"),
   );
 
-  // Theme, accent, text size, hours, holidays, weekend toggle, type icons and
-  // log level apply instantly (live preview), so keep a snapshot from when the screen
+  // Theme, accent, text size, hours, holidays, weekend toggle, type icons, idle
+  // time and log level apply instantly (live preview), so keep a snapshot from when the screen
   // opened and restore it on Cancel.
   const snapshot = useRef({
     theme: getTheme(),
@@ -84,6 +86,7 @@ export default function Settings({
     weekends: getShowWeekends(),
     typeIcons: getShowIssueTypeIcons(),
     logLevel: getLogLevel(),
+    idleMinutes: getIdleMinutes(),
     ignoredStatuses: getIgnoredStatuses(),
   });
 
@@ -96,6 +99,7 @@ export default function Settings({
     setShowWeekends(snapshot.current.weekends);
     setShowIssueTypeIcons(snapshot.current.typeIcons);
     setLogLevel(snapshot.current.logLevel);
+    setIdleMinutes(snapshot.current.idleMinutes);
     setIgnoredStatuses(snapshot.current.ignoredStatuses);
     onCancel?.();
   }

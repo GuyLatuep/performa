@@ -586,6 +586,18 @@ describe("cutting idle time out", () => {
     ]);
   });
 
+  it("Discard & stop with nothing left ends the timer without inventing time", async () => {
+    // Left right after starting: the quarter-hour minimum must not turn
+    // seconds into a fifteen-minute form or draft.
+    const { t, drafts } = await timingSince(0, 3600_000);
+
+    t.stopAtAway(20_000);
+
+    expect(t.getTimer()).toBeNull();
+    expect(t.getTimersToLog()).toEqual([]);
+    expect(drafts.getDrafts()).toEqual([]);
+  });
+
   it("Discard & stop: the log form gets only the time before leaving", async () => {
     const { t } = await timingSince(0, 3 * 3600_000);
 

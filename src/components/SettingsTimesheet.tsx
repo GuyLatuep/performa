@@ -71,7 +71,11 @@ export default function SettingsTimesheet() {
             value={idle}
             onChange={(e) => {
               setIdle(e.target.value);
-              setIdleMinutes(Number(e.target.value));
+              // An emptied box is somebody about to type, not a request to
+              // switch the watch off; the store ignores anything it can't
+              // take, and the box snaps back on blur.
+              if (e.target.value.trim() !== "")
+                setIdleMinutes(Number(e.target.value));
             }}
             onBlur={() => setIdle(String(getIdleMinutes()))}
           />
