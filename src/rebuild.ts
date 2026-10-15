@@ -1,4 +1,4 @@
-import { api, DayEvidence, WorklogEntry } from "./api";
+import { api, DayActivity, DayEvidence, WorklogEntry } from "./api";
 import { Draft } from "./drafts";
 import { toDateInput, toTimeInput, today } from "./time";
 import { ActiveTimer } from "./timer";
@@ -21,9 +21,9 @@ export function canRebuild(date: string, now: string = today()): boolean {
 
 // Per day, for the session: what a past day holds in Jira hardly moves, and
 // opening the same day twice should not cost the searches twice.
-const cache = new Map<string, Promise<DayEvidence[]>>();
+const cache = new Map<string, Promise<DayActivity>>();
 
-export function loadDayActivity(date: string): Promise<DayEvidence[]> {
+export function loadDayActivity(date: string): Promise<DayActivity> {
   let hit = cache.get(date);
   if (!hit) {
     hit = api.dayActivity(date);

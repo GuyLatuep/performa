@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DayEvidence, WorklogEntry } from "../api";
+import { DayActivity, DayEvidence, WorklogEntry } from "../api";
 import { useDrafts } from "../drafts";
 import { dayTimeline, loadDayActivity, TimelineItem } from "../rebuild";
 import { formatDayLabel, formatDuration, toTimeInput } from "../time";
@@ -37,7 +37,7 @@ export default function DayRebuild({
   onClose,
   onLogged,
 }: Props) {
-  const [evidence, setEvidence] = useState<DayEvidence[] | null>(null);
+  const [activity, setActivity] = useState<DayActivity | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [logging, setLogging] = useState<DayEvidence | null>(null);
   const timer = useTimer();
@@ -47,7 +47,7 @@ export default function DayRebuild({
   useEffect(() => {
     let current = true;
     loadDayActivity(date).then(
-      (found) => current && setEvidence(found),
+      (found) => current && setActivity(found),
       (err) => current && setError(String(err)),
     );
     return () => {
@@ -59,6 +59,7 @@ export default function DayRebuild({
   const booked = worklogs
     .filter((w) => w.date === date)
     .reduce((sum, w) => sum + w.timeSpentSeconds, 0);
+  const evidence = activity?.evidence ?? null;
   const items = evidence
     ? dayTimeline(date, { evidence, worklogs, timer, drafts })
     : [];
@@ -78,14 +79,24 @@ export default function DayRebuild({
           {formatDuration(booked)} booked
           {info.target > 0 && ` of ${formatDuration(info.target)}`}
           {info.label && ` · ${info.label}`}
-          {evidence &&
+          {activity &&
             (unlogged.length > 0
               ? ` · ${unlogged.length} thing${unlogged.length === 1 ? "" : "s"} you did with no time booked`
-              : " · everything you did has time on it")}
+              : activity.complete
+                ? " · everything you did has time on it"
+                : " · everything found has time on it")}
         </p>
 
         {error && <p className="error">{error}</p>}
         {!evidence && !error && <p className="muted">Reading the day…</p>}
+        {activity && !activity.complete && (
+          // Said plainly rather than left to be guessed from a short list:
+          // a capped read looks exactly like a quiet day.
+          <p className="hint">
+            Jira had more than this view reads for the day, so some of what you
+            did may be missing.
+          </p>
+        )}
         {evidence && items.length === 0 && (
           <p className="muted empty">Nothing found for this day.</p>
         )}

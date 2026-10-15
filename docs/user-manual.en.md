@@ -496,6 +496,12 @@ offers **Log…**: the ordinary log form, filled in with that issue, that day an
 that moment. Nothing is booked for you — the view never fills a gap on its
 own, because it knows what you did, not how long it took.
 
+Comments can't be searched by author in Jira, so the view finds them on the
+issues you have recently viewed, watch, are assigned or reported. On a very
+busy day, or one a few weeks back, Jira can hold more than the view reads; it
+then says that **some of what you did may be missing** rather than calling the
+day complete.
+
 ## Missing worklogs
 
 The **Missing worklog** tab is a safety net for forgotten time entries.

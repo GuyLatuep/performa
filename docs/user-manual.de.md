@@ -512,6 +512,13 @@ Erfassungsformular, vorbelegt mit diesem Vorgang, diesem Tag und diesem
 Zeitpunkt. Gebucht wird nichts für dich — die Ansicht füllt keine Lücke von
 selbst, denn sie weiß, was du getan hast, nicht wie lange es gedauert hat.
 
+Kommentare lassen sich in Jira nicht nach Verfasser durchsuchen; die Ansicht
+findet sie daher auf Vorgängen, die du zuletzt angesehen hast, beobachtest, dir
+zugewiesen sind oder die du gemeldet hast. An einem sehr vollen Tag oder einem,
+der ein paar Wochen zurückliegt, kann Jira mehr enthalten, als die Ansicht
+liest; dann sagt sie, dass **einiges fehlen kann**, statt den Tag für
+vollständig zu erklären.
+
 ## Missing Worklogs
 
 Der Tab **Missing worklog** ist ein Sicherheitsnetz gegen vergessene Zeiteinträge.

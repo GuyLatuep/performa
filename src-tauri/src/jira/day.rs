@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use super::adf::adf_to_text;
 use super::stamps::{format_rfc3339_local, parse_jira_ts};
-use super::{JiraClient, MAX_INFLIGHT};
+use super::{JiraClient, COMMENT_PAGE_LIMIT, MAX_INFLIGHT};
 
 /// One thing the user did on one issue that day.
 #[derive(Serialize, Debug, Clone, PartialEq)]
@@ -38,10 +38,22 @@ pub struct DayEvidence {
     ts: i64,
 }
 
+/// A day's evidence, and whether it is all there was to find.
+#[derive(Serialize, Debug)]
+pub struct DayActivity {
+    pub evidence: Vec<DayEvidence>,
+    /// False when a search, a comment page or a changelog page held more than
+    /// was read and may have left out some of the day. The view says so
+    /// rather than calling the day complete.
+    pub complete: bool,
+}
+
 #[derive(Deserialize)]
 struct CreatedResp {
     #[serde(default)]
     issues: Vec<CreatedIssue>,
+    #[serde(rename = "nextPageToken", default)]
+    next_page_token: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -59,9 +71,11 @@ struct CreatedFields {
     created: String,
 }
 
-/// How many issues each search may return. A day is a day: past this many,
-/// the view is not the tool for it anyway.
-const PER_SEARCH: u32 = 50;
+/// How many issues each search may return — the most one page of the search
+/// API gives with fields. Past this, the result says it may be incomplete.
+const PER_SEARCH: u32 = 100;
+/// The changelog page size `recent_changelog` reads, newest page only.
+const CHANGELOG_PAGE: usize = 100;
 const EXCERPT_CHARS: usize = 140;
 
 /// `[start, end)` of `day` on this machine's clock, in epoch seconds.
@@ -89,11 +103,7 @@ fn excerpt(text: &str) -> String {
 impl JiraClient {
     /// What the user did in Jira on `date` (yyyy-MM-dd, this machine's day),
     /// oldest first.
-    pub async fn day_activity(
-        &self,
-        account_id: &str,
-        date: &str,
-    ) -> Result<Vec<DayEvidence>, String> {
+    pub async fn day_activity(&self, account_id: &str, date: &str) -> Result<DayActivity, String> {
         let day = NaiveDate::parse_from_str(date, "%Y-%m-%d")
             .map_err(|_| format!("invalid date '{date}'"))?;
         let (from, to) = local_day_bounds(day)?;
@@ -122,14 +132,24 @@ impl JiraClient {
         let touched_jql = format!(
             "updated >= \"{before}\" AND (issue in issueHistory() \
              OR watcher = currentUser() OR assignee = currentUser() \
-             OR reporter = currentUser()) ORDER BY updated DESC"
+             OR reporter = currentUser()) ORDER BY updated ASC"
         );
-        let (status_issues, assigned_issues, created, touched) = futures_util::try_join!(
-            self.search_issues_dated(&status_jql, PER_SEARCH),
-            self.search_issues_dated(&assigned_jql, PER_SEARCH),
+        // Oldest-updated first: for a day some weeks back, the issues last
+        // touched around it are the likeliest to hold its comments, and the
+        // ones busy since are the ones a full page would push out.
+        let (
+            (status_issues, status_more),
+            (assigned_issues, assigned_more),
+            created,
+            (touched, touched_more),
+        ) = futures_util::try_join!(
+            self.search_issues_dated_page(&status_jql, PER_SEARCH),
+            self.search_issues_dated_page(&assigned_jql, PER_SEARCH),
             self.get_json::<CreatedResp>("/rest/api/3/search/jql", &created_query, "search"),
-            self.search_issues_dated(&touched_jql, PER_SEARCH),
+            self.search_issues_dated_page(&touched_jql, PER_SEARCH),
         )?;
+        let mut complete =
+            !(status_more || assigned_more || touched_more || created.next_page_token.is_some());
 
         let mut found: Vec<DayEvidence> = Vec::new();
         for issue in created.issues {
@@ -164,7 +184,7 @@ impl JiraClient {
                 .or_insert((issue.summary, issue.updated));
         }
 
-        let per_issue: Vec<Vec<DayEvidence>> = stream::iter(candidates)
+        let per_issue: Vec<(Vec<DayEvidence>, bool)> = stream::iter(candidates)
             .map(|(key, (summary, updated))| {
                 let needs_changelog = changed.contains(&key);
                 async move {
@@ -178,6 +198,24 @@ impl JiraClient {
                             }
                         },
                     )?;
+                    // A full page that does not reach back to the start of
+                    // the day may have cut some of it off.
+                    let reaches_back = |stamps: Vec<i64>, page: usize| {
+                        stamps.len() < page || stamps.iter().min().is_some_and(|t| *t < from)
+                    };
+                    let whole = reaches_back(
+                        comments
+                            .iter()
+                            .filter_map(|c| parse_jira_ts(&c.created))
+                            .collect(),
+                        COMMENT_PAGE_LIMIT,
+                    ) && reaches_back(
+                        changes
+                            .iter()
+                            .filter_map(|e| parse_jira_ts(&e.created))
+                            .collect(),
+                        CHANGELOG_PAGE,
+                    );
                     let mut out = Vec::new();
                     let evidence = |kind: &str, ts: i64, detail: String| DayEvidence {
                         kind: kind.to_string(),
@@ -231,16 +269,22 @@ impl JiraClient {
                             }
                         }
                     }
-                    Ok::<_, String>(out)
+                    Ok::<_, String>((out, whole))
                 }
             })
             .buffer_unordered(MAX_INFLIGHT)
             .try_collect()
             .await?;
 
-        found.extend(per_issue.into_iter().flatten());
+        for (evidence, whole) in per_issue {
+            found.extend(evidence);
+            complete &= whole;
+        }
         found.sort_by(|a, b| a.ts.cmp(&b.ts).then(a.issue_key.cmp(&b.issue_key)));
-        Ok(found)
+        Ok(DayActivity {
+            evidence: found,
+            complete,
+        })
     }
 }
 
@@ -333,7 +377,8 @@ mod tests {
         let found = client_for(&server)
             .day_activity(ME, DAY)
             .await
-            .expect("read");
+            .expect("read")
+            .evidence;
 
         let summary: Vec<(&str, &str)> = found
             .iter()
@@ -365,7 +410,8 @@ mod tests {
         let found = client_for(&server)
             .day_activity(ME, DAY)
             .await
-            .expect("read");
+            .expect("read")
+            .evidence;
 
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].kind, "assigned");
@@ -387,7 +433,8 @@ mod tests {
         let found = client_for(&server)
             .day_activity(ME, DAY)
             .await
-            .expect("read");
+            .expect("read")
+            .evidence;
 
         assert_eq!(found.len(), 1);
         assert_eq!(
@@ -420,6 +467,60 @@ mod tests {
         assert!(jqls.iter().any(|q| q
             .contains("status CHANGED BY currentUser() DURING (\"2026-03-09\", \"2026-03-12\")")));
         assert!(jqls.iter().any(|q| q.contains("creator = currentUser()")));
+    }
+
+    #[tokio::test]
+    async fn calls_a_small_day_complete() {
+        let server = site(json!([]), json!([]), json!([])).await;
+
+        let day = client_for(&server)
+            .day_activity(ME, DAY)
+            .await
+            .expect("read");
+
+        assert!(day.complete);
+    }
+
+    #[tokio::test]
+    async fn says_so_when_a_full_comment_page_may_hide_part_of_the_day() {
+        // A busy issue: the newest page is full and all of it is from the day
+        // itself, so earlier comments that day may sit on the next page.
+        let page: Vec<_> = (0..COMMENT_PAGE_LIMIT)
+            .map(|i| {
+                json!({
+                    "id": i.to_string(),
+                    "created": at(DAY, 20, (i % 60) as u32),
+                    "author": { "accountId": "other" },
+                    "body": adf("busy"),
+                })
+            })
+            .collect();
+        let server = site(json!(page), json!([]), json!([])).await;
+
+        let day = client_for(&server)
+            .day_activity(ME, DAY)
+            .await
+            .expect("read");
+
+        assert!(!day.complete);
+    }
+
+    #[tokio::test]
+    async fn says_so_when_a_search_had_more_to_give() {
+        let server = MockServer::start().await;
+        mount_get(
+            &server,
+            "/rest/api/3/search/jql",
+            json!({ "issues": [], "nextPageToken": "more" }),
+        )
+        .await;
+
+        let day = client_for(&server)
+            .day_activity(ME, DAY)
+            .await
+            .expect("read");
+
+        assert!(!day.complete);
     }
 
     #[tokio::test]

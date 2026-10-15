@@ -16,6 +16,12 @@ import DayRebuild from "./DayRebuild";
 
 const DAY = "2026-03-10";
 
+/** What Jira answers for a day: the evidence, all of it unless said. */
+const day = (evidence: DayEvidence[], complete = true) => ({
+  evidence,
+  complete,
+});
+
 const evidence = (o: Partial<DayEvidence> = {}): DayEvidence => ({
   kind: "comment",
   issueKey: "ABC-1",
@@ -46,10 +52,12 @@ beforeEach(() => {
 
 describe("rebuilding a day", () => {
   it("shows what was done next to what was booked", async () => {
-    apiMock.dayActivity.mockResolvedValue([
-      evidence(),
-      evidence({ kind: "status", issueKey: "XYZ-9", detail: "Open → Done" }),
-    ]);
+    apiMock.dayActivity.mockResolvedValue(
+      day([
+        evidence(),
+        evidence({ kind: "status", issueKey: "XYZ-9", detail: "Open → Done" }),
+      ]),
+    );
 
     renderDay([worklogEntry({ date: DAY, issueKey: "XYZ-9", time: "16:00" })]);
 
@@ -67,7 +75,7 @@ describe("rebuilding a day", () => {
   });
 
   it("logs a gap through the ordinary form, at that moment", async () => {
-    apiMock.dayActivity.mockResolvedValue([evidence()]);
+    apiMock.dayActivity.mockResolvedValue(day([evidence()]));
     apiMock.logWork.mockResolvedValue(undefined);
     const { onLogged } = renderDay();
 
@@ -91,6 +99,16 @@ describe("rebuilding a day", () => {
     expect(onLogged).toHaveBeenCalled();
   });
 
+  it("does not call the day whole when Jira had more than was read", async () => {
+    apiMock.dayActivity.mockResolvedValue(day([], false));
+    renderDay();
+
+    expect(
+      await screen.findByText(/some of what you did may be missing/),
+    ).toBeDefined();
+    expect(screen.queryByText(/everything you did has time on it/)).toBeNull();
+  });
+
   it("says so when Jira has nothing for the day", async () => {
     renderDay();
     expect(
@@ -105,7 +123,7 @@ describe("rebuilding a day", () => {
   });
 
   it("books nothing on its own", async () => {
-    apiMock.dayActivity.mockResolvedValue([evidence()]);
+    apiMock.dayActivity.mockResolvedValue(day([evidence()]));
     const { onClose } = renderDay();
 
     await screen.findByText(/swapped the seal/);

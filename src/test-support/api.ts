@@ -226,7 +226,7 @@ function defaultAnswers(): Partial<Record<MethodName, unknown>> {
     jiraFieldNames: [],
     linkRelations: [],
     missingWorklogs: [],
-    dayActivity: [],
+    dayActivity: { evidence: [], complete: true },
     mentions: mentionScan(),
     issueDetail: issueDetail(),
     issueActivity: issueActivity(),

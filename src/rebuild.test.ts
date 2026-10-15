@@ -16,6 +16,12 @@ import {
 
 const DAY = "2026-03-10";
 
+/** What Jira answers for a day: the evidence, all of it unless said. */
+const day = (evidence: DayEvidence[], complete = true) => ({
+  evidence,
+  complete,
+});
+
 const evidence = (o: Partial<DayEvidence> = {}): DayEvidence => ({
   kind: "comment",
   issueKey: "ABC-1",
@@ -125,7 +131,7 @@ describe("dayTimeline", () => {
 
 describe("loadDayActivity", () => {
   it("asks Jira once per day for the session", async () => {
-    apiMock.dayActivity.mockResolvedValue([evidence()]);
+    apiMock.dayActivity.mockResolvedValue(day([evidence()]));
 
     await loadDayActivity(DAY);
     await loadDayActivity(DAY);
@@ -138,8 +144,8 @@ describe("loadDayActivity", () => {
     apiMock.dayActivity.mockRejectedValueOnce(new Error("Jira returned 503"));
     await expect(loadDayActivity(DAY)).rejects.toThrow(/503/);
 
-    apiMock.dayActivity.mockResolvedValue([]);
-    await expect(loadDayActivity(DAY)).resolves.toEqual([]);
+    apiMock.dayActivity.mockResolvedValue(day([]));
+    await expect(loadDayActivity(DAY)).resolves.toEqual(day([]));
     expect(apiMock.dayActivity).toHaveBeenCalledTimes(2);
   });
 });

@@ -10,7 +10,7 @@ mod tray;
 
 use creds::{Credentials, CredentialsMeta};
 use jira::{
-    DayEvidence, FieldMeta, IssueActivity, IssueDetail, IssueSummary, JiraClient, JiraUser,
+    DayActivity, FieldMeta, IssueActivity, IssueDetail, IssueSummary, JiraClient, JiraUser,
     LinkRelation, MentionRef, MentionScan, MissingConfig, MissingWorklog, Myself, ProjectSummary,
     TodoConfig, Transition, WorklogEntry, WorklogInput,
 };
@@ -602,10 +602,7 @@ async fn missing_worklogs(state: State<'_, AppState>) -> Result<Vec<MissingWorkl
 /// What the user did in Jira on one day — the evidence behind the
 /// timesheet's "rebuild a day" view. Read on demand, never in the background.
 #[tauri::command]
-async fn day_activity(
-    state: State<'_, AppState>,
-    date: String,
-) -> Result<Vec<DayEvidence>, String> {
+async fn day_activity(state: State<'_, AppState>, date: String) -> Result<DayActivity, String> {
     let s = state.session().await?;
     s.client.day_activity(&s.account_id, &date).await
 }
