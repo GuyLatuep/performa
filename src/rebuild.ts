@@ -1,6 +1,6 @@
 import { api, DayActivity, DayEvidence, WorklogEntry } from "./api";
 import { Draft } from "./drafts";
-import { toDateInput, toTimeInput, today } from "./time";
+import { atMidnight, toDateInput, toTimeInput, today } from "./time";
 import { ActiveTimer } from "./timer";
 
 /**
@@ -101,14 +101,20 @@ export function dayTimeline(
       .map((draft) => ({ kind: "draft" as const, at: draft.time, draft })),
   ];
   if (timer) {
+    // Only the part of each stretch inside the day: one that ran past
+    // midnight counts on both days, each its own share.
+    const dayStart = atMidnight(date).getTime();
+    const next = atMidnight(date);
+    next.setDate(next.getDate() + 1);
+    const dayEnd = next.getTime();
     for (const s of timer.segments) {
-      const from = new Date(s.from);
-      if (toDateInput(from) !== date) continue;
-      const end = s.to ?? now;
+      const start = Math.max(s.from, dayStart);
+      const end = Math.min(s.to ?? now, dayEnd);
+      if (end <= start) continue;
       items.push({
         kind: "timer",
-        at: toTimeInput(from),
-        seconds: Math.max(0, Math.round((end - s.from) / 1000)),
+        at: toTimeInput(new Date(start)),
+        seconds: Math.round((end - start) / 1000),
         issueKey: timer.issueKey,
         summary: timer.issueSummary,
       });

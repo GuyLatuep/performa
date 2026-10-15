@@ -80,14 +80,23 @@ const EXCERPT_CHARS: usize = 140;
 
 /// `[start, end)` of `day` on this machine's clock, in epoch seconds.
 fn local_day_bounds(day: NaiveDate) -> Result<(i64, i64), String> {
-    let at_midnight = |d: NaiveDate| {
-        Local
-            .from_local_datetime(&d.and_hms_opt(0, 0, 0).expect("midnight exists"))
-            .earliest()
-            .map(|t| t.timestamp())
-            .ok_or_else(|| format!("no local midnight on {d}"))
-    };
-    Ok((at_midnight(day)?, at_midnight(day + Duration::days(1))?))
+    Ok((
+        day_start(&Local, day)?,
+        day_start(&Local, day + Duration::days(1))?,
+    ))
+}
+
+/// When `day` begins in `tz`, in epoch seconds: its midnight — or, where a
+/// daylight-saving change skips midnight (it does in some zones), the first
+/// moment of the day that exists. Checked a quarter hour at a time; no zone
+/// skips more than a couple of hours.
+fn day_start<Tz: TimeZone>(tz: &Tz, day: NaiveDate) -> Result<i64, String> {
+    let midnight = day.and_hms_opt(0, 0, 0).expect("midnight is a valid time");
+    (0..=16)
+        .map(|quarter| midnight + Duration::minutes(15 * quarter))
+        .find_map(|t| tz.from_local_datetime(&t).earliest())
+        .map(|t| t.timestamp())
+        .ok_or_else(|| format!("no local start of day on {day}"))
 }
 
 fn excerpt(text: &str) -> String {
@@ -467,6 +476,18 @@ mod tests {
         assert!(jqls.iter().any(|q| q
             .contains("status CHANGED BY currentUser() DURING (\"2026-03-09\", \"2026-03-12\")")));
         assert!(jqls.iter().any(|q| q.contains("creator = currentUser()")));
+    }
+
+    #[test]
+    fn a_day_starts_at_midnight_where_midnight_exists() {
+        let day = NaiveDate::from_ymd_opt(2026, 3, 10).unwrap();
+        assert_eq!(
+            day_start(&chrono::Utc, day).unwrap(),
+            chrono::Utc
+                .with_ymd_and_hms(2026, 3, 10, 0, 0, 0)
+                .unwrap()
+                .timestamp()
+        );
     }
 
     #[tokio::test]

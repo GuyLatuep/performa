@@ -130,6 +130,43 @@ describe("dayTimeline", () => {
   });
 });
 
+describe("a timer stretch over midnight", () => {
+  const timer = {
+    issueKey: "ABC-1",
+    issueSummary: "Night shift",
+    // 22:00 on the 10th until 02:00 on the 11th.
+    segments: [
+      {
+        from: new Date(2026, 2, 10, 22, 0).getTime(),
+        to: new Date(2026, 2, 11, 2, 0).getTime(),
+      },
+    ],
+  };
+  const timeline = (date: string) =>
+    dayTimeline(date, { evidence: [], worklogs: [], timer, drafts: [] });
+
+  it("counts only its own day's share on each day", () => {
+    expect(timeline("2026-03-10")).toEqual([
+      expect.objectContaining({
+        kind: "timer",
+        at: "22:00",
+        seconds: 2 * 3600,
+      }),
+    ]);
+    expect(timeline("2026-03-11")).toEqual([
+      expect.objectContaining({
+        kind: "timer",
+        at: "00:00",
+        seconds: 2 * 3600,
+      }),
+    ]);
+  });
+
+  it("is not on a day it never touched", () => {
+    expect(timeline("2026-03-12")).toEqual([]);
+  });
+});
+
 describe("loadDayActivity", () => {
   it("asks Jira once per day for the session", async () => {
     apiMock.dayActivity.mockResolvedValue(day([evidence()]));
