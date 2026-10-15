@@ -7,6 +7,7 @@ vi.mock("./api", async () => {
 
 import type { DayEvidence } from "./api";
 import { apiMock, resetApiMock, worklogEntry } from "./test-support/api";
+import { today } from "./time";
 import {
   canRebuild,
   dayTimeline,
@@ -138,6 +139,21 @@ describe("loadDayActivity", () => {
 
     expect(apiMock.dayActivity).toHaveBeenCalledTimes(1);
     expect(apiMock.dayActivity).toHaveBeenCalledWith(DAY);
+  });
+
+  it("reads today afresh every time, since it is still happening", async () => {
+    await loadDayActivity(today());
+    await loadDayActivity(today());
+
+    expect(apiMock.dayActivity).toHaveBeenCalledTimes(2);
+  });
+
+  it("forgets every day when asked", async () => {
+    await loadDayActivity(DAY);
+    forgetDayActivity();
+    await loadDayActivity(DAY);
+
+    expect(apiMock.dayActivity).toHaveBeenCalledTimes(2);
   });
 
   it("tries again after a failure", async () => {

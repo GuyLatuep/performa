@@ -19,11 +19,14 @@ export function canRebuild(date: string, now: string = today()): boolean {
   return date >= firstOfPrevious;
 }
 
-// Per day, for the session: what a past day holds in Jira hardly moves, and
-// opening the same day twice should not cost the searches twice.
+// Per past day, for the session: what a day that is over holds in Jira hardly
+// moves, and opening it twice should not cost the searches twice. Today is
+// still happening, so it is read afresh every time. The cache belongs to one
+// account and is dropped when the account changes — see `useAccountWatchers`.
 const cache = new Map<string, Promise<DayActivity>>();
 
 export function loadDayActivity(date: string): Promise<DayActivity> {
+  if (date >= today()) return api.dayActivity(date);
   let hit = cache.get(date);
   if (!hit) {
     hit = api.dayActivity(date);
@@ -34,7 +37,7 @@ export function loadDayActivity(date: string): Promise<DayActivity> {
   return hit;
 }
 
-/** For tests: start from an empty session. */
+/** Drop every remembered day — on an account change, and for tests. */
 export function forgetDayActivity(): void {
   cache.clear();
 }
