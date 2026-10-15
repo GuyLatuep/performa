@@ -19,7 +19,8 @@ const openUrl = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl }));
 vi.mock("../achievements", () => ({ recordEvent: vi.fn() }));
 
-import { setDailyHours, setFunMode, setShowWeekends } from "../settings";
+import { setFunMode, setShowWeekends } from "../settings";
+import { setWeekdayHours } from "../workdays";
 import { apiMock, resetApiMock, worklogEntry } from "../test-support/api";
 import { clearSelection } from "../selection";
 import { AllKeys } from "../test-support/shortcuts";
@@ -48,7 +49,7 @@ beforeEach(() => {
   resetApiMock();
   openUrl.mockClear();
   localStorage.clear();
-  setDailyHours(8);
+  setWeekdayHours([8, 8, 8, 8, 8, 0, 0]);
   setShowWeekends(false);
   setFunMode(false);
   vi.useFakeTimers({ shouldAdvanceTime: true });

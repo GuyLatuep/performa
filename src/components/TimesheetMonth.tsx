@@ -41,6 +41,7 @@ import {
   today,
   weekChunks,
 } from "../time";
+import { dayInfo, DayInfo, useWorkCalendar } from "../workdays";
 import IssuePicker from "./IssuePicker";
 import TypeIcon from "./TypeIcon";
 import RepeatModal from "./RepeatModal";
@@ -72,6 +73,8 @@ const DAY_FORMAT: Intl.DateTimeFormatOptions = {
  *  column to share. */
 interface LabelledColumn extends MonthColumn {
   label: string;
+  /** What the day is expected to hold — a Holiday, an Absence, a workday. */
+  info: DayInfo;
 }
 
 export default function TimesheetMonth({ site }: Props) {
@@ -192,15 +195,17 @@ export default function TimesheetMonth({ site }: Props) {
     if (now >= start && now <= end) void refreshChunk(now);
   }, [filed, start, end, refreshChunk]);
 
+  const calendar = useWorkCalendar();
   const grid = buildMonthGrid(entries, start, end, rowOrder);
   // The day a tooltip names is a property of the column, not of the cell, so it
   // is spelled out once per column and read by all thirty-odd rows under it. A
   // month-wide grid is a thousand cells and `toLocaleDateString` is not cheap:
   // done per cell it was most of what a re-render spent its time on.
-  const columns: LabelledColumn[] = grid.columns.map((col) => ({
-    ...col,
-    label: formatDayLabel(col.date, DAY_FORMAT),
-  }));
+  const columns: LabelledColumn[] = grid.columns.map((col) => {
+    const info = dayInfo(col.date, calendar);
+    const day = formatDayLabel(col.date, DAY_FORMAT);
+    return { ...col, info, label: info.label ? `${day} · ${info.label}` : day };
+  });
   // A worklog carries no issue type, so the type behind each row is looked up
   // by key — one search for the whole month. Asked for whether or not the
   // icons are shown: the rows are *ordered* by type, so the lookup is what the
@@ -491,7 +496,7 @@ function DayHeader({ col, seconds }: { col: LabelledColumn; seconds: number }) {
         {date.toLocaleDateString(undefined, { weekday: "narrow" })}
       </span>
       <span className="dom">{date.getDate()}</span>
-      <span className={`day-sum${dayTone(seconds, col)}`}>
+      <span className={`day-sum${dayTone(seconds, col, col.info)}`}>
         {seconds > 0 ? decimalHours(seconds) : "0"}
       </span>
     </div>

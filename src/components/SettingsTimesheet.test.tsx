@@ -3,75 +3,152 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
+import { today } from "../time";
+import {
+  addAbsences,
+  getAbsences,
+  getHolidayState,
+  getWeekdayHours,
+  removeAbsence,
+  setHolidayState,
+  setWeekdayHours,
+} from "../workdays";
 import SettingsTimesheet from "./SettingsTimesheet";
 
 const settings = vi.hoisted(() => ({
-  hours: 8,
   weekends: false,
-  setDailyHours: vi.fn(),
   setShowWeekends: vi.fn(),
 }));
 vi.mock("../settings", () => ({
-  getDailyHours: () => settings.hours,
-  setDailyHours: settings.setDailyHours,
   useShowWeekends: () => settings.weekends,
   setShowWeekends: settings.setShowWeekends,
 }));
 
-const hoursField = () => screen.getByRole("spinbutton") as HTMLInputElement;
+const dayField = (day: string) =>
+  screen.getByRole("spinbutton", { name: `${day} hours` }) as HTMLInputElement;
 const button = (name: string) => screen.getByRole("button", { name });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  settings.hours = 8;
+  // The calendar stores are the real ones, and outlive a test.
+  setWeekdayHours([8, 8, 8, 8, 8, 0, 0]);
+  setHolidayState(null);
+  for (const a of getAbsences()) removeAbsence(a.date);
   settings.weekends = false;
 });
 
-describe("daily hours", () => {
-  it("starts from what is stored", () => {
-    settings.hours = 7.5;
+describe("hours per weekday", () => {
+  it("starts from what is stored, Monday first", () => {
+    setWeekdayHours([8, 8, 8, 8, 6, 0, 0]);
     render(<SettingsTimesheet />);
 
-    expect(hoursField().value).toBe("7.5");
+    expect(dayField("Fri").value).toBe("6");
+    expect(dayField("Sat").value).toBe("0");
   });
 
-  it("stores a number as it is typed", async () => {
+  it("stores one day's hours as they are typed", async () => {
     render(<SettingsTimesheet />);
 
-    await userEvent.clear(hoursField());
-    await userEvent.type(hoursField(), "6");
+    await userEvent.clear(dayField("Fri"));
+    await userEvent.type(dayField("Fri"), "4");
 
-    expect(settings.setDailyHours).toHaveBeenLastCalledWith(6);
+    expect(getWeekdayHours()).toEqual([8, 8, 8, 8, 4, 0, 0]);
   });
 
   it("keeps half-typed text in the box rather than rewriting it", async () => {
-    // Clearing the field to retype it must not snap a value back under the
-    // cursor; the store simply ignores what it cannot parse.
     render(<SettingsTimesheet />);
 
-    await userEvent.clear(hoursField());
+    await userEvent.clear(dayField("Mon"));
 
-    expect(hoursField().value).toBe("");
-    expect(settings.setDailyHours).toHaveBeenLastCalledWith(NaN);
+    expect(dayField("Mon").value).toBe("");
+    expect(getWeekdayHours()[0]).toBe(8);
   });
 
   it("snaps back to the stored value when the field is left", async () => {
     render(<SettingsTimesheet />);
-    await userEvent.clear(hoursField());
-    expect(hoursField().value).toBe("");
+    await userEvent.clear(dayField("Mon"));
 
-    // The store never took the empty string, so blurring restores what it has.
     await userEvent.tab();
 
-    expect(hoursField().value).toBe("8");
+    expect(dayField("Mon").value).toBe("8");
   });
 
-  it("stays inside a sensible working day", () => {
+  it("stays inside a day", () => {
     render(<SettingsTimesheet />);
 
-    expect(hoursField().min).toBe("0.5");
-    expect(hoursField().max).toBe("24");
-    expect(hoursField().step).toBe("0.5");
+    expect(dayField("Mon").min).toBe("0");
+    expect(dayField("Mon").max).toBe("24");
+  });
+});
+
+describe("public holidays", () => {
+  it("offers every state, and none", () => {
+    render(<SettingsTimesheet />);
+
+    const select = screen.getByRole("combobox", {
+      name: "Public holidays",
+    }) as HTMLSelectElement;
+    expect(select.options).toHaveLength(17);
+    expect(select.value).toBe("");
+  });
+
+  it("stores the state picked", async () => {
+    render(<SettingsTimesheet />);
+
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Public holidays" }),
+      "NW",
+    );
+
+    expect(getHolidayState()).toBe("NW");
+  });
+});
+
+describe("days off", () => {
+  it("marks one day", async () => {
+    render(<SettingsTimesheet />);
+
+    await userEvent.clear(screen.getByLabelText("Day off from"));
+    await userEvent.type(screen.getByLabelText("Day off from"), "2026-12-24");
+    await userEvent.selectOptions(
+      screen.getByLabelText("How much of the day"),
+      "0.5",
+    );
+    await userEvent.click(button("Add"));
+
+    expect(getAbsences()).toEqual([
+      { date: "2026-12-24", portion: 0.5, kind: "vacation" },
+    ]);
+    expect(
+      screen.getByRole("list", { name: "Days off" }).textContent,
+    ).toContain("half day");
+  });
+
+  it("marks a stretch, skipping the weekend", async () => {
+    render(<SettingsTimesheet />);
+
+    await userEvent.clear(screen.getByLabelText("Day off from"));
+    await userEvent.type(screen.getByLabelText("Day off from"), "2026-11-06");
+    await userEvent.type(screen.getByLabelText("Day off until"), "2026-11-10");
+    await userEvent.click(button("Add"));
+
+    // Fri 6th, then Mon 9th and Tue 10th.
+    expect(getAbsences().map((a) => a.date)).toEqual([
+      "2026-11-06",
+      "2026-11-09",
+      "2026-11-10",
+    ]);
+  });
+
+  it("removes one again", async () => {
+    addAbsences([{ date: today(), portion: 1, kind: "sick" }]);
+    render(<SettingsTimesheet />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: `Remove ${today()}` }),
+    );
+
+    expect(getAbsences()).toEqual([]);
   });
 });
 

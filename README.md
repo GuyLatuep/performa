@@ -43,6 +43,7 @@ roughly **5–10 MB**.
 | ⏱️ **Log work** | Jira-style durations (`1h 30m`), date, optional comment, and a non-billable flag (ActivityTimeline's `~` convention). |
 | 🍱 **Tray timer** | Per-issue timer with 15-minute round-up, mirrored live in the system tray / menu bar — pause, resume, stop and log straight from there. **Switch** to another issue in one click. Starting a timer also nudges the issue to Jira's "In Arbeit" status, best-effort. |
 | 📅 **Timesheet** | **Week** — per-day totals and target charts; edit, delete, and repeat worklogs, or save them as templates. **Month** — the whole month as a matrix, day by day. |
+| 🎯 **Fair targets** | Hours per weekday, your German state's public holidays, and days off (whole or half) — every day is measured against what it was expected to hold. |
 | 🔔 **Missing-worklog watcher** | Flags recent Jira comments / status changes without logged time nearby and raises a desktop notification. |
 | 🅿️ **Parked time** | Time before there is a ticket — park it with a note, start a timer without a ticket, or press **Later** — and book it when the ticket arrives, in parts if need be. |
 | 💬 **Mentions** | Comments that name you, in one list, with the issue one click away. |

@@ -48,7 +48,8 @@ const stores = vi.hoisted(() => ({
   setTheme: vi.fn(),
   setAccent: vi.fn(),
   setTextScale: vi.fn(),
-  setDailyHours: vi.fn(),
+  setWeekdayHours: vi.fn(),
+  setHolidayState: vi.fn(),
   setShowWeekends: vi.fn(),
   setShowIssueTypeIcons: vi.fn(),
   setLogLevel: vi.fn(),
@@ -70,12 +71,17 @@ vi.mock("../todoStatuses", () => ({
   getIgnoredStatuses: () => ["Done"],
   setIgnoredStatuses: stores.setIgnoredStatuses,
 }));
+vi.mock("../workdays", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../workdays")>()),
+  getWeekdayHours: () => [7, 7, 7, 7, 5, 0, 0],
+  setWeekdayHours: stores.setWeekdayHours,
+  getHolidayState: () => "NW",
+  setHolidayState: stores.setHolidayState,
+}));
 vi.mock("../settings", () => ({
-  getDailyHours: () => 7,
   getShowWeekends: () => true,
   getShowIssueTypeIcons: () => false,
   getLogLevel: () => "debug",
-  setDailyHours: stores.setDailyHours,
   setShowWeekends: stores.setShowWeekends,
   setShowIssueTypeIcons: stores.setShowIssueTypeIcons,
   setLogLevel: stores.setLogLevel,
@@ -234,7 +240,8 @@ describe("save and cancel", () => {
     expect(stores.setTheme).toHaveBeenCalledWith("dark");
     expect(stores.setAccent).toHaveBeenCalledWith("amber");
     expect(stores.setTextScale).toHaveBeenCalledWith("large");
-    expect(stores.setDailyHours).toHaveBeenCalledWith(7);
+    expect(stores.setWeekdayHours).toHaveBeenCalledWith([7, 7, 7, 7, 5, 0, 0]);
+    expect(stores.setHolidayState).toHaveBeenCalledWith("NW");
     expect(stores.setShowWeekends).toHaveBeenCalledWith(true);
     expect(stores.setShowIssueTypeIcons).toHaveBeenCalledWith(false);
     expect(stores.setLogLevel).toHaveBeenCalledWith("debug");

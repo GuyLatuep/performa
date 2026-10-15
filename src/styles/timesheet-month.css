@@ -194,6 +194,10 @@
 .day-sum.tone-full {
   color: var(--tone-full);
 }
+/* A Holiday or a whole day off: not behind, not full — just off. */
+.day-sum.tone-off {
+  color: var(--faint);
+}
 
 .month-cell {
   border: none;

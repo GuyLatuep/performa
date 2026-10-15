@@ -4,25 +4,17 @@ import { MonthSortBy } from "./monthGrid";
 import { persistedText } from "./persist";
 
 // Local app settings (nothing secret — credentials live in the OS keychain).
-// Daily work hours and the weekend toggle power the timesheet charts.
+// What a day is expected to hold lives in `workdays.ts`; the weekend toggle
+// here only decides which days the charts show.
 
-const HOURS_KEY = "performa-daily-hours";
 const WEEKENDS_KEY = "performa-show-weekends";
 const LOG_LEVEL_KEY = "performa-log-level";
 const FUN_MODE_KEY = "performa-fun-mode";
 const TYPE_ICONS_KEY = "performa-show-issue-type-icons";
 const TIMESHEET_VIEW_KEY = "performa-timesheet-view";
 const MONTH_SORT_KEY = "performa-month-sort";
-const DEFAULT_DAILY_HOURS = 8;
 const DEFAULT_LOG_LEVEL: LogLevel = "error";
 
-/** Working days per week used for the weekly target. */
-export const WORKDAYS_PER_WEEK = 5;
-
-const hoursStore = persistedText<number>(HOURS_KEY, (raw) => {
-  const n = raw === null ? NaN : parseFloat(raw);
-  return Number.isFinite(n) && n > 0 && n <= 24 ? n : DEFAULT_DAILY_HOURS;
-});
 const weekendsStore = persistedText<boolean>(
   WEEKENDS_KEY,
   (raw) => raw === "true",
@@ -38,19 +30,6 @@ const typeIconsStore = persistedText<boolean>(
   TYPE_ICONS_KEY,
   (raw) => raw !== "false",
 );
-
-export function getDailyHours(): number {
-  return hoursStore.get();
-}
-
-export function setDailyHours(hours: number): void {
-  if (!Number.isFinite(hours) || hours <= 0 || hours > 24) return;
-  hoursStore.save(hours);
-}
-
-export function useDailyHours(): number {
-  return hoursStore.use();
-}
 
 export function getShowWeekends(): boolean {
   return weekendsStore.get();
