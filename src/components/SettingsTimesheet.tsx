@@ -172,10 +172,19 @@ function Absences() {
   const [note, setNote] = useState<string | null>(null);
 
   function add() {
-    const dates =
-      to && to !== from ? workdaysBetween(from, to, getWorkCalendar()) : [from];
+    if (!from) {
+      setNote("Pick the day off first.");
+      return;
+    }
+    // One day or a stretch, the same rule: only days that would otherwise be
+    // worked can be taken off — a weekend or a holiday has nothing to give.
+    const dates = workdaysBetween(from, to || from, getWorkCalendar());
     if (dates.length === 0) {
-      setNote("No working days in that stretch.");
+      setNote(
+        to && to !== from
+          ? "No working days in that stretch."
+          : "That day isn't a working day — there's nothing to take off.",
+      );
       return;
     }
     addAbsences(dates.map((date) => ({ date, portion, kind })));

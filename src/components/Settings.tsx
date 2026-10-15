@@ -75,8 +75,8 @@ export default function Settings({
   );
 
   // Theme, accent, text size, hours, holidays, weekend toggle, type icons, idle
-  // time and log level apply instantly (live preview), so keep a snapshot from when the screen
-  // opened and restore it on Cancel.
+  // time and log level apply instantly (live preview), so keep a snapshot from
+  // when the screen opened and restore it on Cancel.
   const snapshot = useRef({
     theme: getTheme(),
     accent: getAccent(),

@@ -148,6 +148,27 @@ describe("days off", () => {
     ]);
   });
 
+  it("will not mark a day without a date", async () => {
+    render(<SettingsTimesheet />);
+
+    await userEvent.clear(screen.getByLabelText("Day off from"));
+    await userEvent.click(button("Add"));
+
+    expect(getAbsences()).toEqual([]);
+    expect(screen.getByText("Pick the day off first.")).toBeDefined();
+  });
+
+  it("says a weekend day has nothing to take off", async () => {
+    render(<SettingsTimesheet />);
+
+    await userEvent.clear(screen.getByLabelText("Day off from"));
+    await userEvent.type(screen.getByLabelText("Day off from"), "2026-11-07");
+    await userEvent.click(button("Add"));
+
+    expect(getAbsences()).toEqual([]);
+    expect(screen.getByText(/isn't a working day/)).toBeDefined();
+  });
+
   it("removes one again", async () => {
     addAbsences([{ date: today(), portion: 1, kind: "sick" }]);
     render(<SettingsTimesheet />);
