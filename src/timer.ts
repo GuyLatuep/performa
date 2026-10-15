@@ -4,31 +4,117 @@ import { api } from "./api";
 import { logDebug, logInfo } from "./log";
 import { persisted } from "./persist";
 
+/** One stretch of running time. `to` is null while it is still running. */
+export interface TimerSegment {
+  from: number; // epoch ms
+  to: number | null; // epoch ms
+}
+
 export interface ActiveTimer {
   issueKey: string;
   issueSummary: string;
-  startedAt: number; // epoch ms
+  /** Oldest first. Only the last one may be open; when none is, the timer is
+   *  paused. Never empty. */
+  segments: TimerSegment[];
 }
 
 const STORAGE_KEY = "performa-active-timer";
 
-// Persisted by start timestamp, so elapsed is computed from the wall clock and
-// stays correct even if the app was closed while a timer was running.
+const isTime = (v: unknown): v is number =>
+  typeof v === "number" && Number.isFinite(v);
+
+function parseSegments(raw: unknown): TimerSegment[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const segments: TimerSegment[] = [];
+  for (const [i, seg] of raw.entries()) {
+    const { from, to } = (seg ?? {}) as { from?: unknown; to?: unknown };
+    if (!isTime(from)) return null;
+    // An open stretch anywhere but last would be two clocks running at once.
+    if (to === null && i === raw.length - 1) segments.push({ from, to: null });
+    else if (isTime(to)) segments.push({ from, to });
+    else return null;
+  }
+  return segments;
+}
+
+// Persisted as stretches of wall-clock time, so elapsed is computed from the
+// clock and stays correct even if the app was closed while a timer was
+// running. Timers stored before pausing existed carry a bare `startedAt`:
+// that reads as one stretch still running, so an update never loses one.
 const store = persisted<ActiveTimer | null>(STORAGE_KEY, (stored) => {
-  const t = stored as ActiveTimer | null | undefined;
-  return t && typeof t.issueKey === "string" && typeof t.startedAt === "number"
-    ? t
-    : null;
+  const t = stored as
+    | {
+        issueKey?: unknown;
+        issueSummary?: unknown;
+        segments?: unknown;
+        startedAt?: unknown;
+      }
+    | null
+    | undefined;
+  if (!t || typeof t.issueKey !== "string") return null;
+  const segments =
+    t.segments !== undefined
+      ? parseSegments(t.segments)
+      : isTime(t.startedAt)
+        ? [{ from: t.startedAt, to: null }]
+        : null;
+  if (!segments) return null;
+  const issueSummary = typeof t.issueSummary === "string" ? t.issueSummary : "";
+  return { issueKey: t.issueKey, issueSummary, segments };
 });
+
+/** When the work began: the start of the first stretch. This, not the latest
+ *  resume, is the start time a worklog for the timer carries. */
+export function timerStartedAt(timer: ActiveTimer): number {
+  return timer.segments[0].from;
+}
+
+export function isPaused(timer: ActiveTimer): boolean {
+  return timer.segments[timer.segments.length - 1].to !== null;
+}
+
+/** Milliseconds banked in the stretches that have already ended. */
+function closedMs(timer: ActiveTimer): number {
+  return timer.segments.reduce(
+    (sum, s) => sum + (s.to === null ? 0 : Math.max(0, s.to - s.from)),
+    0,
+  );
+}
+
+/** The instant a clock started from zero would have to have begun at to read
+ *  the timer's elapsed time now, or null while paused (the clock stands
+ *  still). Lets a running timer tick exactly like one that was never paused —
+ *  here and in the tray alike. */
+export function clockOrigin(timer: ActiveTimer): number | null {
+  const open = timer.segments[timer.segments.length - 1];
+  return open.to === null ? open.from - closedMs(timer) : null;
+}
+
+/** Whole seconds of running time, paused stretches left out. */
+export function elapsedSeconds(timer: ActiveTimer, now: number): number {
+  const origin = clockOrigin(timer);
+  const ms = origin === null ? closedMs(timer) : now - origin;
+  return Math.max(0, Math.floor(ms / 1000));
+}
 
 /** Mirror the timer to the Rust side so the system tray can display it. */
 function syncTray(timer: ActiveTimer | null): void {
-  const call = timer
-    ? invoke("timer_started", {
-        issueKey: timer.issueKey,
-        startedAt: timer.startedAt,
-      })
-    : invoke("timer_stopped");
+  let call: Promise<unknown>;
+  if (!timer) {
+    call = invoke("timer_stopped");
+  } else {
+    const origin = clockOrigin(timer);
+    call =
+      origin === null
+        ? invoke("timer_paused", {
+            issueKey: timer.issueKey,
+            elapsedSeconds: elapsedSeconds(timer, Date.now()),
+          })
+        : invoke("timer_started", {
+            issueKey: timer.issueKey,
+            startedAt: origin,
+          });
+  }
   // The tray is cosmetic — never let it break timing.
   call.catch((err) => logDebug(`tray sync failed: ${err}`));
 }
@@ -38,14 +124,17 @@ if (store.get()) {
   syncTray(store.get());
 }
 
+function save(timer: ActiveTimer | null): void {
+  store.save(timer);
+  syncTray(timer);
+}
+
 export function getTimer(): ActiveTimer | null {
   return store.get();
 }
 
 export function startTimer(issueKey: string, issueSummary: string): void {
-  const timer = { issueKey, issueSummary, startedAt: Date.now() };
-  store.save(timer);
-  syncTray(timer);
+  save({ issueKey, issueSummary, segments: [{ from: Date.now(), to: null }] });
   logInfo(`timer started on ${issueKey}`);
   // Best-effort nudge to "In Arbeit" — must never block or fail the timer.
   // Only on a genuine start, not when a persisted timer is restored on launch.
@@ -54,14 +143,36 @@ export function startTimer(issueKey: string, issueSummary: string): void {
   api.startIssueWork(issueKey).catch(() => {});
 }
 
+/** Stop the clock without ending the timer. No-op unless one is running. */
+export function pauseTimer(): void {
+  const timer = store.get();
+  if (!timer || isPaused(timer)) return;
+  const now = Date.now();
+  const segments = timer.segments.map((s) =>
+    s.to === null ? { from: s.from, to: Math.max(s.from, now) } : s,
+  );
+  save({ ...timer, segments });
+  logInfo(`timer paused on ${timer.issueKey}`);
+}
+
+/** Start the clock again where it stood. No-op unless one is paused. */
+export function resumeTimer(): void {
+  const timer = store.get();
+  if (!timer || !isPaused(timer)) return;
+  save({
+    ...timer,
+    segments: [...timer.segments, { from: Date.now(), to: null }],
+  });
+  logInfo(`timer resumed on ${timer.issueKey}`);
+}
+
 export function stopTimer(): void {
   const timer = store.get();
   if (timer) {
-    const elapsed = Math.floor((Date.now() - timer.startedAt) / 1000);
+    const elapsed = elapsedSeconds(timer, Date.now());
     logInfo(`timer stopped on ${timer.issueKey} after ${elapsed}s`);
   }
-  store.save(null);
-  syncTray(null);
+  save(null);
 }
 
 export function useTimer(): ActiveTimer | null {
@@ -76,17 +187,18 @@ export function msToNextSecond(now: number, startedAt: number): number {
   return elapsed < 0 ? -elapsed : 1000 - (elapsed % 1000);
 }
 
-/** Elapsed whole seconds since the timer started, ticking every second. */
+/** Elapsed whole seconds of running time, ticking every second while the
+ *  timer runs and standing still while it is paused. */
 export function useElapsedSeconds(timer: ActiveTimer | null): number {
   const [now, setNow] = useState(() => Date.now());
-  // Keyed on the start time, not the timer object: a new object identity for
-  // the same running timer would restart the ticking on every render, and the
-  // start time is what the elapsed count is actually derived from. Stopping
-  // (timer → null) changes it to undefined, so the effect still re-runs and
-  // cancels the pending tick.
-  const startedAt = timer?.startedAt;
+  // Keyed on the clock's origin, not the timer object: a new object identity
+  // for the same running timer would restart the ticking on every render, and
+  // the origin is what the elapsed count is actually derived from. Pausing or
+  // stopping (origin → null/undefined) changes it, so the effect still re-runs
+  // and cancels the pending tick; resuming moves it, so ticking starts afresh.
+  const origin = timer ? clockOrigin(timer) : undefined;
   useEffect(() => {
-    if (startedAt === undefined) return;
+    if (origin === undefined || origin === null) return;
     // Each tick aims at the moment the count actually changes instead of a
     // flat second later. A fixed interval drifts — every wake-up lands a little
     // late and the error accumulates — until the displayed clock visibly skips
@@ -95,16 +207,16 @@ export function useElapsedSeconds(timer: ActiveTimer | null): number {
     let id: number;
     const tick = () => {
       setNow(Date.now());
-      id = window.setTimeout(tick, msToNextSecond(Date.now(), startedAt));
+      id = window.setTimeout(tick, msToNextSecond(Date.now(), origin));
     };
     // The first tick straight away rather than at the next whole second: a
     // timer started while the clock stood still would otherwise show the old
     // reading for up to a second.
     id = window.setTimeout(tick, 0);
     return () => window.clearTimeout(id);
-  }, [startedAt]);
+  }, [origin]);
   if (!timer) return 0;
-  return Math.max(0, Math.floor((now - timer.startedAt) / 1000));
+  return elapsedSeconds(timer, now);
 }
 
 /** Round seconds up to the next 15-minute increment (minimum 15 min). */

@@ -43,7 +43,7 @@ const activeTimer = (o: Partial<ActiveTimer> = {}): ActiveTimer =>
   ({
     issueKey: "ABC-1",
     issueSummary: "Replace the pump",
-    startedAt: Date.now() - 90_000,
+    segments: [{ from: Date.now() - 90_000, to: null }],
     ...o,
   }) as ActiveTimer;
 

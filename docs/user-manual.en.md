@@ -149,6 +149,7 @@ you are on, or whatever is open in front of you.
 | --- | --- |
 | **⌘J** | open it in Jira, in the browser |
 | **⌘T** | start its timer — or stop the running one |
+| **⌘⇧T** | pause the running timer, or resume a paused one |
 | **⌘B** | pin it to the top of the Log-work list, or unpin it |
 | **⌘L** | log work on it |
 | **⌘E** | edit it — a worklog entry, or the issue view's field layout |
@@ -387,10 +388,18 @@ While running:
 - The **timer bar** above the tabs shows the issue and a live clock.
 - The [system tray](#system-tray--menu-bar) mirrors the timer.
 
+**Pause** (in the timer bar, the tray, or **⌘⇧T**) stops the clock without
+ending the timer — for lunch, or a call about something else. The bar's dot
+stops pulsing, the clock greys out and stands still, and the button now reads
+**Resume**. Resuming carries on from the same reading: paused time never counts.
+A paused timer is still the one timer, and still tracked time waiting to be
+logged — so it survives a restart and [close protection](#close-protection)
+asks about it just as it does about a running one.
+
 Press **Stop** (in the timer bar or the tray) to finish. The log modal opens with:
 
-- **Time spent** prefilled with the elapsed time, **rounded up to the next 15 minutes** (minimum 15 minutes) — you can edit it freely before saving.
-- **Date and start time** prefilled from when the timer was started.
+- **Time spent** prefilled with the elapsed time, **rounded up to the next 15 minutes** (minimum 15 minutes) — you can edit it freely before saving. Paused stretches are left out, and the rounding is applied once to the total, so a day of short breaks does not add up to extra quarter hours.
+- **Date and start time** prefilled from when the timer was first started — not from the last resume.
 
 You can complete the worklog (comment, billability) and save, or **Discard** the tracked time — discarding asks for confirmation, because the time would be lost.
 
@@ -400,12 +409,13 @@ You can complete the worklog (comment, billability) and save, or **Discard** the
 
 performa adds an icon to the macOS menu bar / Windows system tray:
 
-- **macOS**: while a timer runs, a live readout appears next to the icon — `▶ ABC-123 12:34` (hours:minutes:seconds past an hour).
+- **macOS**: while a timer runs, a live readout appears next to the icon — `▶ ABC-123 12:34` (hours:minutes:seconds past an hour). While it is paused, the readout stands still behind a pause sign: `⏸ ABC-123 12:34`.
 - **Windows**: tray icons cannot show text, so the same readout appears as the icon's **hover tooltip** instead. Everything else works identically.
 
 The tray menu offers:
 
-- **Stop timer…** *(enabled only while a timer runs)* — brings the window to the front and opens the regular log modal
+- **Pause timer** / **Resume timer** *(enabled only while there is a timer)* — pauses or resumes it in place, without bringing the window forward
+- **Stop timer…** *(enabled only while there is a timer, running or paused)* — brings the window to the front and opens the regular log modal
 - **Open performa** — shows and focuses the window
 - **Quit performa** — quits the app; this goes through the normal close path, so [close protection](#close-protection) still applies
 

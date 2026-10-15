@@ -91,6 +91,9 @@ export const SHORTCUTS = {
   // definition: the timer bar binds it to Stop only while a timer runs, and an
   // issue row binds it to Start only while none does.
   timer: { key: "t", label: "Start or stop the timer" },
+  // The same key with Shift: the other thing one does to a running timer.
+  // Bound by the timer bar alone, so it exists only while a timer does.
+  pauseTimer: { key: "t", shift: true, label: "Pause or resume the timer" },
 
   // On whichever row the keyboard is on. Only the selected row binds these, and
   // only one row in the app is ever selected, so the three lists carrying an

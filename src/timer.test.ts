@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   formatClock,
   isPlayfulClock,
@@ -121,14 +121,14 @@ describe("isPlayfulClock", () => {
 
 describe("active timer", () => {
   it("persists a started timer and clears it on stop", async () => {
-    const { startTimer, stopTimer, getTimer } = await freshTimer();
+    const { startTimer, stopTimer, getTimer, isPaused } = await freshTimer();
 
     startTimer("ABC-1", "Fix the thing");
 
     const running = getTimer();
     expect(running?.issueKey).toBe("ABC-1");
     expect(running?.issueSummary).toBe("Fix the thing");
-    expect(running?.startedAt).toBeTypeOf("number");
+    expect(running && isPaused(running)).toBe(false);
     expect(localStorage.getItem(KEY)).not.toBeNull();
 
     stopTimer();
@@ -138,8 +138,39 @@ describe("active timer", () => {
   });
 
   it("restores a timer left running by a previous session", async () => {
-    // Elapsed time is derived from the stored start, so closing the app with a
-    // timer running must not lose it.
+    // Elapsed time is derived from the stored stretches, so closing the app
+    // with a timer running must not lose it.
+    const from = Date.now() - 5000;
+    const { getTimer } = await freshTimer({
+      issueKey: "ABC-2",
+      issueSummary: "Still running",
+      segments: [{ from, to: null }],
+    });
+
+    expect(getTimer()).toEqual({
+      issueKey: "ABC-2",
+      issueSummary: "Still running",
+      segments: [{ from, to: null }],
+    });
+  });
+
+  it("restores a paused timer as paused", async () => {
+    const seed = {
+      issueKey: "ABC-2",
+      issueSummary: "On hold",
+      segments: [{ from: 1_000, to: 61_000 }],
+    };
+    const { getTimer, isPaused, elapsedSeconds } = await freshTimer(seed);
+
+    const t = getTimer()!;
+    expect(isPaused(t)).toBe(true);
+    // Paused: the clock reads the same however much later it is asked.
+    expect(elapsedSeconds(t, 10_000_000)).toBe(60);
+  });
+
+  it("keeps a timer stored before pausing existed", async () => {
+    // Installs updating with a timer running hold the old bare `startedAt`;
+    // the update must not silently drop that time.
     const startedAt = Date.now() - 5000;
     const { getTimer } = await freshTimer({
       issueKey: "ABC-2",
@@ -150,16 +181,26 @@ describe("active timer", () => {
     expect(getTimer()).toEqual({
       issueKey: "ABC-2",
       issueSummary: "Still running",
-      startedAt,
+      segments: [{ from: startedAt, to: null }],
     });
   });
 
   it("ignores malformed or incomplete stored timers", async () => {
     const junk = [
       "not json",
-      { issueKey: "ABC-3" }, // no startedAt — elapsed would be NaN
+      { issueKey: "ABC-3" }, // no time at all — elapsed would be NaN
       { startedAt: 1 }, // no issue to log against
       { issueKey: "ABC-3", startedAt: "soon" },
+      { issueKey: "ABC-3", segments: [] }, // nothing tracked
+      { issueKey: "ABC-3", segments: [{ from: "soon", to: null }] },
+      // An open stretch before the last: two clocks running at once.
+      {
+        issueKey: "ABC-3",
+        segments: [
+          { from: 1, to: null },
+          { from: 2, to: 3 },
+        ],
+      },
     ];
     for (const seed of junk) {
       localStorage.clear();
@@ -171,5 +212,110 @@ describe("active timer", () => {
       const { getTimer } = await import("./timer");
       expect(getTimer()).toBeNull();
     }
+  });
+});
+
+describe("pausing", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function timerAt(start: number) {
+    vi.useFakeTimers({ now: start });
+    const mod = await freshTimer();
+    mod.startTimer("ABC-1", "Fix the thing");
+    return mod;
+  }
+
+  it("leaves paused stretches out of the elapsed time", async () => {
+    const t = await timerAt(0);
+    vi.setSystemTime(60_000);
+    t.pauseTimer();
+    vi.setSystemTime(600_000); // a ten-minute-odd break
+    expect(t.elapsedSeconds(t.getTimer()!, Date.now())).toBe(60);
+
+    t.resumeTimer();
+    vi.setSystemTime(630_000);
+    expect(t.elapsedSeconds(t.getTimer()!, Date.now())).toBe(90);
+  });
+
+  it("keeps the start of the first stretch as when the work began", async () => {
+    const t = await timerAt(1_000);
+    vi.setSystemTime(2_000);
+    t.pauseTimer();
+    vi.setSystemTime(9_000);
+    t.resumeTimer();
+
+    expect(t.timerStartedAt(t.getTimer()!)).toBe(1_000);
+  });
+
+  it("ticks on from the same reading after a resume", async () => {
+    // The clock origin is what the tray and the bar count from; after a
+    // resume it must make the clock read exactly what it read at the pause.
+    const t = await timerAt(0);
+    vi.setSystemTime(45_000);
+    t.pauseTimer();
+    vi.setSystemTime(100_000);
+    t.resumeTimer();
+
+    expect(t.clockOrigin(t.getTimer()!)).toBe(100_000 - 45_000);
+  });
+
+  it("has no clock origin while paused", async () => {
+    const t = await timerAt(0);
+    t.pauseTimer();
+    expect(t.clockOrigin(t.getTimer()!)).toBeNull();
+  });
+
+  it("survives a restart while paused", async () => {
+    const t = await timerAt(0);
+    vi.setSystemTime(30_000);
+    t.pauseTimer();
+
+    vi.resetModules();
+    const again = await import("./timer");
+    const restored = again.getTimer()!;
+    expect(again.isPaused(restored)).toBe(true);
+    expect(again.elapsedSeconds(restored, 999_999)).toBe(30);
+  });
+
+  it("ignores a pause while paused and a resume while running", async () => {
+    const t = await timerAt(0);
+    t.resumeTimer();
+    expect(t.getTimer()!.segments).toHaveLength(1);
+
+    vi.setSystemTime(10_000);
+    t.pauseTimer();
+    vi.setSystemTime(20_000);
+    t.pauseTimer();
+    expect(t.getTimer()!.segments).toEqual([{ from: 0, to: 10_000 }]);
+  });
+
+  it("does nothing without a timer", async () => {
+    const t = await freshTimer();
+    t.pauseTimer();
+    t.resumeTimer();
+    expect(t.getTimer()).toBeNull();
+  });
+
+  it("mirrors a pause and a resume to the tray", async () => {
+    const t = await timerAt(0);
+    const { invoke } = await import("@tauri-apps/api/core");
+    const calls = vi.mocked(invoke);
+    calls.mockClear();
+
+    vi.setSystemTime(95_000);
+    t.pauseTimer();
+    expect(calls).toHaveBeenCalledWith("timer_paused", {
+      issueKey: "ABC-1",
+      elapsedSeconds: 95,
+    });
+
+    vi.setSystemTime(200_000);
+    t.resumeTimer();
+    expect(calls).toHaveBeenCalledWith("timer_started", {
+      issueKey: "ABC-1",
+      startedAt: 200_000 - 95_000,
+    });
   });
 });

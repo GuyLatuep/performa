@@ -154,6 +154,7 @@ der du stehst, oder das, was gerade offen vor dir liegt.
 | --- | --- |
 | **⌘J** | im Browser in Jira öffnen |
 | **⌘T** | den Timer dafür starten — oder den laufenden stoppen |
+| **⌘⇧T** | den laufenden Timer pausieren oder einen pausierten fortsetzen |
 | **⌘B** | oben an die Log-work-Liste anpinnen oder wieder lösen |
 | **⌘L** | Arbeit darauf erfassen |
 | **⌘E** | bearbeiten — einen Worklog-Eintrag, oder das Feldlayout der Vorgangsansicht |
@@ -399,10 +400,19 @@ Während er läuft:
 - Die **Timer-Leiste** über den Tabs zeigt den Vorgang und eine laufende Uhr.
 - Das [System-Tray](#system-tray--menüleiste) spiegelt den Timer.
 
+**Pause** (in der Timer-Leiste, im Tray oder mit **⌘⇧T**) hält die Uhr an, ohne
+den Timer zu beenden — für die Mittagspause oder einen Anruf zu etwas anderem.
+Der Punkt in der Leiste hört auf zu pulsieren, die Uhr wird grau und steht still,
+und der Button heißt jetzt **Resume**. Fortsetzen macht beim selben Stand weiter:
+pausierte Zeit zählt nie mit. Auch ein pausierter Timer ist der eine Timer und
+noch zu buchende Zeit — er überlebt also einen Neustart, und der
+[Schutz beim Beenden](#schutz-beim-beenden) fragt genauso nach wie bei einem
+laufenden.
+
 Mit **Stop** (in der Timer-Leiste oder im Tray) beendest du ihn. Das Erfassungsfenster öffnet sich mit:
 
-- **Time spent**, vorbelegt mit der verstrichenen Zeit, **aufgerundet auf die nächsten 15 Minuten** (mindestens 15 Minuten) — vor dem Speichern frei änderbar.
-- **Datum und Startzeit**, vorbelegt mit dem Start des Timers.
+- **Time spent**, vorbelegt mit der verstrichenen Zeit, **aufgerundet auf die nächsten 15 Minuten** (mindestens 15 Minuten) — vor dem Speichern frei änderbar. Pausen zählen nicht mit, und aufgerundet wird einmal auf die Summe, damit ein Tag mit vielen kurzen Pausen keine zusätzlichen Viertelstunden ergibt.
+- **Datum und Startzeit**, vorbelegt mit dem ersten Start des Timers — nicht mit dem letzten Fortsetzen.
 
 Du kannst das Worklog vervollständigen (Kommentar, Abrechenbarkeit) und speichern — oder die erfasste Zeit mit **Discard** verwerfen; das Verwerfen fragt nach Bestätigung, weil die Zeit sonst verloren wäre.
 
@@ -412,12 +422,13 @@ Du kannst das Worklog vervollständigen (Kommentar, Abrechenbarkeit) und speiche
 
 performa legt ein Symbol in die macOS-Menüleiste bzw. das Windows-System-Tray:
 
-- **macOS**: Während ein Timer läuft, erscheint eine Live-Anzeige neben dem Symbol — `▶ ABC-123 12:34` (Stunden:Minuten:Sekunden ab einer Stunde).
+- **macOS**: Während ein Timer läuft, erscheint eine Live-Anzeige neben dem Symbol — `▶ ABC-123 12:34` (Stunden:Minuten:Sekunden ab einer Stunde). Ist er pausiert, steht die Anzeige still, mit Pausenzeichen davor: `⏸ ABC-123 12:34`.
 - **Windows**: Tray-Symbole können keinen Text anzeigen; dieselbe Anzeige erscheint deshalb als **Tooltip beim Überfahren** des Symbols. Alles andere funktioniert identisch.
 
 Das Tray-Menü bietet:
 
-- **Stop timer…** *(nur aktiv, während ein Timer läuft)* — holt das Fenster in den Vordergrund und öffnet das reguläre Erfassungsfenster
+- **Pause timer** / **Resume timer** *(nur aktiv, solange es einen Timer gibt)* — pausiert ihn oder setzt ihn fort, ohne das Fenster nach vorn zu holen
+- **Stop timer…** *(nur aktiv, solange es einen Timer gibt — laufend oder pausiert)* — holt das Fenster in den Vordergrund und öffnet das reguläre Erfassungsfenster
 - **Open performa** — zeigt und fokussiert das Fenster
 - **Quit performa** — beendet die App; das läuft über den normalen Schließen-Pfad, der [Schutz beim Beenden](#schutz-beim-beenden) greift also weiterhin
 

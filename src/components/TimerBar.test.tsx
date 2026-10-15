@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
@@ -9,33 +15,50 @@ vi.mock("../api", async () => {
   return apiModule();
 });
 
-// The tray's "stop timer" routes through the same modal; capture the listener
-// so the test can fire it.
+// The tray's "stop timer" routes through the same modal, and its pause item
+// through the same toggle as the bar's button; capture the listeners by event
+// name so the test can fire either.
 const events = vi.hoisted(() => {
-  let handler: (() => void) | undefined;
+  const handlers = new Map<string, () => void>();
   const unlisten = vi.fn();
   return {
     unlisten,
-    fire: () => handler?.(),
-    listen: vi.fn(async (_name: string, cb: () => void) => {
-      handler = cb;
+    fire: (name = "stop-timer") => handlers.get(name)?.(),
+    listen: vi.fn(async (name: string, cb: () => void) => {
+      handlers.set(name, cb);
       return unlisten;
     }),
     reset() {
-      handler = undefined;
+      handlers.clear();
     },
   };
 });
 vi.mock("@tauri-apps/api/event", () => ({ listen: events.listen }));
 
 import { apiMock, resetApiMock, worklogEntry } from "../test-support/api";
-import { startTimer, stopTimer } from "../timer";
+import { ShortcutKeys } from "../test-support/shortcuts";
+import { getTimer, isPaused, startTimer, stopTimer } from "../timer";
 import TimerBar from "./TimerBar";
 
 const NOW = new Date(2026, 2, 18, 12, 0, 0);
 
 function renderBar() {
-  render(<TimerBar />);
+  render(
+    <>
+      <ShortcutKeys />
+      <TimerBar />
+    </>,
+  );
+}
+
+/** Let `minutes` pass on the wall clock and let the bar catch up. The last
+ *  second is spent advancing the timers, so the pending tick fires and the
+ *  clock lands exactly `minutes` later. */
+async function after(minutes: number) {
+  await act(async () => {
+    vi.setSystemTime(new Date(Date.now() + minutes * 60_000 - 1000));
+    await vi.advanceTimersByTimeAsync(1000);
+  });
 }
 
 /** Start a timer that has been running for `minutes`. */
@@ -149,6 +172,84 @@ describe("the tray's stop", () => {
     unmount();
 
     expect(events.unlisten).toHaveBeenCalled();
+  });
+});
+
+describe("pausing", () => {
+  it("freezes the clock and offers to resume", async () => {
+    runningFor(5);
+    renderBar();
+
+    await userEvent.click(screen.getByRole("button", { name: "Pause" }));
+    await after(10);
+
+    expect(screen.getByText("05:00")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Resume" })).toBeDefined();
+  });
+
+  it("counts on from where it stood after a resume", async () => {
+    runningFor(5);
+    renderBar();
+
+    await userEvent.click(screen.getByRole("button", { name: "Pause" }));
+    await after(10);
+    await userEvent.click(screen.getByRole("button", { name: "Resume" }));
+    await after(2);
+
+    // 5 before the break + 2 after it; the 10 paused minutes are left out.
+    expect(screen.getByText("07:00")).toBeDefined();
+  });
+
+  it("logs only the running time, from when the work began", async () => {
+    runningFor(20);
+    renderBar();
+
+    await userEvent.click(screen.getByRole("button", { name: "Pause" }));
+    await after(60);
+    await userEvent.click(screen.getByRole("button", { name: "Stop" }));
+
+    // 20 minutes rounds up to 30, not 1h 30m with the hour's pause in it.
+    expect(screen.getByLabelText(/Time spent/)).toHaveProperty("value", "30m");
+    // The start is the first start — 11:40 — not the moment of the pause.
+    expect(screen.getByLabelText(/Start/)).toHaveProperty("value", "11:40");
+  });
+
+  it("answers to the Shift chord as well", () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "Macintosh; Intel Mac OS X 10_15_7",
+    });
+    runningFor(5);
+    renderBar();
+    const press = () =>
+      act(() => {
+        fireEvent.keyDown(document.body, {
+          key: "T",
+          metaKey: true,
+          shiftKey: true,
+        });
+      });
+
+    press();
+    expect(isPaused(getTimer()!)).toBe(true);
+
+    press();
+    expect(isPaused(getTimer()!)).toBe(false);
+  });
+
+  it("flips from the tray without opening anything", async () => {
+    runningFor(5);
+    renderBar();
+    await waitFor(() =>
+      expect(events.listen).toHaveBeenCalledWith(
+        "toggle-pause-timer",
+        expect.any(Function),
+      ),
+    );
+
+    act(() => events.fire("toggle-pause-timer"));
+
+    expect(await screen.findByRole("button", { name: "Resume" })).toBeDefined();
+    expect(screen.queryByText(/Log time/)).toBeNull();
   });
 });
 

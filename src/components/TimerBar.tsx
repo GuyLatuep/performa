@@ -5,11 +5,16 @@ import { useShortcut } from "../shortcuts";
 import { formatDuration, toDateInput, toTimeInput } from "../time";
 import {
   ActiveTimer,
+  elapsedSeconds,
   formatClock,
   getTimer,
+  isPaused,
   isPlayfulClock,
+  pauseTimer,
+  resumeTimer,
   roundUpToQuarterHour,
   stopTimer,
+  timerStartedAt,
   useElapsedSeconds,
   useTimer,
 } from "../timer";
@@ -37,32 +42,60 @@ export default function TimerBar() {
     stopTimer(); // freeze the clock; the captured data lives in `stopping`
   }
 
-  // "Stop timer" in the system tray routes through the same log-modal flow.
+  const paused = !!timer && isPaused(timer);
+
+  function onPauseToggle() {
+    if (paused) resumeTimer();
+    else pauseTimer();
+  }
+
+  // "Stop timer" in the system tray routes through the same log-modal flow;
+  // its pause item flips the timer the same way the bar's button does. Both
+  // read the live store, not a stale closure.
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen("stop-timer", () => {
-      const t = getTimer(); // live store, not a stale closure
-      if (!t) return;
-      const secs = Math.max(0, Math.floor((Date.now() - t.startedAt) / 1000));
-      setStopping({ timer: t, seconds: roundUpToQuarterHour(secs) });
-      stopTimer();
-    }).then((fn) => {
-      unlisten = fn;
-    });
-    return () => unlisten?.();
+    const unlistens: (() => void)[] = [];
+    let gone = false;
+    const subscriptions = [
+      listen("stop-timer", () => {
+        const t = getTimer();
+        if (!t) return;
+        const secs = elapsedSeconds(t, Date.now());
+        setStopping({ timer: t, seconds: roundUpToQuarterHour(secs) });
+        stopTimer();
+      }),
+      listen("toggle-pause-timer", () => {
+        const t = getTimer();
+        if (!t) return;
+        if (isPaused(t)) resumeTimer();
+        else pauseTimer();
+      }),
+    ];
+    for (const sub of subscriptions) {
+      sub.then((fn) => {
+        // Unmounted before the subscription landed: drop it straight away.
+        if (gone) fn();
+        else unlistens.push(fn);
+      });
+    }
+    return () => {
+      gone = true;
+      for (const fn of unlistens) fn();
+    };
   }, []);
 
   // Bound only while a timer is actually running, which is also the only time
   // the bar is on screen. Starting one is per issue row — a different shortcut
   // on a different thing, and step 6's business.
-  const stopKeys = useShortcut("timer", onStop, !!timer && !stopping);
+  const live = !!timer && !stopping;
+  const stopKeys = useShortcut("timer", onStop, live);
+  const pauseKeys = useShortcut("pauseTimer", onPauseToggle, live);
 
   if (!timer && !stopping) return null;
 
   return (
     <>
       {timer && (
-        <div className="timer-bar">
+        <div className={`timer-bar${paused ? " paused" : ""}`}>
           <span className="timer-dot" aria-hidden="true" />
           <div className="timer-info">
             <span className="key">{timer.issueKey}</span>
@@ -73,6 +106,13 @@ export default function TimerBar() {
           >
             {formatClock(elapsed)}
           </span>
+          <button
+            className="secondary timer-pause"
+            {...pauseKeys}
+            onClick={onPauseToggle}
+          >
+            {paused ? "Resume" : "Pause"}
+          </button>
           <button className="timer-stop" {...stopKeys} onClick={onStop}>
             Stop
           </button>
@@ -88,7 +128,8 @@ export default function TimerBar() {
 /** `onClose` runs after a worklog is filed as well as on a discard: either way
  *  the tracked time has been dealt with. */
 function StopModal({ data, onClose }: { data: StopData; onClose: () => void }) {
-  const started = new Date(data.timer.startedAt);
+  // When the work began, however often it was paused since.
+  const started = new Date(timerStartedAt(data.timer));
   const { draft, patch, seconds } = useWorklogDraft({
     duration: formatDuration(data.seconds),
     date: toDateInput(started),

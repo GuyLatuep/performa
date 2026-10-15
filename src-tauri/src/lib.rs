@@ -761,6 +761,7 @@ pub fn run() {
             missing_worklogs,
             mentions,
             tray::timer_started,
+            tray::timer_paused,
             tray::timer_stopped,
             set_log_level,
             open_log_folder,
