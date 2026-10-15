@@ -1,4 +1,5 @@
-import { closeIdlePrompt, useIdlePrompt } from "../idle";
+import { useEffect } from "react";
+import { closeIdlePrompt, isCurrent, useIdlePrompt } from "../idle";
 import { formatDuration, toTimeInput } from "../time";
 import {
   discardAway,
@@ -19,16 +20,26 @@ import {
 export default function IdlePrompt() {
   const away = useIdlePrompt();
   const timer = useTimer();
-  if (!away || !timer) return null;
+  const current = away !== null && isCurrent(away, timer);
+
+  // The timer it asked about was stopped or switched away from while the
+  // question stood: the answer would land on a different timer, so there is
+  // no question any more.
+  useEffect(() => {
+    if (away && !current) closeIdlePrompt();
+  }, [away, current]);
+
+  if (!away || !timer || !current) return null;
 
   const counted = runningMsWithin(timer, away.from, away.to);
   const span = `${toTimeInput(new Date(away.from))}–${toTimeInput(new Date(away.to))}`;
   const on = timer.issueKey ?? "the timer without a ticket";
 
   // Each answer acts on the timer as it is at the moment of the click, which
-  // is why they read the store rather than the render's copy.
+  // is why they read the store rather than the render's copy — and only if it
+  // is still the timer the question was about.
   function answer(act: () => void) {
-    if (getTimer()) act();
+    if (away && isCurrent(away, getTimer())) act();
     closeIdlePrompt();
   }
 

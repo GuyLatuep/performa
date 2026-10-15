@@ -3,7 +3,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { logDebug, logInfo } from "./log";
 import { useIdleMinutes } from "./settings";
 import { createStore } from "./store";
-import { clockOrigin, getTimer, runningMsWithin, useTimer } from "./timer";
+import {
+  ActiveTimer,
+  clockOrigin,
+  getTimer,
+  runningMsWithin,
+  timerStartedAt,
+  useTimer,
+} from "./timer";
 
 /**
  * Idle time: a stretch with no input at the machine while a timer ran.
@@ -101,25 +108,54 @@ export function observeIdle(
   );
 }
 
-/** The question waiting to be answered, if any. One at a time: a second away
- *  stretch before the first is answered folds into it. */
-const prompt = createStore<Away | null>(null);
+/** An away stretch put to the user, and the timer it was counted on. The
+ *  answer only ever applies to that timer: once it is stopped or switched
+ *  away from, the question is moot rather than about the next one. */
+export interface IdleQuestion extends Away {
+  timerId: string;
+}
 
-export function useIdlePrompt(): Away | null {
+/** Which timer this is: its issue and when it began. A new timer — even on
+ *  the same issue — is a different one. */
+export function timerId(timer: ActiveTimer): string {
+  return `${timer.issueKey ?? ""}@${timerStartedAt(timer)}`;
+}
+
+/** The question waiting to be answered, if any. One at a time: a second away
+ *  stretch on the same timer before the first is answered folds into it. */
+const prompt = createStore<IdleQuestion | null>(null);
+
+export function useIdlePrompt(): IdleQuestion | null {
   return prompt.use();
+}
+
+/** Whether `question` is still about the timer running now. */
+export function isCurrent(
+  question: IdleQuestion,
+  timer: ActiveTimer | null,
+): boolean {
+  return timer !== null && timerId(timer) === question.timerId;
 }
 
 export function closeIdlePrompt(): void {
   prompt.set(null);
 }
 
-/** Ask about an away stretch. Exported for the watch below and for tests. */
+/** Ask about an away stretch on the timer running now. Exported for the
+ *  watch below and for tests. */
 export function raiseIdlePrompt(away: Away): void {
+  const timer = getTimer();
+  if (!timer) return;
+  const id = timerId(timer);
   const open = prompt.get();
   prompt.set(
-    open
-      ? { from: Math.min(open.from, away.from), to: Math.max(open.to, away.to) }
-      : away,
+    open && open.timerId === id
+      ? {
+          timerId: id,
+          from: Math.min(open.from, away.from),
+          to: Math.max(open.to, away.to),
+        }
+      : { ...away, timerId: id },
   );
   // A question nobody sees is no question: bring the window forward.
   invoke("show_main_window").catch((err) =>

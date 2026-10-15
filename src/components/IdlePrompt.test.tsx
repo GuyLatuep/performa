@@ -18,6 +18,7 @@ import {
   getTimersToLog,
   startTimer,
   stopTimer,
+  switchTimer,
 } from "../timer";
 import IdlePrompt from "./IdlePrompt";
 
@@ -84,5 +85,37 @@ describe("the away question", () => {
 
     expect(getTimer()).toBeNull();
     expect(getTimersToLog()[0].seconds).toBe(15 * 60);
+  });
+});
+
+describe("when its timer goes away first", () => {
+  it("closes when the timer it asked about is stopped", () => {
+    act(() => stopTimer());
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("does not come back to ask about the next timer", () => {
+    act(() => stopTimer());
+    act(() => startTimer("XYZ-2", "Something else"));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("leaves the timer switched to alone", () => {
+    // Stop & discard on the old question must not cut the new timer.
+    act(() => switchTimer("XYZ-2", "Something else"));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(getTimer()?.issueKey).toBe("XYZ-2");
+    expect(getTimer()?.segments).toHaveLength(1);
+  });
+});
+
+describe("a second away stretch", () => {
+  it("folds into the open question on the same timer", () => {
+    act(() => raiseIdlePrompt({ from: T0 + 56 * MIN, to: T0 + 59 * MIN }));
+
+    expect(screen.getByRole("dialog").textContent).toContain("12:10–12:59");
   });
 });
