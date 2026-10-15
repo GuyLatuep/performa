@@ -169,6 +169,7 @@ export default function TimesheetWeek({ site }: Props) {
                 type="button"
                 className="secondary"
                 title={`Rebuild ${formatDayLabel(d, DAY_FORMAT)} from what you did in Jira`}
+                aria-label={`Rebuild ${formatDayLabel(d, DAY_FORMAT)}`}
                 onClick={() => setRebuilding(d)}
               >
                 {formatDayLabel(d, { weekday: "short" }).replace(/ · .*/, "")}

@@ -483,6 +483,9 @@ describe("rebuilding a day", () => {
     const future = heads.find((h) => h.className.includes("future"))!;
     expect(future.querySelector("button")).toBeNull();
 
+    expect(tenth.querySelector("button")!.getAttribute("aria-label")).toMatch(
+      /^Rebuild .*, 0 hours booked$/,
+    );
     await userEvent.click(tenth.querySelector("button")!);
 
     expect(

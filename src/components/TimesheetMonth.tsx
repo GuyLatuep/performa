@@ -535,6 +535,9 @@ function DayHeader({
           type="button"
           className="day-head-btn"
           title={`${col.label} — rebuild the day from what you did in Jira`}
+          // The content is a narrow weekday, a number and an hour figure —
+          // read aloud that is "M 5 0", so the name says it in full.
+          aria-label={`Rebuild ${col.label}, ${seconds > 0 ? decimalHours(seconds) : "0"} hours booked`}
           onClick={onRebuild}
         >
           {content}

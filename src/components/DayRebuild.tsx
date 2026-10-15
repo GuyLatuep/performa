@@ -67,7 +67,12 @@ export default function DayRebuild({
 
   return (
     <div className="modal-backdrop">
-      <div className="modal rebuild" role="dialog" aria-label="Rebuild the day">
+      <div
+        className="modal rebuild"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Rebuild the day"
+      >
         <h3>
           {formatDayLabel(date, {
             weekday: "long",

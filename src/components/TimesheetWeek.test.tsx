@@ -321,6 +321,8 @@ describe("rebuilding a day", () => {
     const buttons = document.querySelectorAll<HTMLButtonElement>(
       ".rebuild-strip button",
     );
+    // Named in full for a screen reader, not just "Mon".
+    expect(buttons[0].getAttribute("aria-label")).toMatch(/^Rebuild .*16/);
     await userEvent.click(buttons[0]);
 
     expect(

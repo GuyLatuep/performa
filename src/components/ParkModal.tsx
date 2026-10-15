@@ -66,7 +66,12 @@ function ParkModal({ site, initial }: { site: string; initial: ParkRequest }) {
     // No backdrop-click close: a half-written note is exactly the kind of
     // thing this form exists to keep.
     <div className="modal-backdrop">
-      <div className="modal" role="dialog" aria-label="Park time">
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Park time"
+      >
         <h3>{editing ? "Edit draft" : "Park time"}</h3>
         <p className="muted modal-sub">
           Time you will book later — say what it was, and the issue once there

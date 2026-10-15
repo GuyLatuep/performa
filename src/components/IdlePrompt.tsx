@@ -45,7 +45,19 @@ export default function IdlePrompt() {
 
   return (
     <div className="modal-backdrop">
-      <div className="modal" role="dialog" aria-label="You were away">
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="You were away"
+        // Escape dismisses the question, which is the same as Keep: nothing
+        // changes. Stopped here so it is not also read as "go back".
+        onKeyDown={(e) => {
+          if (e.key !== "Escape") return;
+          e.stopPropagation();
+          answer(() => {});
+        }}
+      >
         <h3>You were away</h3>
         <p className="modal-sub">
           No input for {formatDuration(Math.round(counted / 1000))} ({span})

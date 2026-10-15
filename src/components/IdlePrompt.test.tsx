@@ -61,6 +61,13 @@ describe("the away question", () => {
     );
   });
 
+  it("takes Escape as Keep", async () => {
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(getTimer()?.segments).toHaveLength(1);
+  });
+
   it("discards the away time and runs on", async () => {
     await userEvent.click(screen.getByRole("button", { name: "Discard" }));
 
