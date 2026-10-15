@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, IssueSummary } from "../api";
+import { requestPark } from "../drafts";
 import { usePinnedIssues } from "../pins";
 import {
   moveSelection,
@@ -18,6 +19,9 @@ interface Props {
   site: string;
   onSelect: (issue: IssueSummary) => void;
   autoFocus?: boolean;
+  /** When a search finds nothing, offer to park the time as a draft instead.
+   *  Off where the picker is itself choosing an issue for a draft. */
+  offerPark?: boolean;
 }
 
 /** How long to wait for the typing to stop before asking Jira. Long enough
@@ -37,6 +41,7 @@ export default function IssuePicker({
   site,
   onSelect,
   autoFocus = true,
+  offerPark = true,
 }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<IssueSummary[]>([]);
@@ -157,7 +162,24 @@ export default function IssuePicker({
             />
           ))}
         {!searching && results.length === 0 && (
-          <li className="muted empty">No matching issues.</li>
+          <li className="muted empty">
+            No matching issues.
+            {/* The moment of finding there is no ticket yet is the moment the
+                time is most likely to be forgotten — so it can be parked right
+                here, with what was searched for as the note. */}
+            {offerPark && query.trim() !== "" && (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  className="link"
+                  onClick={() => requestPark({ note: query.trim() })}
+                >
+                  No ticket yet — park it
+                </button>
+              </>
+            )}
+          </li>
         )}
       </ul>
     </>

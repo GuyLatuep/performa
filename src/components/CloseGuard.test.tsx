@@ -29,6 +29,8 @@ const timer = vi.hoisted(() => ({
   useTimer: vi.fn<() => unknown>(() => null),
   useElapsedSeconds: vi.fn(() => 0),
   formatClock: vi.fn((s: number) => `clock:${s}`),
+  isPaused: (t: { segments: { to: number | null }[] }) =>
+    t.segments[t.segments.length - 1].to !== null,
 }));
 vi.mock("../timer", () => timer);
 
@@ -43,7 +45,7 @@ const activeTimer = (o: Partial<ActiveTimer> = {}): ActiveTimer =>
   ({
     issueKey: "ABC-1",
     issueSummary: "Replace the pump",
-    startedAt: Date.now() - 90_000,
+    segments: [{ from: Date.now() - 90_000, to: null }],
     ...o,
   }) as ActiveTimer;
 
@@ -183,6 +185,27 @@ describe("when the pre-quit check goes wrong outright", () => {
 
     expect(missing.refreshMissing).toHaveBeenCalledTimes(2);
     expect(tauri.destroy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("when the timer is paused or has no ticket", () => {
+  it("says it is paused rather than running", async () => {
+    timerIs(activeTimer({ segments: [{ from: 0, to: 60_000 }] }));
+    const guard = mountGuard();
+
+    await guard.requestClose();
+
+    expect(screen.getByRole("heading").textContent).toBe("Timer paused");
+    expect(screen.getByText(/is paused at/)).toBeDefined();
+  });
+
+  it("names a timer without a ticket as such", async () => {
+    timerIs(activeTimer({ issueKey: null }));
+    const guard = mountGuard();
+
+    await guard.requestClose();
+
+    expect(screen.getByText("No ticket")).toBeDefined();
   });
 });
 

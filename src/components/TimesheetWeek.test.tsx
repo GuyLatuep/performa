@@ -19,7 +19,8 @@ const openUrl = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl }));
 vi.mock("../achievements", () => ({ recordEvent: vi.fn() }));
 
-import { setDailyHours, setFunMode, setShowWeekends } from "../settings";
+import { setFunMode, setShowWeekends } from "../settings";
+import { setWeekdayHours } from "../workdays";
 import { apiMock, resetApiMock, worklogEntry } from "../test-support/api";
 import { clearSelection } from "../selection";
 import { AllKeys } from "../test-support/shortcuts";
@@ -48,7 +49,7 @@ beforeEach(() => {
   resetApiMock();
   openUrl.mockClear();
   localStorage.clear();
-  setDailyHours(8);
+  setWeekdayHours([8, 8, 8, 8, 8, 0, 0]);
   setShowWeekends(false);
   setFunMode(false);
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -89,7 +90,11 @@ describe("the week that loads", () => {
 
     renderWeek();
 
-    await screen.findByText(/2026-03-18|Wed/);
+    // Waited for by the group heads themselves: the weekday names also label
+    // the rebuild strip's buttons.
+    await waitFor(() =>
+      expect(document.querySelectorAll(".day-head").length).toBeGreaterThan(0),
+    );
     const heads = [...document.querySelectorAll(".day-head")].map(
       (h) => h.textContent ?? "",
     );
@@ -296,5 +301,33 @@ describe("walking the ledger with the arrow keys", () => {
     expect(
       await screen.findByRole("heading", { name: /Edit ABC-1/ }),
     ).toBeDefined();
+  });
+});
+
+describe("rebuilding a day", () => {
+  it("offers every day of the week so far, empty ones included", async () => {
+    renderWeek();
+    await waitFor(() => expect(screen.queryByText("Loading…")).toBeNull());
+
+    const strip = document.querySelector(".rebuild-strip")!;
+    // Monday to the Wednesday it is today; nothing after.
+    expect(strip.querySelectorAll("button")).toHaveLength(3);
+  });
+
+  it("opens the day's rebuild", async () => {
+    renderWeek();
+    await waitFor(() => expect(screen.queryByText("Loading…")).toBeNull());
+
+    const buttons = document.querySelectorAll<HTMLButtonElement>(
+      ".rebuild-strip button",
+    );
+    // Named in full for a screen reader, not just "Mon".
+    expect(buttons[0].getAttribute("aria-label")).toMatch(/^Rebuild .*16/);
+    await userEvent.click(buttons[0]);
+
+    expect(
+      await screen.findByRole("dialog", { name: "Rebuild the day" }),
+    ).toBeDefined();
+    expect(apiMock.dayActivity).toHaveBeenCalledWith(MONDAY);
   });
 });

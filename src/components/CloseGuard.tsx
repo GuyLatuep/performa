@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { formatClock, getTimer, useElapsedSeconds, useTimer } from "../timer";
+import {
+  formatClock,
+  getTimer,
+  isPaused,
+  useElapsedSeconds,
+  useTimer,
+} from "../timer";
 import { getMissing, refreshMissing, useMissing } from "../missing";
 
 type Prompt = "timer" | "missing" | null;
@@ -68,9 +74,10 @@ export default function CloseGuard() {
     return (
       <div className="modal-backdrop">
         <div className="modal">
-          <h3>Timer still running</h3>
+          <h3>{isPaused(timer) ? "Timer paused" : "Timer still running"}</h3>
           <p className="modal-sub">
-            <span className="key">{timer.issueKey}</span> has been timing for{" "}
+            <span className="key">{timer.issueKey ?? "No ticket"}</span>{" "}
+            {isPaused(timer) ? "is paused at" : "has been timing for"}{" "}
             <span className="clock-inline">{formatClock(elapsed)}</span>.
             Quitting now discards the tracked time — stop the timer to log it
             first.

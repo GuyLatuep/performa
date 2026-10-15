@@ -11,6 +11,8 @@ import {
   stopMissingPolling,
   useMissingUnseenCount,
 } from "./missing";
+import { remindAboutDrafts } from "./drafts";
+import { forgetDayActivity } from "./rebuild";
 import { claimSearchesFor } from "./savedSearches";
 import { onWorklogFiled } from "./worklogEvents";
 
@@ -41,6 +43,12 @@ export function useAccountWatchers(creds: CredentialsMeta | null): void {
     };
   }, [signedIn]);
 
+  // Parked time is reminded of once per sign-in, which is once per app start
+  // for anyone who stays signed in: a nudge each time the day begins.
+  useEffect(() => {
+    if (signedIn) remindAboutDrafts();
+  }, [signedIn]);
+
   // Same for @-mentions — the tab badge has to be right before it is opened.
   // Keyed on the account rather than on `signedIn`: read and notified state
   // belongs to whoever's inbox it was collected from.
@@ -58,5 +66,11 @@ export function useAccountWatchers(creds: CredentialsMeta | null): void {
   // same kind of reason.
   useEffect(() => {
     if (account) claimSearchesFor(account);
+  }, [account]);
+
+  // What somebody did on a day is theirs: a day read for one account must not
+  // be shown to the next, so the rebuild view's memory goes with the account.
+  useEffect(() => {
+    forgetDayActivity();
   }, [account]);
 }

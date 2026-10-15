@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   openUrl: vi.fn(),
   togglePin: vi.fn(),
   startTimer: vi.fn(),
+  switchTimer: vi.fn(),
+  isPaused: vi.fn(() => false),
   useTimer: vi.fn<() => { issueKey: string } | null>(() => null),
   useIssueTypeIcon: vi.fn<(url?: string) => string | undefined>(
     () => undefined,
@@ -24,6 +26,8 @@ vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: mocks.openUrl }));
 vi.mock("../pins", () => ({ togglePin: mocks.togglePin }));
 vi.mock("../timer", () => ({
   startTimer: mocks.startTimer,
+  switchTimer: mocks.switchTimer,
+  isPaused: mocks.isPaused,
   useTimer: mocks.useTimer,
 }));
 vi.mock("../issueTypeIcons", () => ({
@@ -263,7 +267,7 @@ describe("the timer button", () => {
 
     await userEvent.click(screen.getByTitle("Start timer for ABC-1"));
 
-    expect(mocks.startTimer).toHaveBeenCalledWith("ABC-1", "Replace the pump");
+    expect(mocks.switchTimer).toHaveBeenCalledWith("ABC-1", "Replace the pump");
   });
 
   it("shows itself as running when the timer is on this issue", () => {
@@ -275,15 +279,27 @@ describe("the timer button", () => {
     expect(screen.getByText("timing")).toBeDefined();
   });
 
-  it("is disabled for other issues while a timer runs elsewhere", () => {
-    // Only one timer at a time, and the tooltip has to say why the button is
-    // dead rather than leaving the user guessing.
-    mocks.useTimer.mockReturnValue({ issueKey: "OTHER-9" });
+  it("says so when the timer on this issue is paused", () => {
+    mocks.useTimer.mockReturnValue({ issueKey: "ABC-1" });
+    mocks.isPaused.mockReturnValueOnce(true);
 
     renderRow();
 
-    const button = screen.getByTitle("Stop the running timer first");
-    expect(button).toHaveProperty("disabled", true);
+    expect(screen.getByTitle("Timer paused")).toHaveProperty("disabled", true);
+  });
+
+  it("offers to switch while a timer runs elsewhere", async () => {
+    // Still one timer at a time — but moving it is one click, not stop, log,
+    // start. The bar takes the old one's time to the log form.
+    mocks.useTimer.mockReturnValue({ issueKey: "OTHER-9" });
+
+    renderRow();
+    const button = screen.getByTitle("Switch the timer to ABC-1");
+    expect(button).toHaveProperty("disabled", false);
+    expect(button.textContent).toContain("switch");
+
+    await userEvent.click(button);
+    expect(mocks.switchTimer).toHaveBeenCalledWith("ABC-1", "Replace the pump");
   });
 });
 

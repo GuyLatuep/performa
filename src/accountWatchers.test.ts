@@ -21,6 +21,8 @@ vi.mock("./mentions", () => ({
   useMentionsUnreadCount: () => 0,
 }));
 vi.mock("./savedSearches", () => ({ claimSearchesFor: vi.fn() }));
+const rebuild = vi.hoisted(() => ({ forgetDayActivity: vi.fn() }));
+vi.mock("./rebuild", () => rebuild);
 
 import type { CredentialsMeta, WorklogInput } from "./api";
 import { useAccountWatchers } from "./accountWatchers";
@@ -64,5 +66,33 @@ describe("a filed worklog", () => {
 
     expect(missing.stopMissingPolling).toHaveBeenCalled();
     expect(missing.refreshMissing).not.toHaveBeenCalled();
+  });
+});
+
+describe("the rebuilt days", () => {
+  it("are forgotten when somebody else signs in", () => {
+    const { rerender } = renderHook(
+      ({ creds }: { creds: CredentialsMeta | null }) =>
+        useAccountWatchers(creds),
+      { initialProps: { creds: CREDS as CredentialsMeta | null } },
+    );
+    rebuild.forgetDayActivity.mockClear();
+
+    rerender({ creds: { ...CREDS, email: "ben@example.com" } });
+
+    expect(rebuild.forgetDayActivity).toHaveBeenCalled();
+  });
+
+  it("are kept while the same account stays signed in", () => {
+    const { rerender } = renderHook(
+      ({ creds }: { creds: CredentialsMeta | null }) =>
+        useAccountWatchers(creds),
+      { initialProps: { creds: CREDS as CredentialsMeta | null } },
+    );
+    rebuild.forgetDayActivity.mockClear();
+
+    rerender({ creds: { ...CREDS } });
+
+    expect(rebuild.forgetDayActivity).not.toHaveBeenCalled();
   });
 });

@@ -787,6 +787,10 @@ pub struct ChangelogItem {
     pub from: Option<String>,
     #[serde(rename = "toString", default)]
     pub to: Option<String>,
+    /// The raw new value — for the assignee field, the new assignee's
+    /// account id, which the display name above cannot be matched against.
+    #[serde(rename = "to", default)]
+    pub to_id: Option<String>,
 }
 
 #[derive(Deserialize)]

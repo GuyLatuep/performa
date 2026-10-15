@@ -174,3 +174,51 @@
   cursor: pointer;
   width: auto;
 }
+
+/* Seven narrow boxes in a row, each under its weekday. */
+.weekday-hours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.weekday-hours label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.weekday-hours input {
+  width: 64px;
+  font-variant-numeric: tabular-nums;
+}
+
+.absence-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.absence-form input,
+.absence-form select {
+  width: auto;
+}
+.absence-list {
+  list-style: none;
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+}
+.absence-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  border-bottom: 1px solid var(--hair);
+}
+.absence-list li > span:first-child {
+  min-width: 16ch;
+  font-variant-numeric: tabular-nums;
+}
+.absence-list li button {
+  margin-left: auto;
+}

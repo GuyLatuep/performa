@@ -21,6 +21,9 @@ const pins = vi.hoisted(() => ({
 }));
 vi.mock("../pins", () => pins);
 
+const requestPark = vi.hoisted(() => vi.fn());
+vi.mock("../drafts", () => ({ requestPark }));
+
 // The rows are already covered by IssueRow.test.tsx; here they only need to be
 // something identifiable in the list.
 vi.mock("./IssueRow", () => ({
@@ -265,5 +268,50 @@ describe("walking the results from the search box", () => {
     });
 
     expect(selected()).toContain("PIN-1");
+  });
+});
+
+describe("when there is no ticket yet", () => {
+  it("offers to park the time, with the search as the note", async () => {
+    const user = setup();
+    renderPicker();
+    await screen.findByText("No matching issues.");
+
+    await user.type(screen.getByLabelText("Find an issue"), "order 4711");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    await user.click(
+      await screen.findByRole("button", { name: "No ticket yet — park it" }),
+    );
+
+    expect(requestPark).toHaveBeenCalledWith({ note: "order 4711" });
+  });
+
+  it("does not offer it before anything was searched for", async () => {
+    renderPicker();
+    await screen.findByText("No matching issues.");
+
+    expect(screen.queryByRole("button", { name: /park it/ })).toBeNull();
+  });
+
+  it("does not offer it where the picker is choosing a draft's issue", async () => {
+    const user = setup();
+    render(
+      <IssuePicker
+        site="https://example.atlassian.net"
+        onSelect={vi.fn()}
+        offerPark={false}
+      />,
+    );
+    await user.type(screen.getByLabelText("Find an issue"), "order 4711");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    await waitFor(() =>
+      expect(apiMock.searchIssues).toHaveBeenCalledWith("order 4711"),
+    );
+
+    expect(screen.queryByRole("button", { name: /park it/ })).toBeNull();
   });
 });

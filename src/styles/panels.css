@@ -109,6 +109,15 @@
     opacity: 0.3;
   }
 }
+/* Paused: the clock stands still, so nothing on the bar may look alive. The
+   dot stops pulsing and greys out, and the digits drop the accent. */
+.timer-bar.paused .timer-dot {
+  background: var(--muted);
+  animation: none;
+}
+.timer-bar.paused .timer-clock {
+  color: var(--muted);
+}
 .timer-info {
   display: flex;
   flex-direction: column;
@@ -143,6 +152,7 @@
   }
 }
 
+.timer-pause,
 .timer-stop {
   flex-shrink: 0;
 }

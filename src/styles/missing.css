@@ -33,3 +33,80 @@
 .missing-hidden {
   margin: 12px 0 0;
 }
+
+/* ---------- Parked time (drafts) ----------
+   Its own section above the scan's findings: a list the user wrote, not one
+   the app guessed. Rows follow the grouped-list anatomy — the amount leads,
+   the note and its context fill the middle, the actions sit trailing. */
+.drafts {
+  margin-bottom: var(--sp-6);
+}
+.drafts-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--hair);
+}
+.drafts-head h3 {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+.drafts-head .link {
+  margin-left: auto;
+}
+.draft-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.draft-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 44px;
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--hair);
+}
+.draft-time {
+  flex-shrink: 0;
+  min-width: 5ch;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.draft-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.draft-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.draft-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+}
+/* Waiting a week or more: the amount and the age turn amber — the same tone
+   the month grid uses for a day that is only partly booked. */
+.draft-row.stale .draft-time,
+.draft-row.stale .hint {
+  color: var(--tone-part);
+}
+
+/* The park form's issue line: a chip once there is an issue, a link before. */
+.draft-issue {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.draft-issue .issue-chip {
+  margin: 0;
+}

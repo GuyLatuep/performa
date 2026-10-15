@@ -49,6 +49,8 @@
   border-bottom: 1px solid var(--hair);
 }
 .day-col {
+  /* Each column carries its own target line, so it is the line's frame. */
+  position: relative;
   flex: 1;
   display: flex;
   align-items: flex-end;
@@ -64,10 +66,13 @@
   border: none;
   border-radius: var(--r-control) var(--r-control) 0 0;
 }
+/* One short dashed line per day at that day's own target. Inset a little,
+   so a short Friday next to a full Thursday reads as two steps rather than
+   one broken line. */
 .day-target {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 3px;
+  right: 3px;
   border-top: 1px dashed var(--hair-strong);
   pointer-events: none;
 }
@@ -213,4 +218,57 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ---------- Rebuild a day ----------
+   A time-ordered list: the time leads, what happened fills the middle, the
+   action trails. A gap — something done on an issue with nothing booked —
+   is the row the view exists for, so it carries the amber tone. */
+.modal.rebuild {
+  max-width: 640px;
+}
+.rebuild-list {
+  list-style: none;
+  margin: var(--sp-3) 0;
+  padding: 0;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+.rebuild-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  border-bottom: 1px solid var(--hair);
+}
+.rebuild-at {
+  flex-shrink: 0;
+  width: 5ch;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.rebuild-what {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rebuild-row.booked .rebuild-what {
+  color: var(--muted);
+}
+.rebuild-row.gap .rebuild-at {
+  color: var(--tone-part);
+}
+
+/* The week's way in: one small button per past day, empty days included. */
+.rebuild-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 var(--sp-4);
+}
+.rebuild-strip .hint {
+  margin-right: var(--sp-1);
 }

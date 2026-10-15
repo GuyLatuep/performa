@@ -41,6 +41,9 @@ import {
   today,
   weekChunks,
 } from "../time";
+import { dayInfo, DayInfo, useWorkCalendar } from "../workdays";
+import { canRebuild } from "../rebuild";
+import DayRebuild from "./DayRebuild";
 import IssuePicker from "./IssuePicker";
 import TypeIcon from "./TypeIcon";
 import RepeatModal from "./RepeatModal";
@@ -72,6 +75,8 @@ const DAY_FORMAT: Intl.DateTimeFormatOptions = {
  *  column to share. */
 interface LabelledColumn extends MonthColumn {
   label: string;
+  /** What the day is expected to hold — a Holiday, an Absence, a workday. */
+  info: DayInfo;
 }
 
 export default function TimesheetMonth({ site }: Props) {
@@ -95,6 +100,8 @@ export default function TimesheetMonth({ site }: Props) {
     date: string;
   } | null>(null);
   const [quickLog, setQuickLog] = useState<string | null>(null);
+  /** The day being rebuilt, if one is. */
+  const [rebuilding, setRebuilding] = useState<string | null>(null);
 
   /** How the rows are ordered — remembered across launches, and read fresh
    *  (not from this closure) wherever a load just finished, so a sort change
@@ -192,15 +199,17 @@ export default function TimesheetMonth({ site }: Props) {
     if (now >= start && now <= end) void refreshChunk(now);
   }, [filed, start, end, refreshChunk]);
 
+  const calendar = useWorkCalendar();
   const grid = buildMonthGrid(entries, start, end, rowOrder);
   // The day a tooltip names is a property of the column, not of the cell, so it
   // is spelled out once per column and read by all thirty-odd rows under it. A
   // month-wide grid is a thousand cells and `toLocaleDateString` is not cheap:
   // done per cell it was most of what a re-render spent its time on.
-  const columns: LabelledColumn[] = grid.columns.map((col) => ({
-    ...col,
-    label: formatDayLabel(col.date, DAY_FORMAT),
-  }));
+  const columns: LabelledColumn[] = grid.columns.map((col) => {
+    const info = dayInfo(col.date, calendar);
+    const day = formatDayLabel(col.date, DAY_FORMAT);
+    return { ...col, info, label: info.label ? `${day} · ${info.label}` : day };
+  });
   // A worklog carries no issue type, so the type behind each row is looked up
   // by key — one search for the whole month. Asked for whether or not the
   // icons are shown: the rows are *ordered* by type, so the lookup is what the
@@ -342,6 +351,11 @@ export default function TimesheetMonth({ site }: Props) {
                 key={col.date}
                 col={col}
                 seconds={grid.dayTotals.get(col.date) ?? 0}
+                onRebuild={
+                  canRebuild(col.date)
+                    ? () => setRebuilding(col.date)
+                    : undefined
+                }
               />
             ))}
             <div className="row-head col-total" role="columnheader">
@@ -423,6 +437,15 @@ export default function TimesheetMonth({ site }: Props) {
         />
       )}
 
+      {rebuilding && (
+        <DayRebuild
+          date={rebuilding}
+          worklogs={entries}
+          onClose={() => setRebuilding(null)}
+          onLogged={() => void refreshChunk(rebuilding)}
+        />
+      )}
+
       {quickLog && (
         <QuickLogModal
           site={site}
@@ -474,8 +497,28 @@ function cellTitle(
   return `${day} — ${formatDuration(seconds)} over ${count} worklogs, click to open them`;
 }
 
-function DayHeader({ col, seconds }: { col: LabelledColumn; seconds: number }) {
+function DayHeader({
+  col,
+  seconds,
+  onRebuild,
+}: {
+  col: LabelledColumn;
+  seconds: number;
+  /** Open the day's rebuild; absent where the day cannot be rebuilt. */
+  onRebuild?: () => void;
+}) {
   const date = new Date(col.date + "T00:00:00");
+  const content = (
+    <>
+      <span className="dow">
+        {date.toLocaleDateString(undefined, { weekday: "narrow" })}
+      </span>
+      <span className="dom">{date.getDate()}</span>
+      <span className={`day-sum${dayTone(seconds, col, col.info)}`}>
+        {seconds > 0 ? decimalHours(seconds) : "0"}
+      </span>
+    </>
+  );
   return (
     <div
       className={
@@ -487,13 +530,21 @@ function DayHeader({ col, seconds }: { col: LabelledColumn; seconds: number }) {
       role="columnheader"
       title={col.label}
     >
-      <span className="dow">
-        {date.toLocaleDateString(undefined, { weekday: "narrow" })}
-      </span>
-      <span className="dom">{date.getDate()}</span>
-      <span className={`day-sum${dayTone(seconds, col)}`}>
-        {seconds > 0 ? decimalHours(seconds) : "0"}
-      </span>
+      {onRebuild ? (
+        <button
+          type="button"
+          className="day-head-btn"
+          title={`${col.label} — rebuild the day from what you did in Jira`}
+          // The content is a narrow weekday, a number and an hour figure —
+          // read aloud that is "M 5 0", so the name says it in full.
+          aria-label={`Rebuild ${col.label}, ${seconds > 0 ? decimalHours(seconds) : "0"} hours booked`}
+          onClick={onRebuild}
+        >
+          {content}
+        </button>
+      ) : (
+        content
+      )}
     </div>
   );
 }

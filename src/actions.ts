@@ -10,7 +10,9 @@ import {
   requestView,
 } from "./searchRequest";
 import { requestIssue } from "./issueRequest";
+import { requestPark } from "./drafts";
 import { setFunMode } from "./settings";
+import { switchTimer } from "./timer";
 import {
   boundShortcuts,
   chordLabel,
@@ -72,6 +74,9 @@ export interface ActionSpec {
     parse: (text: string) => string | null;
     /** Run with the parsed value. */
     submit: (value: string) => void;
+    /** The hint under the field once the value is usable. Searches leave it
+     *  out and get "Press Enter to search for …". */
+    confirm?: (value: string) => string;
   };
 }
 
@@ -180,6 +185,28 @@ function appActions(): ActionSpec[] {
     run: () => setTextScale(scale),
   });
   return [
+    {
+      id: "time.park",
+      name: "Park time…",
+      group: "Time",
+      keywords: "draft later no ticket unbooked remember",
+      run: () => requestPark(),
+    },
+    {
+      id: "time.ticketless",
+      name: "Start a timer without a ticket",
+      group: "Time",
+      keywords: "no issue draft park untracked",
+      prompt: {
+        title: "Start a timer without a ticket",
+        placeholder: "What are you working on?",
+        // The note is all a ticket-less timer has to go by, so it is asked
+        // for: it becomes the draft's note when the timer stops.
+        parse: (typed) => typed.trim() || null,
+        submit: (note) => switchTimer(null, note),
+        confirm: (note) => `Press Enter to start timing “${note}”`,
+      },
+    },
     theme("light"),
     theme("dark"),
     size("normal", "Text size: normal"),

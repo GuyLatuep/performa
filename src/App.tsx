@@ -30,6 +30,10 @@ import Todo from "./components/Todo";
 import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
 import TimerBar from "./components/TimerBar";
+import ParkModalHost from "./components/ParkModal";
+import IdlePrompt from "./components/IdlePrompt";
+import { useIdleWatch } from "./idle";
+import { useDrafts } from "./drafts";
 import MissingWorklogs from "./components/MissingWorklogs";
 import { useAccountWatchers } from "./accountWatchers";
 import { useCelebration } from "./celebration";
@@ -104,6 +108,8 @@ export default function App() {
     !typedIssue && search?.kind === "view" ? search.search.id : null;
 
   const missingItems = useMissing();
+  // Parked drafts wait on the same tab, so its count covers both.
+  const draftCount = useDrafts().length;
   const missingUnseen = useMissingUnseenCount();
   const mentionsUnread = useMentionsUnreadCount();
   const { confetti, confettiPieces, awards } = useCelebration();
@@ -114,6 +120,7 @@ export default function App() {
   const missingArrived = useArrival(missingUnseen);
 
   useAccountWatchers(creds);
+  useIdleWatch();
 
   function refreshStatus(): Promise<void> {
     return api
@@ -306,7 +313,7 @@ export default function App() {
           {navRow("timesheet", 0, false, () => showTab("timesheet"))}
           {navRow(
             "missing",
-            missingItems.length,
+            missingItems.length + draftCount,
             missingUnseen > 0,
             () => showTab("missing"),
             missingArrived,
@@ -421,6 +428,8 @@ export default function App() {
         <Confetti trigger={confetti} pieces={confettiPieces} />
         <AchievementToast queue={awards} />
         <TimerBar />
+        <ParkModalHost site={creds.site} />
+        <IdlePrompt />
 
         <main>
           {/* An issue reached by key replaces the tab's content rather than the

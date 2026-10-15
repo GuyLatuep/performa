@@ -348,6 +348,33 @@ describe("dayTone", () => {
     // A future day is not behind.
     expect(dayTone(0, { ...workday, future: true })).toBe("");
   });
+
+  it("judges a short day by its own target", () => {
+    const short = { kind: "workday" as const, target: hours(4) };
+    expect(dayTone(hours(4), workday, short)).toBe(" tone-full");
+    expect(dayTone(hours(2), workday, short)).toBe(" tone-part");
+    expect(dayTone(hours(1), workday, short)).toBe(" tone-thin");
+  });
+
+  it("reads a holiday or a whole day off as off, not behind", () => {
+    const holiday = { kind: "holiday" as const, target: 0, label: "Neujahr" };
+    const off = { kind: "absence" as const, target: 0, label: "Vacation" };
+    expect(dayTone(0, workday, holiday)).toBe(" tone-off");
+    expect(dayTone(0, workday, off)).toBe(" tone-off");
+    // Ahead of time too: a holiday next week is already off.
+    expect(dayTone(0, { ...workday, future: true }, holiday)).toBe(" tone-off");
+  });
+
+  it("judges a half day off against the half that is left", () => {
+    const half = { kind: "absence" as const, target: hours(4), label: "x" };
+    expect(dayTone(hours(4), workday, half)).toBe(" tone-full");
+  });
+
+  it("judges a Saturday somebody is expected to work", () => {
+    const saturday = { ...workday, weekend: true };
+    const target = { kind: "workday" as const, target: hours(4) };
+    expect(dayTone(0, saturday, target)).toBe(" tone-thin");
+  });
 });
 
 describe("decimalHours", () => {

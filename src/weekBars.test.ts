@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { WorklogEntry } from "./api";
+import { isWeekend } from "./time";
 import { weekBars } from "./weekBars";
+import { DayInfo } from "./workdays";
 
 /** Monday 2026-03-16, so the week runs Mon 16th to Sun 22nd. */
 const MONDAY = "2026-03-16";
@@ -21,7 +23,15 @@ function entry(date: string, seconds: number): WorklogEntry {
   };
 }
 
-const weekdays = { dayTarget: TARGET, showWeekends: false };
+/** An ordinary week: `target` on every weekday, nothing on the weekend. */
+const plainWeek =
+  (target: number) =>
+  (date: string): DayInfo =>
+    isWeekend(date) || target === 0
+      ? { kind: "weekend", target: 0 }
+      : { kind: "workday", target };
+
+const weekdays = { dayOf: plainWeek(TARGET), showWeekends: false };
 
 describe("the seven days", () => {
   it("buckets each entry onto its own day", () => {
@@ -131,7 +141,7 @@ describe("scaleMax", () => {
   it("is never zero, so a height can always be divided by it", () => {
     // With no target and nothing logged, every bar divides by this.
     const { scaleMax } = weekBars(MONDAY, [], {
-      dayTarget: 0,
+      dayOf: plainWeek(0),
       showWeekends: false,
     });
 
@@ -179,7 +189,7 @@ describe("the week total and its fraction", () => {
 
   it("is zero rather than infinite when there is no target", () => {
     const { pct } = weekBars(MONDAY, [entry("2026-03-16", HOUR)], {
-      dayTarget: 0,
+      dayOf: plainWeek(0),
       showWeekends: false,
     });
 
@@ -188,5 +198,69 @@ describe("the week total and its fraction", () => {
 
   it("is zero for an empty week", () => {
     expect(weekBars(MONDAY, [], weekdays)).toMatchObject({ total: 0, pct: 0 });
+  });
+});
+
+describe("days with their own target", () => {
+  /** Wednesday is a holiday, Friday a half day off. */
+  const special = (date: string): DayInfo =>
+    date === "2026-03-18"
+      ? { kind: "holiday", target: 0, label: "A holiday" }
+      : date === "2026-03-20"
+        ? { kind: "absence", target: TARGET / 2, label: "Vacation, half day" }
+        : plainWeek(TARGET)(date);
+
+  it("takes holidays and days off out of the week's target", () => {
+    const { weekTarget } = weekBars(MONDAY, [], {
+      dayOf: special,
+      showWeekends: false,
+    });
+
+    expect(weekTarget).toBe(3.5 * TARGET);
+  });
+
+  it("measures the week against what it was expected to hold", () => {
+    const { pct } = weekBars(
+      MONDAY,
+      [
+        entry("2026-03-16", TARGET),
+        entry("2026-03-17", TARGET),
+        entry("2026-03-19", TARGET),
+        entry("2026-03-20", TARGET / 2),
+      ],
+      { dayOf: special, showWeekends: false },
+    );
+
+    expect(pct).toBeCloseTo(1, 10);
+  });
+
+  it("carries each day's own target", () => {
+    const { days } = weekBars(MONDAY, [], {
+      dayOf: special,
+      showWeekends: false,
+    });
+
+    expect(days.map((d) => d.info.target)).toEqual([
+      TARGET,
+      TARGET,
+      0,
+      TARGET,
+      TARGET / 2,
+    ]);
+  });
+
+  it("shows a Saturday somebody is expected to work", () => {
+    const saturdays = (date: string): DayInfo =>
+      date === "2026-03-21"
+        ? { kind: "workday", target: 4 * HOUR }
+        : plainWeek(TARGET)(date);
+
+    const { days, weekTarget } = weekBars(MONDAY, [], {
+      dayOf: saturdays,
+      showWeekends: false,
+    });
+
+    expect(days.map((d) => d.date)).toContain("2026-03-21");
+    expect(weekTarget).toBe(5 * TARGET + 4 * HOUR);
   });
 });

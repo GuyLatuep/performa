@@ -18,6 +18,7 @@ performa is a small desktop app (macOS + Windows) for logging your work hours on
 - [System tray / menu bar](#system-tray--menu-bar)
 - [Timesheet](#timesheet)
 - [Missing worklogs](#missing-worklogs)
+- [Parked time (drafts)](#parked-time-drafts)
 - [Mentions](#mentions)
 - [Templates](#templates)
 - [Settings](#settings)
@@ -149,6 +150,7 @@ you are on, or whatever is open in front of you.
 | --- | --- |
 | **⌘J** | open it in Jira, in the browser |
 | **⌘T** | start its timer — or stop the running one |
+| **⌘⇧T** | pause the running timer, or resume a paused one |
 | **⌘B** | pin it to the top of the Log-work list, or unpin it |
 | **⌘L** | log work on it |
 | **⌘E** | edit it — a worklog entry, or the issue view's field layout |
@@ -378,7 +380,7 @@ The same list appears under **every** form that logs time, so you always see wha
 
 ## The timer
 
-Start a timer with the **▶ start** button on any issue row (Start tab or Log work tab). Only one timer can run at a time — other start buttons are disabled while one is active.
+Start a timer with the **▶ start** button on any issue row (Start tab or Log work tab). Only one timer runs at a time, but moving it is one click: while a timer runs (or is paused), every other row's button reads **▶ switch**. Switching starts the new timer straight away and opens the log modal for the old one — filled in exactly as if you had pressed Stop — so filling it in costs the new timer nothing. Switch again before you are done and the next form simply waits its turn; no tracked time is dropped — not even by quitting, since waiting forms are back after a restart. **⌘T** on a selected row only starts a timer when none exists; with one running it means Stop, so switching is the button's job.
 
 > Starting a timer also tries to move the issue to the **"In Arbeit"** status in Jira, using whatever transition currently leads there in that issue's workflow (matched case-insensitively, e.g. "IN ARBEIT" also counts). This is best-effort: if the issue is already in that status, or its workflow doesn't offer a direct transition to it, nothing happens — the timer still starts normally either way.
 
@@ -387,12 +389,39 @@ While running:
 - The **timer bar** above the tabs shows the issue and a live clock.
 - The [system tray](#system-tray--menu-bar) mirrors the timer.
 
+**Pause** (in the timer bar, the tray, or **⌘⇧T**) stops the clock without
+ending the timer — for lunch, or a call about something else. The bar's dot
+stops pulsing, the clock greys out and stands still, and the button now reads
+**Resume**. Resuming carries on from the same reading: paused time never counts.
+A paused timer is still the one timer, and still tracked time waiting to be
+logged — so it survives a restart and [close protection](#close-protection)
+asks about it just as it does about a running one.
+
 Press **Stop** (in the timer bar or the tray) to finish. The log modal opens with:
 
-- **Time spent** prefilled with the elapsed time, **rounded up to the next 15 minutes** (minimum 15 minutes) — you can edit it freely before saving.
-- **Date and start time** prefilled from when the timer was started.
+- **Time spent** prefilled with the elapsed time, **rounded up to the next 15 minutes** (minimum 15 minutes) — you can edit it freely before saving. Paused stretches are left out, and the rounding is applied once to the total, so a day of short breaks does not add up to extra quarter hours.
+- **Date and start time** prefilled from when the timer was first started — not from the last resume.
 
-You can complete the worklog (comment, billability) and save, or **Discard** the tracked time — discarding asks for confirmation, because the time would be lost.
+You can complete the worklog (comment, billability) and save, **Discard** the tracked time — discarding asks for confirmation, because the time would be lost — or press **Later** to [park it as a draft](#parked-time-drafts) and book it when you have the moment.
+
+### Idle time
+
+A timer counts the clock, not the work, so one left running over lunch would
+book lunch. While a timer runs, performa watches how long the computer has had
+no input — keyboard, mouse, trackpad — and a closed lid or a sleeping machine
+counts too. Once there has been no input for longer than the
+[idle setting](#settings) (10 minutes unless you change it), it waits for you to
+come back, then brings its window forward and asks **You were away**: how long,
+from when to when, on which issue. Nothing is asked while you are away, and
+nothing at all while the timer is paused.
+
+- **Keep** — the time away was work (a meeting at the whiteboard); nothing
+  changes. This is the default: **Enter** answers it.
+- **Discard** — take the time away out of the timer; it keeps running from now.
+- **Draft** — take it out, and [park it](#parked-time-drafts) on the same issue,
+  to decide later.
+- **Discard & stop** — you were done for the day: the timer ends where you left,
+  and the log form opens with only the time before that.
 
 > The timer is based on wall-clock time and survives app restarts: if you quit with a timer running (see [Close protection](#close-protection)) and reopen the app later, the timer resumes with the correct total elapsed time.
 
@@ -400,12 +429,13 @@ You can complete the worklog (comment, billability) and save, or **Discard** the
 
 performa adds an icon to the macOS menu bar / Windows system tray:
 
-- **macOS**: while a timer runs, a live readout appears next to the icon — `▶ ABC-123 12:34` (hours:minutes:seconds past an hour).
+- **macOS**: while a timer runs, a live readout appears next to the icon — `▶ ABC-123 12:34` (hours:minutes:seconds past an hour). While it is paused, the readout stands still behind a pause sign: `⏸ ABC-123 12:34`.
 - **Windows**: tray icons cannot show text, so the same readout appears as the icon's **hover tooltip** instead. Everything else works identically.
 
 The tray menu offers:
 
-- **Stop timer…** *(enabled only while a timer runs)* — brings the window to the front and opens the regular log modal
+- **Pause timer** / **Resume timer** *(enabled only while there is a timer)* — pauses or resumes it in place, without bringing the window forward
+- **Stop timer…** *(enabled only while there is a timer, running or paused)* — brings the window to the front and opens the regular log modal
 - **Open performa** — shows and focuses the window
 - **Quit performa** — quits the app; this goes through the normal close path, so [close protection](#close-protection) still applies
 
@@ -418,7 +448,7 @@ The **Timesheet** tab has two views, switched with **Week / Month** at the top. 
 Shows one week at a time.
 
 - Navigate with **← / →**; the current week is the rightmost you can go (no future weeks). Labels show "This week", "Last week", or the date range.
-- **Charts**: per-day bars measured against your daily target (a line marks the target), and a ring showing the week's progress against the weekly target (daily hours × 5 workdays). Saturday/Sunday are hidden by default but appear automatically when they contain logged time — or always, if you switch the [setting](#settings) to full week.
+- **Charts**: per-day bars, each measured against **that day's own target** (a short dashed line marks it), and a ring showing the week's progress against the weekly target — the sum of the week's daily targets. A short Friday, a [public holiday or a day off](#settings) all count at their own size: a holiday has no target line at all, half a day off has half of one, and the ring's target shrinks to match. Hover a bar to see its time, its target and why. Saturday/Sunday are hidden by default but appear automatically when they contain logged time or have a target of their own — or always, if you switch the [setting](#settings) to full week.
 - Below, worklogs are grouped by day (newest day first) with per-day totals. Each row shows the issue key (click → browser), summary, comment, start time, duration, and a `non-billable` tag where applicable.
 
 Row actions:
@@ -434,13 +464,43 @@ A matrix: **issues down the side, days across the top**, hours in the cells. Bui
 - **Columns** are every weekday of the month, plus any Saturday or Sunday you actually booked time on — a worked weekend day is never hidden.
 - The **header row** carries each day's total, the **right-hand column** each issue's month total, and the **top-left corner** the whole month.
 - Hours read as decimals (`1.5`, `0.25`) because a column is too narrow for `1h 30m`; the full duration is in the cell's tooltip.
-- Each day's total is **coloured by how full the day is**: red under 3 hours, amber from 3 to 6, green above 6. Only ordinary working days are judged — a weekend column and a day that hasn't happened yet stay uncoloured.
+- Each day's total is **coloured by how full the day is, against its own target**: red under three eighths of it, amber up to three quarters, green above — for an 8-hour day that is under 3 hours, 3 to 6, and above 6. Only days expected to hold work are judged — a weekend column and a day that hasn't happened yet stay uncoloured — and a **public holiday or a whole day off reads grey**, as off rather than behind. The day header's tooltip names the holiday or the kind of day off.
 
 **Clicking a cell** opens everything booked on that issue on that day: each worklog with the familiar **↻ / ✎ / 🗑** buttons, plus **＋ Add time** to book more against the same issue and day. An empty cell opens the same window, ready to add the first entry. **Future days** are greyed out, the same rule the log form follows.
 
 **The ＋ row** under the header logs time on an issue that has no row yet: click the day, pick the issue, fill in the form. The day is already filled in for you.
 
 **Width:** the month is the one view that uses the whole window. Every other view stops at a comfortable reading width, but here more width means more days on screen and more of each summary before the ellipsis, so a wide or maximised window is put to work — the day columns keep their size and the issue column takes the extra. The issue column also has its own key column, so the summaries all start at the same place down the table.
+
+### Rebuilding a day
+
+Some days end with less booked than was worked, and by the next week nobody
+remembers what filled them. **Rebuild a day** puts what you did in Jira that day
+next to what you booked, so the gaps show.
+
+Open it from the **Rebuild a day** row under the week's total — one button per
+day of the week so far, empty days included — or by clicking a day's header in
+the **Month** view. Days from the current and the previous month can be
+rebuilt.
+
+The day reads in time order:
+
+- your **comments**, your **status changes**, issues you **created**, and issues
+  **handed to you** — read from Jira when you open the day (once per day per
+  session; nothing runs in the background)
+- what is already **booked**, greyed
+- the running **timer** and any [parked time](#parked-time-drafts) of that day
+
+Anything you did on an issue with **no time booked that day** is marked and
+offers **Log…**: the ordinary log form, filled in with that issue, that day and
+that moment. Nothing is booked for you — the view never fills a gap on its
+own, because it knows what you did, not how long it took.
+
+Comments can't be searched by author in Jira, so the view finds them on the
+issues you have recently viewed, watch, are assigned or reported. On a very
+busy day, or one a few weeks back, Jira can hold more than the view reads; it
+then says that **some of what you did may be missing** rather than calling the
+day complete.
 
 ## Missing worklogs
 
@@ -457,6 +517,46 @@ Each finding shows:
 Clicking a finding opens an inline log form, prefilled with the **date and time of the flagged activity**, so the resulting worklog covers it and the reminder clears on the next check.
 
 > **Escalation issues:** for issues in the `DEV` project, the time is logged on the **linked escalation-source issue** instead (the issue linked as "is an escalation for") — but only when that source issue is assigned to you. Somebody else's ticket never receives your hours: if the source belongs to a colleague or to nobody, the time stays on the `DEV` issue you were actually working. The form shows both issues so it's always clear where the time goes. When the source issue is on the list in its own right, the `DEV` row is left out — one worklog would clear both, and two rows for the same piece of work only add noise.
+
+## Parked time (drafts)
+
+Sometimes the work comes before the ticket — somebody walks up with a problem,
+and the ticket arrives a day later, if at all. **Parked time** holds that time
+until there is somewhere to book it: a duration, when it happened, a note on
+what it was, and — once known — the issue it belongs on.
+
+A draft is not a [missing worklog](#missing-worklogs). Those are *found* by
+scanning Jira; a draft is something *you* put down, so it never disappears on
+its own. It goes when you have booked all of it, or when you discard it (which
+asks first).
+
+**Parking time:**
+
+- **Park time…** in the [command palette](#the-command-palette) opens the park
+  form: duration, date, start time, a note and, optionally, the issue.
+- When a search in the issue picker finds nothing, the list offers **No ticket
+  yet — park it**, with what you searched for as the note.
+- **Start a timer without a ticket** in the palette starts a timer that belongs
+  to no issue — it asks what you are working on, and the tray shows it as
+  `▶ No ticket 12:34`. Stopping it parks its time straight away, without a form.
+- The log form that opens on **Stop** or on a [switch](#the-timer) has a
+  **Later** button: the time is parked instead of logged.
+
+**Where it waits:** in its own **Parked time** section at the top of the
+[Missing worklog](#missing-worklogs) tab, with the total still to book. Drafts
+count towards the tab's badge, and every time you sign in — normally, every
+time the app starts — a desktop notification says how much is still parked.
+A draft that has waited a week or more turns amber and says how long.
+
+**Booking it:** **Book** opens the ordinary log form, filled in from the draft —
+its note becomes the worklog comment. A draft without an issue asks for one
+first. Book less than the whole and the rest stays parked, starting where the
+booked part ended: that is how one stretch is split across several issues.
+**Edit** opens the park form on the draft; **Discard** removes it after a
+confirmation.
+
+Drafts are kept on this computer only, like your other settings, and nothing
+about them reaches Jira until you book them.
 
 ## Mentions
 
@@ -488,14 +588,17 @@ The **Settings** link in the header opens the same screen used for the first-run
 
 - **General** — the connection to Jira (below), plus app-wide switches and **Check for updates** (see [Updates](#updates)).
 - **Appearance** — light / dark theme toggle, the **accent colour**, and **Show issue type icons in lists** (on by default; turning it off drops the icon from every issue row, and the **T** column from the Todo tab with it).
-- **Daily work hours** — 0.5–24 h; this drives the daily target line and, × 5, the weekly target ring in the charts.
+- **Work hours per day** — one box per weekday, Monday first (0–24 h; 8 for Mon–Fri unless you change it). Each day of the timesheet is measured against its own weekday — a part-time Friday is a shorter Friday, not a lower average — and the weekly ring against the week's sum.
+- **Public holidays** — your German state. Its statewide legal holidays are then days off: no target, grey in the month view. Holidays only some towns keep (Mariä Himmelfahrt in parts of Bavaria, for instance), and days like 24 or 31 December that many contracts treat as half days, are not built in — mark those as days off yourself.
+- **Days off** — vacation, sick days and the like, as a whole or a **half day**: pick a date (or a stretch, with **until**, which skips weekends and holidays), how much of the day, and what kind, then **Add**. A day off takes its share off that day's target. The list shows the last two months and everything ahead; **✕** removes an entry. Like searches, days off are yours rather than a preview, so **Cancel** does not undo them.
 - **Timesheet days** — **Mon–Fri** (weekends hidden unless they contain logged time) or **Full week**.
+- **Idle time** — how many minutes without input before a running timer asks about the time away (10 by default; **0** turns it off). See [Idle time](#idle-time).
 - **Todo** — which statuses the Todo tab hides, per project. Most sites use the same statuses everywhere, so the list carries a **Copy to** for filling the rest in at once.
 - **Searches** — searches of your own, each becoming **Search by …** in the command palette ([⌘P](#the-command-palette)). One row each: a **Name** and the **JQL** it runs, written exactly as you would write a filter in Jira, with `%SEARCHTERM%` where the text you type into the palette goes — for example `project in (CTS, DEV, SD) AND "Plant Number[Short text]" ~ %SEARCHTERM% ORDER BY created ASC`. Written on its own, `%SEARCHTERM%` is quoted for you; written inside quotes, the rest of that string is left as you wrote it, so `"%SEARCHTERM%*"` matches anything *starting* with what you type (`DE_1979` then also finds `DE_1979_03`). Whatever you type is escaped on the way in, so a quote or a bracket in the term is searched for rather than read as JQL. A query without `%SEARCHTERM%` is a **view** instead of a search: it finds the same issues whatever you type, which is the point of one, so it is offered in the palette as **View: …** and runs the moment you pick it. A view also has a **star** next to its ✕: star it to keep it in the sidebar under the tabs, and click the star again to take it out. The JQL box says which of the two a query has become, and saves when you leave it or press **Enter**. Searches written before this took the JQL form (a field, **Whole value** and excluded projects) are converted to the equivalent JQL on first launch, so nothing needs re-entering. Searching plain text needs no setting up and is always offered.
 - **Logging** — the debug-log verbosity (**Error**, **Warn**, **Info**, or **Debug**; see [Debug log](#debug-log)) and an **Open log folder** button.
 - **Credentials** — change site, email, or token. Leaving the token field blank keeps the stored token, so you don't need to re-enter it to fix a typo in the email. Saving re-verifies against Jira.
 
-Appearance (theme, accent, type icons), hours, the weekend toggle, and the log level apply **instantly** as a live preview — pressing **Cancel** restores the values from when you opened the screen. Searches are not part of that rollback: they are yours rather than a preview, and the **✕** on a row is what removes one.
+Appearance (theme, accent, type icons), hours, the holiday state, the weekend toggle, and the log level apply **instantly** as a live preview — pressing **Cancel** restores the values from when you opened the screen. Searches are not part of that rollback: they are yours rather than a preview, and the **✕** on a row is what removes one.
 
 Saved searches belong to the account they were written for — the fields and projects their JQL names mean nothing on another Jira — so signing in as somebody else starts with an empty list.
 

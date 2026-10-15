@@ -4,14 +4,20 @@ import { api } from "../api";
 import { useShortcut } from "../shortcuts";
 import { formatDuration, toDateInput, toTimeInput } from "../time";
 import {
-  ActiveTimer,
+  doneLogging,
   formatClock,
   getTimer,
+  isPaused,
   isPlayfulClock,
-  roundUpToQuarterHour,
-  stopTimer,
+  parkStopped,
+  pauseTimer,
+  resumeTimer,
+  StoppedTimer,
+  stopForLogging,
+  timerStartedAt,
   useElapsedSeconds,
   useTimer,
+  useTimersToLog,
 } from "../timer";
 import IssueHistory from "./IssueHistory";
 import {
@@ -21,51 +27,65 @@ import {
   WorklogFields,
 } from "./WorklogFields";
 
-interface StopData {
-  timer: ActiveTimer;
-  seconds: number; // rounded-up elapsed
-}
-
 export default function TimerBar() {
   const timer = useTimer();
   const elapsed = useElapsedSeconds(timer);
-  const [stopping, setStopping] = useState<StopData | null>(null);
+  // Stopping, the tray's stop and switching to another issue all queue the
+  // old timer here; the log form works through them oldest first.
+  const toLog = useTimersToLog();
+  const stopping = toLog[0] ?? null;
 
-  function onStop() {
-    if (!timer) return;
-    setStopping({ timer, seconds: roundUpToQuarterHour(elapsed) });
-    stopTimer(); // freeze the clock; the captured data lives in `stopping`
+  const paused = !!timer && isPaused(timer);
+
+  function onPauseToggle() {
+    if (paused) resumeTimer();
+    else pauseTimer();
   }
 
-  // "Stop timer" in the system tray routes through the same log-modal flow.
+  // "Stop timer" in the system tray routes through the same log-modal flow;
+  // its pause item flips the timer the same way the bar's button does. Both
+  // read the live store, not a stale closure.
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen("stop-timer", () => {
-      const t = getTimer(); // live store, not a stale closure
-      if (!t) return;
-      const secs = Math.max(0, Math.floor((Date.now() - t.startedAt) / 1000));
-      setStopping({ timer: t, seconds: roundUpToQuarterHour(secs) });
-      stopTimer();
-    }).then((fn) => {
-      unlisten = fn;
-    });
-    return () => unlisten?.();
+    const unlistens: (() => void)[] = [];
+    let gone = false;
+    const subscriptions = [
+      listen("stop-timer", stopForLogging),
+      listen("toggle-pause-timer", () => {
+        const t = getTimer();
+        if (!t) return;
+        if (isPaused(t)) resumeTimer();
+        else pauseTimer();
+      }),
+    ];
+    for (const sub of subscriptions) {
+      sub.then((fn) => {
+        // Unmounted before the subscription landed: drop it straight away.
+        if (gone) fn();
+        else unlistens.push(fn);
+      });
+    }
+    return () => {
+      gone = true;
+      for (const fn of unlistens) fn();
+    };
   }, []);
 
   // Bound only while a timer is actually running, which is also the only time
   // the bar is on screen. Starting one is per issue row — a different shortcut
   // on a different thing, and step 6's business.
-  const stopKeys = useShortcut("timer", onStop, !!timer && !stopping);
+  const live = !!timer && !stopping;
+  const stopKeys = useShortcut("timer", stopForLogging, live);
+  const pauseKeys = useShortcut("pauseTimer", onPauseToggle, live);
 
   if (!timer && !stopping) return null;
 
   return (
     <>
       {timer && (
-        <div className="timer-bar">
+        <div className={`timer-bar${paused ? " paused" : ""}`}>
           <span className="timer-dot" aria-hidden="true" />
           <div className="timer-info">
-            <span className="key">{timer.issueKey}</span>
+            <span className="key">{timer.issueKey ?? "No ticket"}</span>
             <span className="summary">{timer.issueSummary}</span>
           </div>
           <span
@@ -73,13 +93,30 @@ export default function TimerBar() {
           >
             {formatClock(elapsed)}
           </span>
-          <button className="timer-stop" {...stopKeys} onClick={onStop}>
+          <button
+            className="secondary timer-pause"
+            {...pauseKeys}
+            onClick={onPauseToggle}
+          >
+            {paused ? "Resume" : "Pause"}
+          </button>
+          <button className="timer-stop" {...stopKeys} onClick={stopForLogging}>
             Stop
           </button>
         </div>
       )}
       {stopping && (
-        <StopModal data={stopping} onClose={() => setStopping(null)} />
+        // Keyed by the timer it is about, so the next one in the queue gets a
+        // fresh form rather than the last one's leftovers.
+        <StopModal
+          key={`${stopping.timer.issueKey}@${timerStartedAt(stopping.timer)}`}
+          data={stopping}
+          onClose={doneLogging}
+          onLater={() => {
+            parkStopped(stopping);
+            doneLogging();
+          }}
+        />
       )}
     </>
   );
@@ -87,8 +124,20 @@ export default function TimerBar() {
 
 /** `onClose` runs after a worklog is filed as well as on a discard: either way
  *  the tracked time has been dealt with. */
-function StopModal({ data, onClose }: { data: StopData; onClose: () => void }) {
-  const started = new Date(data.timer.startedAt);
+function StopModal({
+  data,
+  onClose,
+  onLater,
+}: {
+  data: StoppedTimer;
+  onClose: () => void;
+  /** Park the time as a draft instead of logging it now. */
+  onLater: () => void;
+}) {
+  // Only timers with an issue reach this form; one without is parked on stop.
+  const issueKey = data.timer.issueKey ?? "";
+  // When the work began, however often it was paused since.
+  const started = new Date(timerStartedAt(data.timer));
   const { draft, patch, seconds } = useWorklogDraft({
     duration: formatDuration(data.seconds),
     date: toDateInput(started),
@@ -106,7 +155,7 @@ function StopModal({ data, onClose }: { data: StopData; onClose: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      await api.logWork(data.timer.issueKey, toWorklogInput(draft, seconds));
+      await api.logWork(issueKey, toWorklogInput(draft, seconds));
       onClose();
     } catch (err) {
       setError(String(err));
@@ -119,7 +168,7 @@ function StopModal({ data, onClose }: { data: StopData; onClose: () => void }) {
     // No backdrop-click close here — tracked time shouldn't be lost by accident.
     <div className="modal-backdrop">
       <div className="modal">
-        <h3>Log time — {data.timer.issueKey}</h3>
+        <h3>Log time — {issueKey}</h3>
         <p className="muted modal-sub">{data.timer.issueSummary}</p>
 
         <WorklogFields
@@ -131,7 +180,7 @@ function StopModal({ data, onClose }: { data: StopData; onClose: () => void }) {
 
         {error && <p className="error">{error}</p>}
 
-        <IssueHistory issueKey={data.timer.issueKey} />
+        <IssueHistory issueKey={issueKey} />
 
         <div className="row">
           {confirmDiscard ? (
@@ -154,6 +203,13 @@ function StopModal({ data, onClose }: { data: StopData; onClose: () => void }) {
                 onClick={() => setConfirmDiscard(true)}
               >
                 Discard
+              </button>
+              <button
+                className="secondary"
+                title="Park the time as a draft and book it later"
+                onClick={onLater}
+              >
+                Later
               </button>
               <button onClick={save} disabled={busy}>
                 {busy ? "Logging…" : "Log work"}

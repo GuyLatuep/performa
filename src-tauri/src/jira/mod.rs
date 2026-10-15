@@ -15,6 +15,7 @@
 
 mod adf;
 mod attachments;
+mod day;
 mod issue;
 mod jql;
 mod links;
@@ -36,6 +37,7 @@ use futures_util::{stream, StreamExt, TryStreamExt};
 use serde::de::DeserializeOwned;
 
 use adf::{adf_paragraph, adf_to_text};
+pub use day::DayActivity;
 pub use jql::{
     build_search_jql, build_text_jql, fill_search_template, is_issue_key, SEARCH_TERM_PLACEHOLDER,
 };

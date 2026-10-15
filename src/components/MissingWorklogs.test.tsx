@@ -43,10 +43,18 @@ vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl }));
 
 import {
   apiMock,
+  issueSummary,
   missingWorklog,
   resetApiMock,
   worklogEntry,
 } from "../test-support/api";
+import {
+  addDraft,
+  discardDraft,
+  DraftInput,
+  getDrafts,
+  useParkRequest,
+} from "../drafts";
 import MissingWorklogs from "./MissingWorklogs";
 
 function renderTab() {
@@ -54,6 +62,8 @@ function renderTab() {
 }
 
 beforeEach(() => {
+  // The drafts store is the real one, and outlives a test.
+  for (const d of getDrafts()) discardDraft(d.id);
   resetApiMock();
   store.items = [];
   store.hidden = 0;
@@ -369,5 +379,138 @@ describe("links to the issues the form names", () => {
     expect(document.querySelector(".missing-reason")?.textContent).toContain(
       "“waiting on the customer”",
     );
+  });
+});
+
+describe("parked time", () => {
+  const parked = (o: Partial<DraftInput> = {}) =>
+    addDraft({
+      seconds: 3 * 3600,
+      date: "2026-10-12",
+      time: "09:00",
+      note: "Server room, order 4711",
+      issueKey: null,
+      issueSummary: "",
+      billable: true,
+      ...o,
+    })!;
+
+  it("lists drafts in their own section, apart from the findings", () => {
+    parked();
+    store.items = [missingWorklog()];
+
+    renderTab();
+
+    const section = screen.getByRole("region", { name: "Parked time" });
+    expect(section.textContent).toContain("Server room, order 4711");
+    expect(section.textContent).toContain("3h");
+    expect(section.textContent).toContain("no ticket yet");
+  });
+
+  it("is not all caught up while time is parked", () => {
+    parked();
+
+    renderTab();
+
+    expect(screen.queryByText(/All caught up/)).toBeNull();
+  });
+
+  it("books part of a draft on the picked issue and keeps the rest", async () => {
+    const draft = parked();
+    apiMock.searchIssues.mockResolvedValue([
+      issueSummary({ key: "OPS-7", summary: "Order 4711" }),
+    ]);
+    apiMock.logWork.mockResolvedValue(undefined);
+    renderTab();
+
+    await userEvent.click(screen.getByRole("button", { name: "Book" }));
+    // No issue yet, so the picker comes first.
+    await userEvent.click(await screen.findByTitle("Order 4711"));
+    const duration = screen.getByLabelText(/Time spent/);
+    expect(duration).toHaveProperty("value", "3h");
+    // The note arrives as the worklog comment.
+    expect(screen.getByLabelText(/Comment/)).toHaveProperty(
+      "value",
+      "Server room, order 4711",
+    );
+    await userEvent.clear(duration);
+    await userEvent.type(duration, "2h");
+    await userEvent.click(screen.getByRole("button", { name: "Log work" }));
+
+    await waitFor(() =>
+      expect(apiMock.logWork).toHaveBeenCalledWith(
+        "OPS-7",
+        expect.objectContaining({
+          timeSpentSeconds: 7200,
+          date: "2026-10-12",
+          time: "09:00",
+        }),
+      ),
+    );
+    // Back on the list, with the hour that was not booked still parked.
+    await screen.findByRole("region", { name: "Parked time" });
+    expect(getDrafts()).toEqual([
+      expect.objectContaining({ id: draft.id, seconds: 3600, time: "11:00" }),
+    ]);
+  });
+
+  it("goes straight to the form when the draft already has its issue", async () => {
+    parked({ issueKey: "ABC-1", issueSummary: "Replace the pump", note: "" });
+    renderTab();
+
+    await userEvent.click(screen.getByRole("button", { name: "Book" }));
+
+    expect(screen.getByLabelText(/Time spent/)).toHaveProperty("value", "3h");
+    expect(screen.getByText("ABC-1")).toBeDefined();
+  });
+
+  it("keeps the draft when Jira refuses the worklog", async () => {
+    parked({ issueKey: "ABC-1", issueSummary: "Replace the pump" });
+    apiMock.logWork.mockRejectedValue(new Error("Jira returned 400"));
+    renderTab();
+
+    await userEvent.click(screen.getByRole("button", { name: "Book" }));
+    await userEvent.click(screen.getByRole("button", { name: "Log work" }));
+
+    expect(await screen.findByText(/Jira returned 400/)).toBeDefined();
+    expect(getDrafts()).toHaveLength(1);
+  });
+
+  it("asks before discarding", async () => {
+    parked();
+    renderTab();
+
+    await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+    expect(getDrafts()).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "Keep" }));
+    expect(getDrafts()).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+    await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+    expect(getDrafts()).toEqual([]);
+  });
+
+  it("opens the park form on Edit, with the draft in it", async () => {
+    const draft = parked();
+    let request: ReturnType<typeof useParkRequest> = null;
+    function Spy() {
+      request = useParkRequest();
+      return null;
+    }
+    render(<Spy />);
+    renderTab();
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    expect(request).toMatchObject({ id: draft.id, note: draft.note });
+  });
+
+  it("marks a draft that has waited a week", () => {
+    parked({ date: "2020-01-01" });
+    renderTab();
+
+    const row = screen.getByText("Server room, order 4711").closest("li")!;
+    expect(row.className).toContain("stale");
+    expect(row.textContent).toMatch(/waiting \d+ days/);
   });
 });

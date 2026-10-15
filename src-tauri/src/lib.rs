@@ -2,6 +2,7 @@ mod checked;
 mod cleanup;
 mod creds;
 mod gestures;
+mod idle;
 mod jira;
 mod logging;
 mod session;
@@ -9,9 +10,9 @@ mod tray;
 
 use creds::{Credentials, CredentialsMeta};
 use jira::{
-    FieldMeta, IssueActivity, IssueDetail, IssueSummary, JiraClient, JiraUser, LinkRelation,
-    MentionRef, MentionScan, MissingConfig, MissingWorklog, Myself, ProjectSummary, TodoConfig,
-    Transition, WorklogEntry, WorklogInput,
+    DayActivity, FieldMeta, IssueActivity, IssueDetail, IssueSummary, JiraClient, JiraUser,
+    LinkRelation, MentionRef, MentionScan, MissingConfig, MissingWorklog, Myself, ProjectSummary,
+    TodoConfig, Transition, WorklogEntry, WorklogInput,
 };
 use session::{AppState, Session};
 use std::collections::BTreeMap;
@@ -598,6 +599,14 @@ async fn missing_worklogs(state: State<'_, AppState>) -> Result<Vec<MissingWorkl
         .await
 }
 
+/// What the user did in Jira on one day — the evidence behind the
+/// timesheet's "rebuild a day" view. Read on demand, never in the background.
+#[tauri::command]
+async fn day_activity(state: State<'_, AppState>, date: String) -> Result<DayActivity, String> {
+    let s = state.session().await?;
+    s.client.day_activity(&s.account_id, &date).await
+}
+
 /// Comments from the last two weeks that tag the current user — the data
 /// behind the "Mentions" tab.
 #[tauri::command]
@@ -759,9 +768,13 @@ pub fn run() {
             link_issues,
             delete_issue_link,
             missing_worklogs,
+            day_activity,
             mentions,
             tray::timer_started,
+            tray::timer_paused,
             tray::timer_stopped,
+            tray::show_main_window,
+            idle::idle_reading,
             set_log_level,
             open_log_folder,
             frontend_log,

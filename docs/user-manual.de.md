@@ -18,6 +18,7 @@ performa ist eine kleine Desktop-App (macOS + Windows) zum Erfassen deiner Arbei
 - [System-Tray / Menüleiste](#system-tray--menüleiste)
 - [Timesheet](#timesheet)
 - [Missing Worklogs](#missing-worklogs)
+- [Geparkte Zeit (Drafts)](#geparkte-zeit-drafts)
 - [Erwähnungen](#erwähnungen)
 - [Vorlagen](#vorlagen)
 - [Einstellungen](#einstellungen)
@@ -154,6 +155,7 @@ der du stehst, oder das, was gerade offen vor dir liegt.
 | --- | --- |
 | **⌘J** | im Browser in Jira öffnen |
 | **⌘T** | den Timer dafür starten — oder den laufenden stoppen |
+| **⌘⇧T** | den laufenden Timer pausieren oder einen pausierten fortsetzen |
 | **⌘B** | oben an die Log-work-Liste anpinnen oder wieder lösen |
 | **⌘L** | Arbeit darauf erfassen |
 | **⌘E** | bearbeiten — einen Worklog-Eintrag, oder das Feldlayout der Vorgangsansicht |
@@ -390,7 +392,7 @@ Dieselbe Liste erscheint unter **jedem** Formular, das Zeit erfasst — du siehs
 
 ## Der Timer
 
-Starte einen Timer mit dem **▶ start**-Button in jeder Vorgangszeile (Start-Tab oder Log-work-Tab). Es kann nur ein Timer gleichzeitig laufen — die übrigen Start-Buttons sind währenddessen deaktiviert.
+Starte einen Timer mit dem **▶ start**-Button in jeder Vorgangszeile (Start-Tab oder Log-work-Tab). Es läuft immer nur ein Timer, aber ihn umzuziehen ist ein Klick: Solange ein Timer läuft (oder pausiert ist), heißt der Button in jeder anderen Zeile **▶ switch**. Das startet den neuen Timer sofort und öffnet das Erfassungsfenster für den alten — genauso vorbelegt, als hättest du Stop gedrückt —, das Ausfüllen kostet den neuen Timer also nichts. Wechselst du erneut, bevor du fertig bist, wartet das nächste Fenster einfach, bis es dran ist; erfasste Zeit geht dabei nicht verloren — auch nicht durch Beenden, denn wartende Fenster sind nach einem Neustart wieder da. **⌘T** auf einer ausgewählten Zeile startet nur dann einen Timer, wenn es keinen gibt; läuft einer, bedeutet es Stop — Wechseln ist also Sache des Buttons.
 
 > Beim Start eines Timers versucht performa außerdem, den Vorgang in Jira in den Status **„In Arbeit"** zu versetzen — über den Übergang, der im Workflow dieses Vorgangs gerade dorthin führt (Groß-/Kleinschreibung spielt keine Rolle, „IN ARBEIT" zählt also auch). Das geschieht nur bestmöglich: Ist der Vorgang bereits in diesem Status, oder bietet sein Workflow keinen direkten Übergang dorthin, passiert einfach nichts — der Timer startet in beiden Fällen normal.
 
@@ -399,12 +401,41 @@ Während er läuft:
 - Die **Timer-Leiste** über den Tabs zeigt den Vorgang und eine laufende Uhr.
 - Das [System-Tray](#system-tray--menüleiste) spiegelt den Timer.
 
+**Pause** (in der Timer-Leiste, im Tray oder mit **⌘⇧T**) hält die Uhr an, ohne
+den Timer zu beenden — für die Mittagspause oder einen Anruf zu etwas anderem.
+Der Punkt in der Leiste hört auf zu pulsieren, die Uhr wird grau und steht still,
+und der Button heißt jetzt **Resume**. Fortsetzen macht beim selben Stand weiter:
+pausierte Zeit zählt nie mit. Auch ein pausierter Timer ist der eine Timer und
+noch zu buchende Zeit — er überlebt also einen Neustart, und der
+[Schutz beim Beenden](#schutz-beim-beenden) fragt genauso nach wie bei einem
+laufenden.
+
 Mit **Stop** (in der Timer-Leiste oder im Tray) beendest du ihn. Das Erfassungsfenster öffnet sich mit:
 
-- **Time spent**, vorbelegt mit der verstrichenen Zeit, **aufgerundet auf die nächsten 15 Minuten** (mindestens 15 Minuten) — vor dem Speichern frei änderbar.
-- **Datum und Startzeit**, vorbelegt mit dem Start des Timers.
+- **Time spent**, vorbelegt mit der verstrichenen Zeit, **aufgerundet auf die nächsten 15 Minuten** (mindestens 15 Minuten) — vor dem Speichern frei änderbar. Pausen zählen nicht mit, und aufgerundet wird einmal auf die Summe, damit ein Tag mit vielen kurzen Pausen keine zusätzlichen Viertelstunden ergibt.
+- **Datum und Startzeit**, vorbelegt mit dem ersten Start des Timers — nicht mit dem letzten Fortsetzen.
 
-Du kannst das Worklog vervollständigen (Kommentar, Abrechenbarkeit) und speichern — oder die erfasste Zeit mit **Discard** verwerfen; das Verwerfen fragt nach Bestätigung, weil die Zeit sonst verloren wäre.
+Du kannst das Worklog vervollständigen (Kommentar, Abrechenbarkeit) und speichern, die erfasste Zeit mit **Discard** verwerfen — das Verwerfen fragt nach Bestätigung, weil die Zeit sonst verloren wäre — oder mit **Later** [als Draft parken](#geparkte-zeit-drafts) und buchen, wenn du dazu kommst.
+
+### Inaktivität am Rechner
+
+Ein Timer zählt die Uhr, nicht die Arbeit — einer, der über die Mittagspause
+weiterläuft, bucht die Mittagspause. Solange ein Timer läuft, achtet performa
+darauf, wie lange der Rechner keine Eingabe bekommen hat — Tastatur, Maus,
+Trackpad —, und ein zugeklappter Deckel oder Ruhezustand zählt genauso. Ist
+länger als in der [Einstellung](#einstellungen) angegeben nichts passiert
+(10 Minuten, sofern du es nicht änderst), wartet es, bis du zurück bist, holt
+dann sein Fenster nach vorn und fragt **You were away**: wie lange, von wann bis
+wann, auf welchem Vorgang. Solange du weg bist, wird nichts gefragt — und gar
+nichts, solange der Timer pausiert ist.
+
+- **Keep** — die Zeit war Arbeit (ein Meeting am Whiteboard); nichts ändert sich.
+  Das ist die Vorgabe: **Enter** beantwortet es.
+- **Discard** — die Zeit dazwischen aus dem Timer nehmen; er läuft ab jetzt weiter.
+- **Draft** — herausnehmen und auf demselben Vorgang
+  [parken](#geparkte-zeit-drafts), um später zu entscheiden.
+- **Discard & stop** — du warst fertig für heute: Der Timer endet dort, wo du
+  gegangen bist, und das Erfassungsfenster öffnet sich nur mit der Zeit davor.
 
 > Der Timer basiert auf der Uhrzeit (Wanduhr) und überlebt App-Neustarts: Beendest du die App mit laufendem Timer (siehe [Schutz beim Beenden](#schutz-beim-beenden)) und öffnest sie später wieder, läuft der Timer mit der korrekten Gesamtzeit weiter.
 
@@ -412,12 +443,13 @@ Du kannst das Worklog vervollständigen (Kommentar, Abrechenbarkeit) und speiche
 
 performa legt ein Symbol in die macOS-Menüleiste bzw. das Windows-System-Tray:
 
-- **macOS**: Während ein Timer läuft, erscheint eine Live-Anzeige neben dem Symbol — `▶ ABC-123 12:34` (Stunden:Minuten:Sekunden ab einer Stunde).
+- **macOS**: Während ein Timer läuft, erscheint eine Live-Anzeige neben dem Symbol — `▶ ABC-123 12:34` (Stunden:Minuten:Sekunden ab einer Stunde). Ist er pausiert, steht die Anzeige still, mit Pausenzeichen davor: `⏸ ABC-123 12:34`.
 - **Windows**: Tray-Symbole können keinen Text anzeigen; dieselbe Anzeige erscheint deshalb als **Tooltip beim Überfahren** des Symbols. Alles andere funktioniert identisch.
 
 Das Tray-Menü bietet:
 
-- **Stop timer…** *(nur aktiv, während ein Timer läuft)* — holt das Fenster in den Vordergrund und öffnet das reguläre Erfassungsfenster
+- **Pause timer** / **Resume timer** *(nur aktiv, solange es einen Timer gibt)* — pausiert ihn oder setzt ihn fort, ohne das Fenster nach vorn zu holen
+- **Stop timer…** *(nur aktiv, solange es einen Timer gibt — laufend oder pausiert)* — holt das Fenster in den Vordergrund und öffnet das reguläre Erfassungsfenster
 - **Open performa** — zeigt und fokussiert das Fenster
 - **Quit performa** — beendet die App; das läuft über den normalen Schließen-Pfad, der [Schutz beim Beenden](#schutz-beim-beenden) greift also weiterhin
 
@@ -430,7 +462,7 @@ Der Tab **Timesheet** hat zwei Ansichten, umschaltbar über **Week / Month** gan
 Zeigt jeweils eine Woche.
 
 - Navigiere mit **← / →**; die aktuelle Woche ist die rechteste erreichbare (keine zukünftigen Wochen). Die Beschriftung zeigt „This week“, „Last week“ oder den Datumsbereich.
-- **Diagramme**: Tagesbalken gemessen an deinem Tagesziel (eine Linie markiert das Ziel) und ein Ring mit dem Wochenfortschritt gegen das Wochenziel (Tagesstunden × 5 Arbeitstage). Samstag/Sonntag sind standardmäßig ausgeblendet, erscheinen aber automatisch, sobald dort Zeit erfasst ist — oder dauerhaft, wenn du die [Einstellung](#einstellungen) auf die volle Woche stellst.
+- **Diagramme**: Tagesbalken, jeder gemessen am **eigenen Tagesziel** (eine kurze gestrichelte Linie markiert es), und ein Ring mit dem Wochenfortschritt gegen das Wochenziel — die Summe der Tagesziele der Woche. Ein kurzer Freitag, ein [Feiertag oder ein freier Tag](#einstellungen) zählen jeweils in ihrer eigenen Größe: Ein Feiertag hat gar keine Ziellinie, ein halber freier Tag eine halbe, und das Ziel des Rings schrumpft entsprechend. Fährst du über einen Balken, siehst du Zeit, Ziel und Grund. Samstag/Sonntag sind standardmäßig ausgeblendet, erscheinen aber automatisch, sobald dort Zeit erfasst ist oder sie ein eigenes Ziel haben — oder dauerhaft, wenn du die [Einstellung](#einstellungen) auf die volle Woche stellst.
 - Darunter sind die Worklogs nach Tagen gruppiert (neuester Tag zuerst) mit Tagessummen. Jede Zeile zeigt Vorgangsschlüssel (Klick → Browser), Zusammenfassung, Kommentar, Startzeit, Dauer und ggf. ein `non-billable`-Kennzeichen.
 
 Aktionen pro Zeile:
@@ -446,13 +478,46 @@ Eine Matrix: **Vorgänge untereinander, Tage nebeneinander**, Stunden in den Zel
 - **Spalten** sind alle Werktage des Monats, dazu jeder Samstag oder Sonntag, an dem du tatsächlich Zeit erfasst hast — ein gearbeiteter Wochenendtag wird nie versteckt.
 - Die **Kopfzeile** trägt die Tagessumme, die **rechte Spalte** die Monatssumme je Vorgang, die **linke obere Ecke** den ganzen Monat.
 - Stunden stehen als Dezimalzahl (`1.5`, `0.25`), weil eine Spalte für `1h 30m` zu schmal ist; die volle Dauer steht im Tooltip der Zelle.
-- Die Tagessumme ist **nach Auslastung eingefärbt**: rot unter 3 Stunden, gelb von 3 bis 6, grün über 6. Bewertet werden nur gewöhnliche Arbeitstage — Wochenendspalten und noch nicht vergangene Tage bleiben ungefärbt.
+- Die Tagessumme ist **nach Auslastung eingefärbt, gemessen am eigenen Tagesziel**: rot unter drei Achteln davon, gelb bis drei Viertel, grün darüber — bei einem 8-Stunden-Tag also unter 3 Stunden, 3 bis 6 und über 6. Bewertet werden nur Tage, an denen Arbeit erwartet wird — Wochenendspalten und noch nicht vergangene Tage bleiben ungefärbt —, und ein **Feiertag oder ganzer freier Tag erscheint grau**, als frei statt als Rückstand. Der Tooltip des Tageskopfs nennt den Feiertag oder die Art des freien Tags.
 
 **Ein Klick auf eine Zelle** öffnet alles, was an diesem Tag auf diesen Vorgang gebucht ist: jedes Worklog mit den gewohnten Schaltflächen **↻ / ✎ / 🗑**, dazu **＋ Add time**, um weitere Zeit auf denselben Vorgang und Tag zu buchen. Eine leere Zelle öffnet dasselbe Fenster, bereit für den ersten Eintrag. **Zukünftige Tage** sind ausgegraut — dieselbe Regel wie im Erfassungsformular.
 
 **Die ＋-Zeile** unter der Kopfzeile erfasst Zeit auf einem Vorgang, der noch keine Zeile hat: Tag anklicken, Vorgang wählen, Formular ausfüllen. Der Tag ist bereits gesetzt.
 
 **Breite:** Der Monat ist die einzige Ansicht, die das ganze Fenster nutzt. Alle anderen Ansichten hören bei einer angenehmen Lesebreite auf, hier bedeutet mehr Breite aber mehr Tage auf dem Schirm und mehr von jeder Zusammenfassung vor den Auslassungspunkten — ein breites oder maximiertes Fenster wird also ausgenutzt: Die Tagesspalten behalten ihre Größe, die Vorgangsspalte nimmt den Rest. Die Vorgangsspalte hat außerdem eine eigene Spalte für den Schlüssel, damit alle Zusammenfassungen an derselben Stelle beginnen.
+
+### Einen Tag rekonstruieren
+
+Manche Tage enden mit weniger gebuchter als gearbeiteter Zeit, und eine Woche
+später weiß niemand mehr, womit sie gefüllt waren. **Rebuild a day** stellt das,
+was du an dem Tag in Jira getan hast, neben das, was du gebucht hast — so werden
+die Lücken sichtbar.
+
+Du öffnest es über die Zeile **Rebuild a day** unter der Wochensumme — ein Button
+pro bisherigem Tag der Woche, leere Tage eingeschlossen — oder per Klick auf
+einen Tageskopf in der Ansicht **Monat**. Rekonstruieren lassen sich Tage aus
+dem aktuellen und dem vorigen Monat.
+
+Der Tag liest sich in zeitlicher Reihenfolge:
+
+- deine **Kommentare**, deine **Statusänderungen**, Vorgänge, die du **angelegt**
+  hast, und Vorgänge, die dir **zugewiesen** wurden — aus Jira gelesen, wenn du
+  den Tag öffnest (einmal pro Tag und Sitzung; im Hintergrund läuft nichts)
+- was schon **gebucht** ist, ausgegraut
+- der laufende **Timer** und [geparkte Zeit](#geparkte-zeit-drafts) dieses Tages
+
+Alles, was du auf einem Vorgang getan hast, auf dem an dem Tag **keine Zeit
+gebucht** ist, ist markiert und bietet **Log…** an: das normale
+Erfassungsformular, vorbelegt mit diesem Vorgang, diesem Tag und diesem
+Zeitpunkt. Gebucht wird nichts für dich — die Ansicht füllt keine Lücke von
+selbst, denn sie weiß, was du getan hast, nicht wie lange es gedauert hat.
+
+Kommentare lassen sich in Jira nicht nach Verfasser durchsuchen; die Ansicht
+findet sie daher auf Vorgängen, die du zuletzt angesehen hast, beobachtest, dir
+zugewiesen sind oder die du gemeldet hast. An einem sehr vollen Tag oder einem,
+der ein paar Wochen zurückliegt, kann Jira mehr enthalten, als die Ansicht
+liest; dann sagt sie, dass **einiges fehlen kann**, statt den Tag für
+vollständig zu erklären.
 
 ## Missing Worklogs
 
@@ -469,6 +534,49 @@ Jeder Fund zeigt:
 Ein Klick auf einen Fund öffnet ein Inline-Erfassungsformular, vorbelegt mit **Datum und Uhrzeit der gemeldeten Aktivität** — das entstehende Worklog deckt sie ab, und die Erinnerung verschwindet bei der nächsten Prüfung.
 
 > **Eskalationsvorgänge:** Bei Vorgängen im Projekt `DEV` wird die Zeit stattdessen auf dem **verknüpften Ursprungsvorgang** erfasst (dem Vorgang mit der Verknüpfung „is an escalation for“) — allerdings nur, wenn dieser Ursprungsvorgang dir selbst zugewiesen ist. Auf dem Ticket einer Kollegin oder eines Kollegen landet deine Zeit nie: Gehört der Ursprungsvorgang jemand anderem oder niemandem, bleibt die Zeit auf dem `DEV`-Vorgang, an dem du tatsächlich gearbeitet hast. Das Formular zeigt beide Vorgänge, damit immer klar ist, wohin die Zeit geht. Steht der Ursprungsvorgang selbst schon auf der Liste, entfällt die `DEV`-Zeile — ein Worklog räumt ohnehin beide ab, und zwei Zeilen für dieselbe Arbeit sind nur Rauschen.
+
+## Geparkte Zeit (Drafts)
+
+Manchmal kommt die Arbeit vor dem Ticket — jemand steht mit einem Problem in der
+Tür, und das Ticket kommt einen Tag später, wenn überhaupt. **Geparkte Zeit**
+hält diese Zeit fest, bis es einen Ort gibt, sie zu buchen: eine Dauer, wann es
+war, eine Notiz, worum es ging, und — sobald bekannt — der Vorgang, auf den sie
+gehört.
+
+Ein Draft ist kein [Missing Worklog](#missing-worklogs). Die werden beim Scannen
+von Jira *gefunden*; einen Draft legst *du* an, deshalb verschwindet er nie von
+selbst. Er geht, wenn du ihn vollständig gebucht hast oder ihn verwirfst (mit
+Rückfrage).
+
+**Zeit parken:**
+
+- **Park time…** in der [Befehlspalette](#die-befehlspalette) öffnet das
+  Park-Formular: Dauer, Datum, Startzeit, eine Notiz und optional der Vorgang.
+- Findet eine Suche in der Vorgangsauswahl nichts, bietet die Liste **No ticket
+  yet — park it** an, mit dem Suchbegriff als Notiz.
+- **Start a timer without a ticket** in der Palette startet einen Timer, der zu
+  keinem Vorgang gehört — er fragt, woran du arbeitest, und das Tray zeigt ihn
+  als `▶ No ticket 12:34`. Beim Stoppen wird seine Zeit sofort geparkt, ohne
+  Formular.
+- Das Erfassungsfenster, das sich bei **Stop** oder beim [Wechseln](#der-timer)
+  öffnet, hat einen Button **Later**: Die Zeit wird geparkt statt erfasst.
+
+**Wo sie wartet:** in einem eigenen Abschnitt **Parked time** oben im Tab
+[Missing worklog](#missing-worklogs), mit der noch zu buchenden Summe. Drafts
+zählen zur Markierung am Tab, und bei jeder Anmeldung — normalerweise bei jedem
+App-Start — meldet eine Desktop-Benachrichtigung, wie viel noch geparkt ist.
+Ein Draft, der eine Woche oder länger wartet, wird bernsteinfarben und sagt, wie
+lange schon.
+
+**Buchen:** **Book** öffnet das normale Erfassungsformular, vorbelegt aus dem
+Draft — seine Notiz wird zum Worklog-Kommentar. Ein Draft ohne Vorgang fragt
+zuerst nach einem. Buchst du weniger als alles, bleibt der Rest geparkt und
+beginnt dort, wo der gebuchte Teil endete: So verteilst du eine Zeitspanne auf
+mehrere Vorgänge. **Edit** öffnet das Park-Formular für den Draft; **Discard**
+entfernt ihn nach einer Bestätigung.
+
+Drafts liegen nur auf diesem Rechner, wie deine übrigen Einstellungen, und
+nichts davon erreicht Jira, bevor du sie buchst.
 
 ## Erwähnungen
 
@@ -500,8 +608,11 @@ Der **Settings**-Link in der Kopfzeile öffnet denselben Bildschirm wie bei der 
 
 - **General** — die Verbindung zu Jira (siehe unten) sowie app-weite Schalter und **Check for updates** (siehe [Updates](#updates)).
 - **Appearance** — heller / dunkler Modus, die **Akzentfarbe** und **Show issue type icons in lists** (standardmäßig an; ausgeschaltet verschwindet das Symbol aus jeder Vorgangszeile und mit ihm die Spalte **T** im Todo-Tab).
-- **Daily work hours** — 0,5–24 h; daraus ergeben sich die Tagesziel-Linie und, × 5, der Wochenziel-Ring in den Diagrammen.
+- **Work hours per day** — ein Feld pro Wochentag, Montag zuerst (0–24 h; 8 für Mo–Fr, sofern du es nicht änderst). Jeder Tag im Timesheet wird an seinem eigenen Wochentag gemessen — ein Teilzeit-Freitag ist ein kürzerer Freitag, kein niedrigerer Schnitt —, der Wochenring an der Summe der Woche.
+- **Public holidays** — dein Bundesland. Seine landesweiten gesetzlichen Feiertage sind dann freie Tage: kein Ziel, grau in der Monatsansicht. Feiertage, die nur manche Gemeinden haben (etwa Mariä Himmelfahrt in Teilen Bayerns), und Tage wie der 24. oder 31. Dezember, die viele Verträge als halbe Tage behandeln, sind nicht eingebaut — trag sie selbst als freie Tage ein.
+- **Days off** — Urlaub, Krankheit und Ähnliches, als ganzer oder **halber Tag**: Datum wählen (oder einen Zeitraum mit **until**, der Wochenenden und Feiertage überspringt), wie viel vom Tag und welche Art, dann **Add**. Ein freier Tag zieht seinen Anteil vom Tagesziel ab. Die Liste zeigt die letzten zwei Monate und alles, was kommt; **✕** entfernt einen Eintrag. Wie Suchen gehören freie Tage dir und sind keine Vorschau — **Cancel** macht sie also nicht rückgängig.
 - **Timesheet days** — **Mon–Fri** (Wochenenden ausgeblendet, außer sie enthalten erfasste Zeit) oder **Full week**.
+- **Idle time** — nach wie vielen Minuten ohne Eingabe ein laufender Timer nach der Zeit dazwischen fragt (Standard 10; **0** schaltet es ab). Siehe [Inaktivität am Rechner](#inaktivität-am-rechner).
 - **Todo** — welche Status der Todo-Tab ausblendet, pro Projekt. Die meisten Sites verwenden überall dieselben Status, deshalb gibt es ein **Copy to**, um die übrigen Projekte in einem Rutsch zu füllen.
 - **Searches** — eigene Suchen, von denen jede in der Befehlspalette ([⌘P](#die-befehlspalette)) als **Search by …** erscheint. Eine Zeile je Suche: ein **Name** und die **JQL**, die sie ausführt — genau so geschrieben wie ein Filter in Jira, mit `%SEARCHTERM%` an der Stelle, an der das in der Palette Eingetippte eingesetzt wird, zum Beispiel `project in (CTS, DEV, SD) AND "Plant Number[Short text]" ~ %SEARCHTERM% ORDER BY created ASC`. Steht `%SEARCHTERM%` für sich allein, wird es für dich in Anführungszeichen gesetzt; steht es innerhalb von Anführungszeichen, bleibt der Rest dieser Zeichenkette, wie du ihn geschrieben hast — `"%SEARCHTERM%*"` passt also auf alles, was mit dem Eingetippten *beginnt* (`DE_1979` findet dann auch `DE_1979_03`). Das Eingetippte wird beim Einsetzen maskiert, ein Anführungszeichen oder eine Klammer im Suchbegriff wird also gesucht und nicht als JQL gelesen. Eine Abfrage ohne `%SEARCHTERM%` ist statt einer Suche ein **View**: sie findet unabhängig vom Eingetippten immer dieselben Vorgänge, und genau das ist der Zweck — sie wird in der Palette als **View: …** angeboten und läuft, sobald du sie auswählst. Ein View hat außerdem einen **Stern** neben seinem ✕: markiert, liegt er in der Seitenleiste unter den Tabs, ein weiterer Klick auf den Stern nimmt ihn wieder heraus. Das JQL-Feld sagt, welches von beiden eine Abfrage geworden ist, und speichert beim Verlassen oder mit **Enter**. Suchen aus der Zeit vor der JQL-Form (ein Feld, **Whole value** und ausgeschlossene Projekte) werden beim ersten Start in die entsprechende JQL umgewandelt, es muss also nichts neu eingegeben werden. Die reine Textsuche muss nicht eingerichtet werden und wird immer angeboten.
 - **Logging** — die Ausführlichkeit des Debug-Logs (**Error**, **Warn**, **Info** oder **Debug**; siehe [Debug-Log](#debug-log)) sowie ein **Open log folder**-Button.

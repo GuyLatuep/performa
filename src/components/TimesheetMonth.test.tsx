@@ -447,3 +447,50 @@ describe("when re-reading one week fails", () => {
     expect(await screen.findByText(/Jira returned 503/)).toBeDefined();
   });
 });
+
+describe("days off", () => {
+  afterEach(async () => {
+    const w = await import("../workdays");
+    w.setHolidayState(null);
+    for (const a of w.getAbsences()) w.removeAbsence(a.date);
+  });
+
+  it("reads a whole day off as off rather than behind, and says why", async () => {
+    const w = await import("../workdays");
+    w.addAbsences([{ date: "2026-03-10", portion: 1, kind: "vacation" }]);
+    renderMonth();
+    await loaded();
+
+    const heads = [...document.querySelectorAll<HTMLElement>(".day-head-cell")];
+    const off = heads.filter((h) => h.title.includes("Vacation"));
+    expect(off).toHaveLength(1);
+    expect(off[0].querySelector(".day-sum")?.className).toContain("tone-off");
+    // The ordinary empty workday after it still reads as behind.
+    const next = heads[heads.indexOf(off[0]) + 1];
+    expect(next.querySelector(".day-sum")?.className).toContain("tone-thin");
+  });
+});
+
+describe("rebuilding a day", () => {
+  it("opens from a past day's header, and not from one still to come", async () => {
+    renderMonth();
+    await loaded();
+
+    const heads = [...document.querySelectorAll<HTMLElement>(".day-head-cell")];
+    const tenth = heads.find(
+      (h) => h.title.startsWith("Tue") && h.textContent?.includes("10"),
+    )!;
+    const future = heads.find((h) => h.className.includes("future"))!;
+    expect(future.querySelector("button")).toBeNull();
+
+    expect(tenth.querySelector("button")!.getAttribute("aria-label")).toMatch(
+      /^Rebuild .*, 0 hours booked$/,
+    );
+    await userEvent.click(tenth.querySelector("button")!);
+
+    expect(
+      await screen.findByRole("dialog", { name: "Rebuild the day" }),
+    ).toBeDefined();
+    expect(apiMock.dayActivity).toHaveBeenCalledWith("2026-03-10");
+  });
+});

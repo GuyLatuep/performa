@@ -242,6 +242,25 @@ export interface WorklogInput {
   billable: boolean;
 }
 
+/** One thing the user did in Jira on a day — the evidence a day is rebuilt
+ *  from. See `day.rs`. */
+export interface DayEvidence {
+  kind: "comment" | "status" | "created" | "assigned";
+  issueKey: string;
+  issueSummary: string;
+  /** RFC3339, local time. */
+  at: string;
+  detail: string;
+}
+
+/** A day's evidence, and whether it is all Jira had. `complete` is false when
+ *  a search or a page held more than was read — part of the day may be
+ *  missing, and the view must not call it whole. */
+export interface DayActivity {
+  evidence: DayEvidence[];
+  complete: boolean;
+}
+
 export interface MissingWorklog {
   issueKey: string;
   issueSummary: string;
@@ -747,6 +766,13 @@ export const api = {
     return logged(`delete_issue_link(linkId=${linkId})`, () =>
       invoke("delete_issue_link", { linkId }),
     ).then(invalidateCachedReads);
+  },
+  dayActivity(date: string): Promise<DayActivity> {
+    return logged(
+      `day_activity(${date})`,
+      () => invoke("day_activity", { date }),
+      (r) => `${r.evidence.length} item(s)${r.complete ? "" : ", incomplete"}`,
+    );
   },
   missingWorklogs(): Promise<MissingWorklog[]> {
     return logged(

@@ -1,5 +1,6 @@
 import { WorklogEntry } from "./api";
 import { eachDate, isWeekend, today } from "./time";
+import { DayInfo } from "./workdays";
 
 // A month of worklogs as a matrix: issues down the side, days across the top.
 //
@@ -230,17 +231,29 @@ function orderRows(rows: MonthRow[], pinned?: string[]): MonthRow[] {
 // not read as "0.25000", a weekend that is not "behind" — are far easier to
 // state as a table than to reach through the DOM.
 
-/** How a day's total reads at a glance. The thresholds are about an ordinary
- *  working day, which is why they are only applied to one: a weekend is not
- *  expected to be full, and a day that hasn't happened yet is not behind. */
-const THIN_HOURS = 3;
-const FULL_HOURS = 6;
+/** How a day's total reads at a glance, against what the day is expected to
+ *  hold. The thresholds are fractions of that Daily target — 6 and 3 hours of
+ *  an 8-hour day — so a short Friday or a half day off is judged by its own
+ *  measure. Only a day expected to hold work is judged at all: a weekend is
+ *  not expected to be full, and a day that hasn't happened yet is not behind.
+ *  A Holiday or a whole day off is neither behind nor full — it is off, and
+ *  reads as such, future or not. */
+const THIN_SHARE = 3 / 8;
+const FULL_SHARE = 6 / 8;
+/** The target a column is judged by when nobody says otherwise. */
+const DEFAULT_TARGET = 8 * 3600;
 
-export function dayTone(seconds: number, column: MonthColumn): string {
-  if (column.future || column.weekend) return "";
-  const hours = seconds / 3600;
-  if (hours > FULL_HOURS) return " tone-full";
-  if (hours >= THIN_HOURS) return " tone-part";
+export function dayTone(
+  seconds: number,
+  column: MonthColumn,
+  info?: DayInfo,
+): string {
+  if (info && info.target === 0 && info.kind !== "weekend") return " tone-off";
+  if (column.future) return "";
+  if (info ? info.kind === "weekend" : column.weekend) return "";
+  const target = info?.target ?? DEFAULT_TARGET;
+  if (seconds > target * FULL_SHARE) return " tone-full";
+  if (seconds >= target * THIN_SHARE) return " tone-part";
   return " tone-thin";
 }
 

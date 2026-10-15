@@ -1,17 +1,14 @@
 import { WorklogEntry } from "../api";
 import { formatDuration, today } from "../time";
 import { useEffect } from "react";
-import {
-  useDailyHours,
-  useFunMode,
-  useShowWeekends,
-  WORKDAYS_PER_WEEK,
-} from "../settings";
+import { useFunMode, useShowWeekends } from "../settings";
+import { dayInfo, useWorkCalendar } from "../workdays";
 import { rankFor } from "../rank";
 import { recordEvent } from "../achievements";
 import { weekBars } from "../weekBars";
 
-/** Per-day bars against the daily target, plus a weekly progress ring. */
+/** Per-day bars, each against its own Daily target, plus a weekly progress
+ *  ring against the week's. */
 export default function WeekChart({
   start,
   entries,
@@ -19,16 +16,17 @@ export default function WeekChart({
   start: string;
   entries: WorklogEntry[];
 }) {
-  const dailyHours = useDailyHours();
+  const calendar = useWorkCalendar();
   const showWeekends = useShowWeekends();
   const funMode = useFunMode();
-  const dayTarget = dailyHours * 3600;
-  const weekTarget = dayTarget * WORKDAYS_PER_WEEK;
 
-  const { days, scaleMax, total, pct } = weekBars(start, entries, {
-    dayTarget,
+  const { days, scaleMax, weekTarget, total, pct } = weekBars(start, entries, {
+    dayOf: (date) => dayInfo(date, calendar),
     showWeekends,
   });
+  // The label rides on the last day with a target: the week's usual figure,
+  // where the eye reads a reference line from.
+  const labelled = [...days].reverse().find((d) => d.info.target > 0)?.date;
 
   // A full week is worth an award, awarded once like the rest.
   const reachedTarget = weekTarget > 0 && total >= weekTarget;
@@ -49,18 +47,30 @@ export default function WeekChart({
       )}
       <div className="day-bars">
         <div className="day-bars-plot">
-          <div
-            className="day-target"
-            style={{ bottom: `${(dayTarget / scaleMax) * 100}%` }}
-          >
-            <span>{formatDuration(dayTarget)}</span>
-          </div>
           {days.map((d) => (
             <div
               key={d.date}
-              className="day-col"
-              title={`${d.label} · ${formatDuration(d.seconds)}`}
+              className={`day-col${d.info.kind === "holiday" || (d.info.kind === "absence" && d.info.target === 0) ? " day-off" : ""}`}
+              title={
+                `${d.label} · ${formatDuration(d.seconds)}` +
+                (d.info.target > 0
+                  ? ` of ${formatDuration(d.info.target)}`
+                  : "") +
+                (d.info.label ? ` · ${d.info.label}` : "")
+              }
             >
+              {/* Each day's own target: a short Friday, a half day off and
+                  a holiday all read at their own height, or not at all. */}
+              {d.info.target > 0 && (
+                <div
+                  className="day-target"
+                  style={{ bottom: `${(d.info.target / scaleMax) * 100}%` }}
+                >
+                  {d.date === labelled && (
+                    <span>{formatDuration(d.info.target)}</span>
+                  )}
+                </div>
+              )}
               {d.seconds > 0 && (
                 <div
                   className="day-bar"

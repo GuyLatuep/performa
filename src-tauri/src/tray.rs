@@ -1,7 +1,8 @@
 //! System tray (macOS menu bar): shows the running timer as a ticking
 //! `▶ KEY h:mm:ss` title next to the icon (tooltip elsewhere) and offers
-//! stop/open/quit. Timer state is owned by the webview and mirrored here via
-//! the `timer_started` / `timer_stopped` commands.
+//! pause-or-resume/stop/open/quit. A paused timer shows its frozen time as `⏸ KEY h:mm:ss`.
+//! Timer state is owned by the webview and mirrored here via the
+//! `timer_started` / `timer_paused` / `timer_stopped` commands.
 
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -9,19 +10,26 @@ use tauri::{
     App, AppHandle, Emitter, Manager, State, Wry,
 };
 
+const PAUSE_LABEL: &str = "Pause timer";
+const RESUME_LABEL: &str = "Resume timer";
+
 pub struct TrayTimer {
     stop_item: MenuItem<Wry>,
+    /// Reads "Pause timer" or "Resume timer", whichever the timer allows.
+    pause_item: MenuItem<Wry>,
     /// Ticker task updating the tray title while a timer runs.
     task: tokio::sync::Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
 }
 
 pub fn setup(app: &App) -> tauri::Result<()> {
+    let pause = MenuItem::with_id(app, "pause-timer", PAUSE_LABEL, false, None::<&str>)?;
     let stop = MenuItem::with_id(app, "stop-timer", "Stop timer…", false, None::<&str>)?;
     let open = MenuItem::with_id(app, "open", "Open performa", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit performa", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
         &[
+            &pause,
             &stop,
             &PredefinedMenuItem::separator(app)?,
             &open,
@@ -39,6 +47,11 @@ pub fn setup(app: &App) -> tauri::Result<()> {
                 show_main(app);
                 let _ = app.emit("stop-timer", ());
             }
+            // No window needed: the webview flips the timer, and the tray
+            // title follows through `timer_paused` / `timer_started`.
+            "pause-timer" => {
+                let _ = app.emit("toggle-pause-timer", ());
+            }
             "open" => show_main(app),
             "quit" => quit_via_close(app),
             _ => {}
@@ -50,23 +63,25 @@ pub fn setup(app: &App) -> tauri::Result<()> {
 
     app.manage(TrayTimer {
         stop_item: stop,
+        pause_item: pause,
         task: tokio::sync::Mutex::new(None),
     });
     Ok(())
 }
 
-/// Mirror a started timer: enable "Stop timer" and tick the tray title.
+/// Mirror a started (or resumed) timer: enable "Pause timer" and "Stop timer"
+/// and tick the tray title.
 #[tauri::command]
 pub async fn timer_started(
     app: AppHandle,
     state: State<'_, TrayTimer>,
-    issue_key: String,
+    issue_key: Option<String>,
     started_at: i64,
 ) -> Result<(), String> {
-    if !crate::jira::is_issue_key(&issue_key) {
-        return Err(format!("invalid issue key '{issue_key}'"));
-    }
+    let label = timer_label(issue_key)?;
     let _ = state.stop_item.set_enabled(true);
+    let _ = state.pause_item.set_enabled(true);
+    let _ = state.pause_item.set_text(PAUSE_LABEL);
     let mut task = state.task.lock().await;
     if let Some(t) = task.take() {
         t.abort();
@@ -75,7 +90,7 @@ pub async fn timer_started(
         loop {
             let now = now_ms();
             let elapsed = ((now - started_at) / 1000).max(0);
-            set_tray_text(&app, Some(format!("▶ {issue_key} {}", clock(elapsed))));
+            set_tray_text(&app, Some(format!("▶ {label} {}", clock(elapsed))));
             // Sleep to the moment the count next changes, not a flat second:
             // redrawing the title takes time, so a fixed interval wakes a
             // little later each round until the title skips a second. The
@@ -90,10 +105,47 @@ pub async fn timer_started(
     Ok(())
 }
 
-/// Mirror a stopped timer: clear the tray title and disable "Stop timer".
+/// Mirror a paused timer: stop ticking and show the frozen time. "Stop timer"
+/// stays enabled — paused time is still tracked time waiting to be logged.
+#[tauri::command]
+pub async fn timer_paused(
+    app: AppHandle,
+    state: State<'_, TrayTimer>,
+    issue_key: Option<String>,
+    elapsed_seconds: i64,
+) -> Result<(), String> {
+    let label = timer_label(issue_key)?;
+    let _ = state.stop_item.set_enabled(true);
+    let _ = state.pause_item.set_enabled(true);
+    let _ = state.pause_item.set_text(RESUME_LABEL);
+    if let Some(t) = state.task.lock().await.take() {
+        t.abort();
+    }
+    set_tray_text(&app, Some(paused_title(&label, elapsed_seconds)));
+    Ok(())
+}
+
+fn paused_title(label: &str, elapsed_seconds: i64) -> String {
+    format!("⏸ {label} {}", clock(elapsed_seconds.max(0)))
+}
+
+/// What the tray calls the timer: its issue key, or "No ticket" for one
+/// started before its ticket exists. The key is checked, since it ends up in
+/// the menu bar verbatim.
+fn timer_label(issue_key: Option<String>) -> Result<String, String> {
+    match issue_key {
+        None => Ok("No ticket".to_string()),
+        Some(key) if crate::jira::is_issue_key(&key) => Ok(key),
+        Some(key) => Err(format!("invalid issue key '{key}'")),
+    }
+}
+
+/// Mirror a stopped timer: clear the tray title and disable both timer items.
 #[tauri::command]
 pub async fn timer_stopped(app: AppHandle, state: State<'_, TrayTimer>) -> Result<(), String> {
     let _ = state.stop_item.set_enabled(false);
+    let _ = state.pause_item.set_enabled(false);
+    let _ = state.pause_item.set_text(PAUSE_LABEL);
     if let Some(t) = state.task.lock().await.take() {
         t.abort();
     }
@@ -143,6 +195,13 @@ fn clock(total_seconds: i64) -> String {
     }
 }
 
+/// Bring the window forward from the webview's side — for a question that
+/// has to be seen, like the idle watch's "you were away".
+#[tauri::command]
+pub fn show_main_window(app: AppHandle) {
+    show_main(&app);
+}
+
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
@@ -165,7 +224,22 @@ fn quit_via_close(app: &AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use super::{clock, ms_to_next_second};
+    use super::{clock, ms_to_next_second, paused_title, timer_label};
+
+    #[test]
+    fn a_timer_without_a_ticket_says_so() {
+        assert_eq!(timer_label(None).unwrap(), "No ticket");
+        assert_eq!(timer_label(Some("ABC-1".into())).unwrap(), "ABC-1");
+        assert!(timer_label(Some("not a key".into())).is_err());
+    }
+
+    #[test]
+    fn a_paused_timer_shows_its_frozen_time() {
+        assert_eq!(paused_title("ABC-1", 95), "⏸ ABC-1 01:35");
+        assert_eq!(paused_title("ABC-1", 3725), "⏸ ABC-1 1:02:05");
+        // A clock correction must not print a negative clock.
+        assert_eq!(paused_title("ABC-1", -4), "⏸ ABC-1 00:00");
+    }
 
     #[test]
     fn clock_formats() {

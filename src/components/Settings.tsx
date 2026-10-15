@@ -4,15 +4,21 @@ import { CredentialsMeta } from "../api";
 import { useBackTarget } from "../back";
 import { useShortcut } from "../shortcuts";
 import {
-  getDailyHours,
+  getIdleMinutes,
   getLogLevel,
   getShowIssueTypeIcons,
   getShowWeekends,
-  setDailyHours,
+  setIdleMinutes,
   setLogLevel,
   setShowIssueTypeIcons,
   setShowWeekends,
 } from "../settings";
+import {
+  getHolidayState,
+  getWeekdayHours,
+  setHolidayState,
+  setWeekdayHours,
+} from "../workdays";
 import { getTheme, setTheme } from "../theme";
 import { getIgnoredStatuses, setIgnoredStatuses } from "../todoStatuses";
 import { getAccent, setAccent } from "../accent";
@@ -68,17 +74,19 @@ export default function Settings({
     initialTab ?? (existing ? "appearance" : "connection"),
   );
 
-  // Theme, accent, text size, hours, weekend toggle, type icons and log level
-  // apply instantly (live preview), so keep a snapshot from when the screen
-  // opened and restore it on Cancel.
+  // Theme, accent, text size, hours, holidays, weekend toggle, type icons, idle
+  // time and log level apply instantly (live preview), so keep a snapshot from
+  // when the screen opened and restore it on Cancel.
   const snapshot = useRef({
     theme: getTheme(),
     accent: getAccent(),
     textScale: getTextScale(),
-    hours: getDailyHours(),
+    weekdayHours: getWeekdayHours(),
+    holidayState: getHolidayState(),
     weekends: getShowWeekends(),
     typeIcons: getShowIssueTypeIcons(),
     logLevel: getLogLevel(),
+    idleMinutes: getIdleMinutes(),
     ignoredStatuses: getIgnoredStatuses(),
   });
 
@@ -86,10 +94,12 @@ export default function Settings({
     setTheme(snapshot.current.theme);
     setAccent(snapshot.current.accent);
     setTextScale(snapshot.current.textScale);
-    setDailyHours(snapshot.current.hours);
+    setWeekdayHours(snapshot.current.weekdayHours);
+    setHolidayState(snapshot.current.holidayState);
     setShowWeekends(snapshot.current.weekends);
     setShowIssueTypeIcons(snapshot.current.typeIcons);
     setLogLevel(snapshot.current.logLevel);
+    setIdleMinutes(snapshot.current.idleMinutes);
     setIgnoredStatuses(snapshot.current.ignoredStatuses);
     onCancel?.();
   }

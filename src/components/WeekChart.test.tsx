@@ -7,7 +7,8 @@ import { WorklogEntry } from "../api";
 const recordEvent = vi.hoisted(() => vi.fn());
 vi.mock("../achievements", () => ({ recordEvent }));
 
-import { setDailyHours, setFunMode, setShowWeekends } from "../settings";
+import { setFunMode, setShowWeekends } from "../settings";
+import { setWeekdayHours } from "../workdays";
 import { worklogEntry } from "../test-support/api";
 import WeekChart from "./WeekChart";
 
@@ -26,7 +27,7 @@ function entries(...pairs: [string, number][]): WorklogEntry[] {
 beforeEach(() => {
   localStorage.clear();
   // Module-level stores outlive a test.
-  setDailyHours(8);
+  setWeekdayHours([8, 8, 8, 8, 8, 0, 0]);
   setShowWeekends(false);
   setFunMode(false);
   recordEvent.mockClear();
@@ -71,7 +72,7 @@ describe("the day bars", () => {
     );
 
     const first = container.querySelector(".day-col");
-    expect(first?.getAttribute("title")).toMatch(/· 1h 30m$/);
+    expect(first?.getAttribute("title")).toMatch(/· 1h 30m of 8h$/);
   });
 
   it("marks today among the labels", () => {
