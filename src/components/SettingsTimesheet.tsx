@@ -1,6 +1,12 @@
 import { X } from "lucide-react";
 import { useState } from "react";
-import { setShowWeekends, useShowWeekends } from "../settings";
+import {
+  getIdleMinutes,
+  MAX_IDLE_MINUTES,
+  setIdleMinutes,
+  setShowWeekends,
+  useShowWeekends,
+} from "../settings";
 import { formatDayLabel, toDateInput, today } from "../time";
 import {
   ABSENCE_KINDS,
@@ -20,9 +26,11 @@ import {
 } from "../workdays";
 
 /** What the timesheet measures against — the Daily target per weekday, the
- *  Holidays of a state, the user's own Absences — plus which days it shows. */
+ *  Holidays of a state, the user's own Absences — plus which days it shows
+ *  and when a running timer asks about idle time. */
 export default function SettingsTimesheet() {
   const showWeekends = useShowWeekends();
+  const [idle, setIdle] = useState(String(getIdleMinutes()));
 
   return (
     <>
@@ -50,6 +58,29 @@ export default function SettingsTimesheet() {
 
       <HolidayState />
       <Absences />
+
+      <div className="field-block">
+        <span className="field-label">Idle time</span>
+        <div className="hours-field">
+          <input
+            type="number"
+            aria-label="Idle minutes"
+            min={0}
+            max={MAX_IDLE_MINUTES}
+            step={1}
+            value={idle}
+            onChange={(e) => {
+              setIdle(e.target.value);
+              setIdleMinutes(Number(e.target.value));
+            }}
+            onBlur={() => setIdle(String(getIdleMinutes()))}
+          />
+          <span className="hint">
+            min without input before a running timer asks about the time away ·
+            0 = never ask
+          </span>
+        </div>
+      </div>
     </>
   );
 }

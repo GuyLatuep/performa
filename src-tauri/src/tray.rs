@@ -195,6 +195,13 @@ fn clock(total_seconds: i64) -> String {
     }
 }
 
+/// Bring the window forward from the webview's side — for a question that
+/// has to be seen, like the idle watch's "you were away".
+#[tauri::command]
+pub fn show_main_window(app: AppHandle) {
+    show_main(&app);
+}
+
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();

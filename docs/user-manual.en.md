@@ -404,6 +404,25 @@ Press **Stop** (in the timer bar or the tray) to finish. The log modal opens wit
 
 You can complete the worklog (comment, billability) and save, **Discard** the tracked time — discarding asks for confirmation, because the time would be lost — or press **Later** to [park it as a draft](#parked-time-drafts) and book it when you have the moment.
 
+### Idle time
+
+A timer counts the clock, not the work, so one left running over lunch would
+book lunch. While a timer runs, performa watches how long the computer has had
+no input — keyboard, mouse, trackpad — and a closed lid or a sleeping machine
+counts too. Once there has been no input for longer than the
+[idle setting](#settings) (10 minutes unless you change it), it waits for you to
+come back, then brings its window forward and asks **You were away**: how long,
+from when to when, on which issue. Nothing is asked while you are away, and
+nothing at all while the timer is paused.
+
+- **Keep** — the time away was work (a meeting at the whiteboard); nothing
+  changes. This is the default: **Enter** answers it.
+- **Discard** — take the time away out of the timer; it keeps running from now.
+- **Draft** — take it out, and [park it](#parked-time-drafts) on the same issue,
+  to decide later.
+- **Discard & stop** — you were done for the day: the timer ends where you left,
+  and the log form opens with only the time before that.
+
 > The timer is based on wall-clock time and survives app restarts: if you quit with a timer running (see [Close protection](#close-protection)) and reopen the app later, the timer resumes with the correct total elapsed time.
 
 ## System tray / menu bar
@@ -543,6 +562,7 @@ The **Settings** link in the header opens the same screen used for the first-run
 - **Public holidays** — your German state. Its statewide legal holidays are then days off: no target, grey in the month view. Holidays only some towns keep (Mariä Himmelfahrt in parts of Bavaria, for instance), and days like 24 or 31 December that many contracts treat as half days, are not built in — mark those as days off yourself.
 - **Days off** — vacation, sick days and the like, as a whole or a **half day**: pick a date (or a stretch, with **until**, which skips weekends and holidays), how much of the day, and what kind, then **Add**. A day off takes its share off that day's target. The list shows the last two months and everything ahead; **✕** removes an entry. Like searches, days off are yours rather than a preview, so **Cancel** does not undo them.
 - **Timesheet days** — **Mon–Fri** (weekends hidden unless they contain logged time) or **Full week**.
+- **Idle time** — how many minutes without input before a running timer asks about the time away (10 by default; **0** turns it off). See [Idle time](#idle-time).
 - **Todo** — which statuses the Todo tab hides, per project. Most sites use the same statuses everywhere, so the list carries a **Copy to** for filling the rest in at once.
 - **Searches** — searches of your own, each becoming **Search by …** in the command palette ([⌘P](#the-command-palette)). One row each: a **Name** and the **JQL** it runs, written exactly as you would write a filter in Jira, with `%SEARCHTERM%` where the text you type into the palette goes — for example `project in (CTS, DEV, SD) AND "Plant Number[Short text]" ~ %SEARCHTERM% ORDER BY created ASC`. Written on its own, `%SEARCHTERM%` is quoted for you; written inside quotes, the rest of that string is left as you wrote it, so `"%SEARCHTERM%*"` matches anything *starting* with what you type (`DE_1979` then also finds `DE_1979_03`). Whatever you type is escaped on the way in, so a quote or a bracket in the term is searched for rather than read as JQL. A query without `%SEARCHTERM%` is a **view** instead of a search: it finds the same issues whatever you type, which is the point of one, so it is offered in the palette as **View: …** and runs the moment you pick it. A view also has a **star** next to its ✕: star it to keep it in the sidebar under the tabs, and click the star again to take it out. The JQL box says which of the two a query has become, and saves when you leave it or press **Enter**. Searches written before this took the JQL form (a field, **Whole value** and excluded projects) are converted to the equivalent JQL on first launch, so nothing needs re-entering. Searching plain text needs no setting up and is always offered.
 - **Logging** — the debug-log verbosity (**Error**, **Warn**, **Info**, or **Debug**; see [Debug log](#debug-log)) and an **Open log folder** button.

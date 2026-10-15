@@ -2,6 +2,7 @@ mod checked;
 mod cleanup;
 mod creds;
 mod gestures;
+mod idle;
 mod jira;
 mod logging;
 mod session;
@@ -763,6 +764,8 @@ pub fn run() {
             tray::timer_started,
             tray::timer_paused,
             tray::timer_stopped,
+            tray::show_main_window,
+            idle::idle_reading,
             set_log_level,
             open_log_folder,
             frontend_log,

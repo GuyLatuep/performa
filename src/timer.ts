@@ -242,6 +242,86 @@ export function switchTimer(
   startTimer(issueKey, issueSummary);
 }
 
+/**
+ * The stretches with `[from, to)` taken out of them.
+ *
+ * A stretch straddling the cut becomes the part before it and the part after;
+ * a still-running stretch keeps running after the cut. Never empty: cutting
+ * away everything leaves a zero-length stretch at the start, so the timer
+ * still knows when the work began.
+ */
+export function removeInterval(
+  segments: TimerSegment[],
+  from: number,
+  to: number,
+): TimerSegment[] {
+  const out: TimerSegment[] = [];
+  for (const s of segments) {
+    const end = s.to ?? Infinity;
+    if (end <= from || s.from >= to) {
+      out.push(s);
+      continue;
+    }
+    if (s.from < from) out.push({ from: s.from, to: from });
+    if (end > to) out.push({ from: to, to: s.to });
+  }
+  return out.length > 0
+    ? out
+    : [{ from: segments[0].from, to: segments[0].from }];
+}
+
+/** Running milliseconds inside `[from, to)` — how much of an away stretch the
+ *  timer actually counted. Paused stretches count nothing. */
+export function runningMsWithin(
+  timer: ActiveTimer,
+  from: number,
+  to: number,
+): number {
+  return timer.segments.reduce((sum, s) => {
+    const start = Math.max(s.from, from);
+    const end = Math.min(s.to ?? to, to);
+    return sum + Math.max(0, end - start);
+  }, 0);
+}
+
+/** Idle time, answered "not work": cut the away stretch out, keep running. */
+export function discardAway(from: number, to: number): void {
+  const timer = store.get();
+  if (!timer) return;
+  save({ ...timer, segments: removeInterval(timer.segments, from, to) });
+  logInfo(`timer: dropped ${Math.round((to - from) / 60_000)} idle minutes`);
+}
+
+/** Idle time, answered "decide later": cut it out and park what the timer
+ *  had counted of it as a draft on the same issue. */
+export function parkAway(from: number, to: number): void {
+  const timer = store.get();
+  if (!timer) return;
+  const ms = runningMsWithin(timer, from, to);
+  discardAway(from, to);
+  if (ms < 60_000) return;
+  const start = new Date(from);
+  const end = new Date(to);
+  addDraft({
+    seconds: Math.round(ms / 1000),
+    date: toDateInput(start),
+    time: toTimeInput(start),
+    note: `Away from the timer, ${toTimeInput(start)}–${toTimeInput(end)}`,
+    issueKey: timer.issueKey,
+    issueSummary: timer.issueKey === null ? "" : timer.issueSummary,
+    billable: true,
+  });
+}
+
+/** Idle time, answered "I was done": the timer ends where the user left, and
+ *  the log form opens with only the time before that. */
+export function stopAtAway(from: number): void {
+  const timer = store.get();
+  if (!timer) return;
+  save({ ...timer, segments: removeInterval(timer.segments, from, Infinity) });
+  stopForLogging();
+}
+
 /** The stopped timers waiting on the log form, oldest first. */
 export function getTimersToLog(): StoppedTimer[] {
   return toLog.get();

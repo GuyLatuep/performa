@@ -491,3 +491,108 @@ describe("Later", () => {
     vi.useRealTimers();
   });
 });
+
+describe("cutting idle time out", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("splits a stretch around the cut and keeps the rest running", async () => {
+    const { removeInterval } = await freshTimer();
+    expect(removeInterval([{ from: 0, to: null }], 10, 20)).toEqual([
+      { from: 0, to: 10 },
+      { from: 20, to: null },
+    ]);
+  });
+
+  it("leaves stretches outside the cut alone and trims overlapping ones", async () => {
+    const { removeInterval } = await freshTimer();
+    expect(
+      removeInterval(
+        [
+          { from: 0, to: 5 },
+          { from: 8, to: 15 },
+          { from: 30, to: null },
+        ],
+        10,
+        20,
+      ),
+    ).toEqual([
+      { from: 0, to: 5 },
+      { from: 8, to: 10 },
+      { from: 30, to: null },
+    ]);
+  });
+
+  it("keeps the start when everything is cut away", async () => {
+    const { removeInterval } = await freshTimer();
+    expect(removeInterval([{ from: 5, to: null }], 0, Infinity)).toEqual([
+      { from: 5, to: 5 },
+    ]);
+  });
+
+  it("counts only running time inside a span", async () => {
+    const t = await freshTimer();
+    const timer = {
+      issueKey: "ABC-1",
+      issueSummary: "",
+      segments: [
+        { from: 0, to: 10 * 60_000 },
+        { from: 40 * 60_000, to: null },
+      ],
+    };
+    // 0–60 min: 10 running, 30 paused, 20 running.
+    expect(t.runningMsWithin(timer, 0, 60 * 60_000)).toBe(30 * 60_000);
+  });
+
+  async function timingSince(start: number, now: number) {
+    vi.useFakeTimers({ now: start });
+    const t = await freshTimer();
+    const drafts = await import("./drafts");
+    t.startTimer("ABC-1", "Fix the thing");
+    vi.setSystemTime(now);
+    return { t, drafts };
+  }
+
+  it("Discard: the away time no longer counts, the timer runs on", async () => {
+    const { t } = await timingSince(0, 90 * 60_000);
+
+    t.discardAway(30 * 60_000, 75 * 60_000);
+
+    const timer = t.getTimer()!;
+    expect(t.isPaused(timer)).toBe(false);
+    expect(t.elapsedSeconds(timer, Date.now())).toBe(45 * 60);
+  });
+
+  it("Draft: cut out and parked on the same issue", async () => {
+    const { t, drafts } = await timingSince(
+      new Date(2026, 9, 15, 12, 0).getTime(),
+      new Date(2026, 9, 15, 13, 30).getTime(),
+    );
+
+    t.parkAway(
+      new Date(2026, 9, 15, 12, 15).getTime(),
+      new Date(2026, 9, 15, 13, 0).getTime(),
+    );
+
+    expect(t.elapsedSeconds(t.getTimer()!, Date.now())).toBe(45 * 60);
+    expect(drafts.getDrafts()).toEqual([
+      expect.objectContaining({
+        seconds: 45 * 60,
+        time: "12:15",
+        issueKey: "ABC-1",
+        note: "Away from the timer, 12:15–13:00",
+      }),
+    ]);
+  });
+
+  it("Discard & stop: the log form gets only the time before leaving", async () => {
+    const { t } = await timingSince(0, 3 * 3600_000);
+
+    t.stopAtAway(40 * 60_000);
+
+    expect(t.getTimer()).toBeNull();
+    // 40 minutes rounds up to 45.
+    expect(t.getTimersToLog()[0].seconds).toBe(45 * 60);
+  });
+});

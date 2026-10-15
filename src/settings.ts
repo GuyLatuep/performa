@@ -13,6 +13,11 @@ const FUN_MODE_KEY = "performa-fun-mode";
 const TYPE_ICONS_KEY = "performa-show-issue-type-icons";
 const TIMESHEET_VIEW_KEY = "performa-timesheet-view";
 const MONTH_SORT_KEY = "performa-month-sort";
+const IDLE_MINUTES_KEY = "performa-idle-minutes";
+const DEFAULT_IDLE_MINUTES = 10;
+/** The longest idle threshold on offer: past half a day, "away" means
+ *  "went home", which the timer bar already says plainly enough. */
+export const MAX_IDLE_MINUTES = 240;
 const DEFAULT_LOG_LEVEL: LogLevel = "error";
 
 const weekendsStore = persistedText<boolean>(
@@ -30,6 +35,30 @@ const typeIconsStore = persistedText<boolean>(
   TYPE_ICONS_KEY,
   (raw) => raw !== "false",
 );
+
+/** Minutes without input after which a running timer asks about the time
+ *  away. Zero turns the watch off. */
+const idleMinutesStore = persistedText<number>(IDLE_MINUTES_KEY, (raw) => {
+  if (raw === null) return DEFAULT_IDLE_MINUTES;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 && n <= MAX_IDLE_MINUTES
+    ? n
+    : DEFAULT_IDLE_MINUTES;
+});
+
+export function getIdleMinutes(): number {
+  return idleMinutesStore.get();
+}
+
+export function setIdleMinutes(minutes: number): void {
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > MAX_IDLE_MINUTES)
+    return;
+  idleMinutesStore.save(minutes);
+}
+
+export function useIdleMinutes(): number {
+  return idleMinutesStore.use();
+}
 
 export function getShowWeekends(): boolean {
   return weekendsStore.get();

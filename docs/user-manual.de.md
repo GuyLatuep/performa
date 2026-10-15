@@ -417,6 +417,26 @@ Mit **Stop** (in der Timer-Leiste oder im Tray) beendest du ihn. Das Erfassungsf
 
 Du kannst das Worklog vervollständigen (Kommentar, Abrechenbarkeit) und speichern, die erfasste Zeit mit **Discard** verwerfen — das Verwerfen fragt nach Bestätigung, weil die Zeit sonst verloren wäre — oder mit **Later** [als Draft parken](#geparkte-zeit-drafts) und buchen, wenn du dazu kommst.
 
+### Inaktivität am Rechner
+
+Ein Timer zählt die Uhr, nicht die Arbeit — einer, der über die Mittagspause
+weiterläuft, bucht die Mittagspause. Solange ein Timer läuft, achtet performa
+darauf, wie lange der Rechner keine Eingabe bekommen hat — Tastatur, Maus,
+Trackpad —, und ein zugeklappter Deckel oder Ruhezustand zählt genauso. Ist
+länger als in der [Einstellung](#einstellungen) angegeben nichts passiert
+(10 Minuten, sofern du es nicht änderst), wartet es, bis du zurück bist, holt
+dann sein Fenster nach vorn und fragt **You were away**: wie lange, von wann bis
+wann, auf welchem Vorgang. Solange du weg bist, wird nichts gefragt — und gar
+nichts, solange der Timer pausiert ist.
+
+- **Keep** — die Zeit war Arbeit (ein Meeting am Whiteboard); nichts ändert sich.
+  Das ist die Vorgabe: **Enter** beantwortet es.
+- **Discard** — die Zeit dazwischen aus dem Timer nehmen; er läuft ab jetzt weiter.
+- **Draft** — herausnehmen und auf demselben Vorgang
+  [parken](#geparkte-zeit-drafts), um später zu entscheiden.
+- **Discard & stop** — du warst fertig für heute: Der Timer endet dort, wo du
+  gegangen bist, und das Erfassungsfenster öffnet sich nur mit der Zeit davor.
+
 > Der Timer basiert auf der Uhrzeit (Wanduhr) und überlebt App-Neustarts: Beendest du die App mit laufendem Timer (siehe [Schutz beim Beenden](#schutz-beim-beenden)) und öffnest sie später wieder, läuft der Timer mit der korrekten Gesamtzeit weiter.
 
 ## System-Tray / Menüleiste
@@ -559,6 +579,7 @@ Der **Settings**-Link in der Kopfzeile öffnet denselben Bildschirm wie bei der 
 - **Public holidays** — dein Bundesland. Seine landesweiten gesetzlichen Feiertage sind dann freie Tage: kein Ziel, grau in der Monatsansicht. Feiertage, die nur manche Gemeinden haben (etwa Mariä Himmelfahrt in Teilen Bayerns), und Tage wie der 24. oder 31. Dezember, die viele Verträge als halbe Tage behandeln, sind nicht eingebaut — trag sie selbst als freie Tage ein.
 - **Days off** — Urlaub, Krankheit und Ähnliches, als ganzer oder **halber Tag**: Datum wählen (oder einen Zeitraum mit **until**, der Wochenenden und Feiertage überspringt), wie viel vom Tag und welche Art, dann **Add**. Ein freier Tag zieht seinen Anteil vom Tagesziel ab. Die Liste zeigt die letzten zwei Monate und alles, was kommt; **✕** entfernt einen Eintrag. Wie Suchen gehören freie Tage dir und sind keine Vorschau — **Cancel** macht sie also nicht rückgängig.
 - **Timesheet days** — **Mon–Fri** (Wochenenden ausgeblendet, außer sie enthalten erfasste Zeit) oder **Full week**.
+- **Idle time** — nach wie vielen Minuten ohne Eingabe ein laufender Timer nach der Zeit dazwischen fragt (Standard 10; **0** schaltet es ab). Siehe [Inaktivität am Rechner](#inaktivität-am-rechner).
 - **Todo** — welche Status der Todo-Tab ausblendet, pro Projekt. Die meisten Sites verwenden überall dieselben Status, deshalb gibt es ein **Copy to**, um die übrigen Projekte in einem Rutsch zu füllen.
 - **Searches** — eigene Suchen, von denen jede in der Befehlspalette ([⌘P](#die-befehlspalette)) als **Search by …** erscheint. Eine Zeile je Suche: ein **Name** und die **JQL**, die sie ausführt — genau so geschrieben wie ein Filter in Jira, mit `%SEARCHTERM%` an der Stelle, an der das in der Palette Eingetippte eingesetzt wird, zum Beispiel `project in (CTS, DEV, SD) AND "Plant Number[Short text]" ~ %SEARCHTERM% ORDER BY created ASC`. Steht `%SEARCHTERM%` für sich allein, wird es für dich in Anführungszeichen gesetzt; steht es innerhalb von Anführungszeichen, bleibt der Rest dieser Zeichenkette, wie du ihn geschrieben hast — `"%SEARCHTERM%*"` passt also auf alles, was mit dem Eingetippten *beginnt* (`DE_1979` findet dann auch `DE_1979_03`). Das Eingetippte wird beim Einsetzen maskiert, ein Anführungszeichen oder eine Klammer im Suchbegriff wird also gesucht und nicht als JQL gelesen. Eine Abfrage ohne `%SEARCHTERM%` ist statt einer Suche ein **View**: sie findet unabhängig vom Eingetippten immer dieselben Vorgänge, und genau das ist der Zweck — sie wird in der Palette als **View: …** angeboten und läuft, sobald du sie auswählst. Ein View hat außerdem einen **Stern** neben seinem ✕: markiert, liegt er in der Seitenleiste unter den Tabs, ein weiterer Klick auf den Stern nimmt ihn wieder heraus. Das JQL-Feld sagt, welches von beiden eine Abfrage geworden ist, und speichert beim Verlassen oder mit **Enter**. Suchen aus der Zeit vor der JQL-Form (ein Feld, **Whole value** und ausgeschlossene Projekte) werden beim ersten Start in die entsprechende JQL umgewandelt, es muss also nichts neu eingegeben werden. Die reine Textsuche muss nicht eingerichtet werden und wird immer angeboten.
 - **Logging** — die Ausführlichkeit des Debug-Logs (**Error**, **Warn**, **Info** oder **Debug**; siehe [Debug-Log](#debug-log)) sowie ein **Open log folder**-Button.

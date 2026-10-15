@@ -31,6 +31,8 @@ import LogWork from "./components/LogWork";
 import Timesheet from "./components/Timesheet";
 import TimerBar from "./components/TimerBar";
 import ParkModalHost from "./components/ParkModal";
+import IdlePrompt from "./components/IdlePrompt";
+import { useIdleWatch } from "./idle";
 import { useDrafts } from "./drafts";
 import MissingWorklogs from "./components/MissingWorklogs";
 import { useAccountWatchers } from "./accountWatchers";
@@ -118,6 +120,7 @@ export default function App() {
   const missingArrived = useArrival(missingUnseen);
 
   useAccountWatchers(creds);
+  useIdleWatch();
 
   function refreshStatus(): Promise<void> {
     return api
@@ -426,6 +429,7 @@ export default function App() {
         <AchievementToast queue={awards} />
         <TimerBar />
         <ParkModalHost site={creds.site} />
+        <IdlePrompt />
 
         <main>
           {/* An issue reached by key replaces the tab's content rather than the

@@ -18,14 +18,21 @@ import SettingsTimesheet from "./SettingsTimesheet";
 const settings = vi.hoisted(() => ({
   weekends: false,
   setShowWeekends: vi.fn(),
+  idle: 10,
+  setIdleMinutes: vi.fn(),
 }));
 vi.mock("../settings", () => ({
   useShowWeekends: () => settings.weekends,
   setShowWeekends: settings.setShowWeekends,
+  getIdleMinutes: () => settings.idle,
+  setIdleMinutes: settings.setIdleMinutes,
+  MAX_IDLE_MINUTES: 240,
 }));
 
 const dayField = (day: string) =>
   screen.getByRole("spinbutton", { name: `${day} hours` }) as HTMLInputElement;
+const idleField = () =>
+  screen.getByRole("spinbutton", { name: "Idle minutes" }) as HTMLInputElement;
 const button = (name: string) => screen.getByRole("button", { name });
 
 beforeEach(() => {
@@ -35,6 +42,7 @@ beforeEach(() => {
   setHolidayState(null);
   for (const a of getAbsences()) removeAbsence(a.date);
   settings.weekends = false;
+  settings.idle = 10;
 });
 
 describe("hours per weekday", () => {
@@ -183,5 +191,33 @@ describe("which days the timesheet shows", () => {
     await userEvent.click(button("Mon–Fri"));
 
     expect(settings.setShowWeekends).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("idle time", () => {
+  it("starts from what is stored", () => {
+    settings.idle = 25;
+    render(<SettingsTimesheet />);
+
+    expect(idleField().value).toBe("25");
+  });
+
+  it("stores whole minutes as they are typed, zero included", async () => {
+    render(<SettingsTimesheet />);
+
+    await userEvent.clear(idleField());
+    await userEvent.type(idleField(), "0");
+
+    expect(settings.setIdleMinutes).toHaveBeenLastCalledWith(0);
+  });
+
+  it("snaps back to the stored value when the field is left", async () => {
+    render(<SettingsTimesheet />);
+
+    await userEvent.clear(idleField());
+    await userEvent.type(idleField(), "9999");
+    await userEvent.tab();
+
+    expect(idleField().value).toBe("10");
   });
 });

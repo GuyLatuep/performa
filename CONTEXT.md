@@ -52,6 +52,16 @@ Jira, and it disappears when the guess no longer holds. A Draft worklog is
 it away. Showing them side by side is about where unbooked time waits, not a
 claim that they are one thing.
 
+## Idle time
+
+A stretch with **no input at the computer** — keyboard, mouse, trackpad, or the
+machine asleep — while a timer was counting.
+
+Idle time is a question, not a verdict: being away from the keyboard is not
+the same as not working, so the user decides whether it was work. It only
+exists while a timer runs; time away with no timer running is nobody's
+business.
+
 ## Daily target
 
 What a day is **expected to hold**. It starts from the hours set for that
