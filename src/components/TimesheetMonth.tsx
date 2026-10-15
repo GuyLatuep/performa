@@ -42,6 +42,8 @@ import {
   weekChunks,
 } from "../time";
 import { dayInfo, DayInfo, useWorkCalendar } from "../workdays";
+import { canRebuild } from "../rebuild";
+import DayRebuild from "./DayRebuild";
 import IssuePicker from "./IssuePicker";
 import TypeIcon from "./TypeIcon";
 import RepeatModal from "./RepeatModal";
@@ -98,6 +100,8 @@ export default function TimesheetMonth({ site }: Props) {
     date: string;
   } | null>(null);
   const [quickLog, setQuickLog] = useState<string | null>(null);
+  /** The day being rebuilt, if one is. */
+  const [rebuilding, setRebuilding] = useState<string | null>(null);
 
   /** How the rows are ordered — remembered across launches, and read fresh
    *  (not from this closure) wherever a load just finished, so a sort change
@@ -347,6 +351,11 @@ export default function TimesheetMonth({ site }: Props) {
                 key={col.date}
                 col={col}
                 seconds={grid.dayTotals.get(col.date) ?? 0}
+                onRebuild={
+                  canRebuild(col.date)
+                    ? () => setRebuilding(col.date)
+                    : undefined
+                }
               />
             ))}
             <div className="row-head col-total" role="columnheader">
@@ -428,6 +437,15 @@ export default function TimesheetMonth({ site }: Props) {
         />
       )}
 
+      {rebuilding && (
+        <DayRebuild
+          date={rebuilding}
+          worklogs={entries}
+          onClose={() => setRebuilding(null)}
+          onLogged={() => void refreshChunk(rebuilding)}
+        />
+      )}
+
       {quickLog && (
         <QuickLogModal
           site={site}
@@ -479,8 +497,28 @@ function cellTitle(
   return `${day} — ${formatDuration(seconds)} over ${count} worklogs, click to open them`;
 }
 
-function DayHeader({ col, seconds }: { col: LabelledColumn; seconds: number }) {
+function DayHeader({
+  col,
+  seconds,
+  onRebuild,
+}: {
+  col: LabelledColumn;
+  seconds: number;
+  /** Open the day's rebuild; absent where the day cannot be rebuilt. */
+  onRebuild?: () => void;
+}) {
   const date = new Date(col.date + "T00:00:00");
+  const content = (
+    <>
+      <span className="dow">
+        {date.toLocaleDateString(undefined, { weekday: "narrow" })}
+      </span>
+      <span className="dom">{date.getDate()}</span>
+      <span className={`day-sum${dayTone(seconds, col, col.info)}`}>
+        {seconds > 0 ? decimalHours(seconds) : "0"}
+      </span>
+    </>
+  );
   return (
     <div
       className={
@@ -492,13 +530,18 @@ function DayHeader({ col, seconds }: { col: LabelledColumn; seconds: number }) {
       role="columnheader"
       title={col.label}
     >
-      <span className="dow">
-        {date.toLocaleDateString(undefined, { weekday: "narrow" })}
-      </span>
-      <span className="dom">{date.getDate()}</span>
-      <span className={`day-sum${dayTone(seconds, col, col.info)}`}>
-        {seconds > 0 ? decimalHours(seconds) : "0"}
-      </span>
+      {onRebuild ? (
+        <button
+          type="button"
+          className="day-head-btn"
+          title={`${col.label} — rebuild the day from what you did in Jira`}
+          onClick={onRebuild}
+        >
+          {content}
+        </button>
+      ) : (
+        content
+      )}
     </div>
   );
 }

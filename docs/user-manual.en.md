@@ -472,6 +472,30 @@ A matrix: **issues down the side, days across the top**, hours in the cells. Bui
 
 **Width:** the month is the one view that uses the whole window. Every other view stops at a comfortable reading width, but here more width means more days on screen and more of each summary before the ellipsis, so a wide or maximised window is put to work — the day columns keep their size and the issue column takes the extra. The issue column also has its own key column, so the summaries all start at the same place down the table.
 
+### Rebuilding a day
+
+Some days end with less booked than was worked, and by the next week nobody
+remembers what filled them. **Rebuild a day** puts what you did in Jira that day
+next to what you booked, so the gaps show.
+
+Open it from the **Rebuild a day** row under the week's total — one button per
+day of the week so far, empty days included — or by clicking a day's header in
+the **Month** view. Days from the current and the previous month can be
+rebuilt.
+
+The day reads in time order:
+
+- your **comments**, your **status changes**, issues you **created**, and issues
+  **handed to you** — read from Jira when you open the day (once per day per
+  session; nothing runs in the background)
+- what is already **booked**, greyed
+- the running **timer** and any [parked time](#parked-time-drafts) of that day
+
+Anything you did on an issue with **no time booked that day** is marked and
+offers **Log…**: the ordinary log form, filled in with that issue, that day and
+that moment. Nothing is booked for you — the view never fills a gap on its
+own, because it knows what you did, not how long it took.
+
 ## Missing worklogs
 
 The **Missing worklog** tab is a safety net for forgotten time entries.

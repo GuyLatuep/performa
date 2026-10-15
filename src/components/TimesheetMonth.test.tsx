@@ -470,3 +470,24 @@ describe("days off", () => {
     expect(next.querySelector(".day-sum")?.className).toContain("tone-thin");
   });
 });
+
+describe("rebuilding a day", () => {
+  it("opens from a past day's header, and not from one still to come", async () => {
+    renderMonth();
+    await loaded();
+
+    const heads = [...document.querySelectorAll<HTMLElement>(".day-head-cell")];
+    const tenth = heads.find(
+      (h) => h.title.startsWith("Tue") && h.textContent?.includes("10"),
+    )!;
+    const future = heads.find((h) => h.className.includes("future"))!;
+    expect(future.querySelector("button")).toBeNull();
+
+    await userEvent.click(tenth.querySelector("button")!);
+
+    expect(
+      await screen.findByRole("dialog", { name: "Rebuild the day" }),
+    ).toBeDefined();
+    expect(apiMock.dayActivity).toHaveBeenCalledWith("2026-03-10");
+  });
+});

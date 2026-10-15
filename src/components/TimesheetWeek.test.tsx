@@ -90,7 +90,11 @@ describe("the week that loads", () => {
 
     renderWeek();
 
-    await screen.findByText(/2026-03-18|Wed/);
+    // Waited for by the group heads themselves: the weekday names also label
+    // the rebuild strip's buttons.
+    await waitFor(() =>
+      expect(document.querySelectorAll(".day-head").length).toBeGreaterThan(0),
+    );
     const heads = [...document.querySelectorAll(".day-head")].map(
       (h) => h.textContent ?? "",
     );
@@ -297,5 +301,31 @@ describe("walking the ledger with the arrow keys", () => {
     expect(
       await screen.findByRole("heading", { name: /Edit ABC-1/ }),
     ).toBeDefined();
+  });
+});
+
+describe("rebuilding a day", () => {
+  it("offers every day of the week so far, empty ones included", async () => {
+    renderWeek();
+    await waitFor(() => expect(screen.queryByText("Loading…")).toBeNull());
+
+    const strip = document.querySelector(".rebuild-strip")!;
+    // Monday to the Wednesday it is today; nothing after.
+    expect(strip.querySelectorAll("button")).toHaveLength(3);
+  });
+
+  it("opens the day's rebuild", async () => {
+    renderWeek();
+    await waitFor(() => expect(screen.queryByText("Loading…")).toBeNull());
+
+    const buttons = document.querySelectorAll<HTMLButtonElement>(
+      ".rebuild-strip button",
+    );
+    await userEvent.click(buttons[0]);
+
+    expect(
+      await screen.findByRole("dialog", { name: "Rebuild the day" }),
+    ).toBeDefined();
+    expect(apiMock.dayActivity).toHaveBeenCalledWith(MONDAY);
   });
 });

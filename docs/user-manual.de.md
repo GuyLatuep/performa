@@ -486,6 +486,32 @@ Eine Matrix: **Vorgänge untereinander, Tage nebeneinander**, Stunden in den Zel
 
 **Breite:** Der Monat ist die einzige Ansicht, die das ganze Fenster nutzt. Alle anderen Ansichten hören bei einer angenehmen Lesebreite auf, hier bedeutet mehr Breite aber mehr Tage auf dem Schirm und mehr von jeder Zusammenfassung vor den Auslassungspunkten — ein breites oder maximiertes Fenster wird also ausgenutzt: Die Tagesspalten behalten ihre Größe, die Vorgangsspalte nimmt den Rest. Die Vorgangsspalte hat außerdem eine eigene Spalte für den Schlüssel, damit alle Zusammenfassungen an derselben Stelle beginnen.
 
+### Einen Tag rekonstruieren
+
+Manche Tage enden mit weniger gebuchter als gearbeiteter Zeit, und eine Woche
+später weiß niemand mehr, womit sie gefüllt waren. **Rebuild a day** stellt das,
+was du an dem Tag in Jira getan hast, neben das, was du gebucht hast — so werden
+die Lücken sichtbar.
+
+Du öffnest es über die Zeile **Rebuild a day** unter der Wochensumme — ein Button
+pro bisherigem Tag der Woche, leere Tage eingeschlossen — oder per Klick auf
+einen Tageskopf in der Ansicht **Monat**. Rekonstruieren lassen sich Tage aus
+dem aktuellen und dem vorigen Monat.
+
+Der Tag liest sich in zeitlicher Reihenfolge:
+
+- deine **Kommentare**, deine **Statusänderungen**, Vorgänge, die du **angelegt**
+  hast, und Vorgänge, die dir **zugewiesen** wurden — aus Jira gelesen, wenn du
+  den Tag öffnest (einmal pro Tag und Sitzung; im Hintergrund läuft nichts)
+- was schon **gebucht** ist, ausgegraut
+- der laufende **Timer** und [geparkte Zeit](#geparkte-zeit-drafts) dieses Tages
+
+Alles, was du auf einem Vorgang getan hast, auf dem an dem Tag **keine Zeit
+gebucht** ist, ist markiert und bietet **Log…** an: das normale
+Erfassungsformular, vorbelegt mit diesem Vorgang, diesem Tag und diesem
+Zeitpunkt. Gebucht wird nichts für dich — die Ansicht füllt keine Lücke von
+selbst, denn sie weiß, was du getan hast, nicht wie lange es gedauert hat.
+
 ## Missing Worklogs
 
 Der Tab **Missing worklog** ist ein Sicherheitsnetz gegen vergessene Zeiteinträge.

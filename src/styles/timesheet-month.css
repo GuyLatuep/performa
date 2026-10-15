@@ -288,3 +288,23 @@
 .quick-cell:hover:not(:disabled) {
   color: var(--accent-text);
 }
+
+/* The header doubles as the way into rebuilding its day: a bare button laid
+   out exactly like the header it fills, so the column reads the same either
+   way. */
+.day-head-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+  height: 100%;
+  line-height: 1.2;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}

@@ -242,6 +242,17 @@ export interface WorklogInput {
   billable: boolean;
 }
 
+/** One thing the user did in Jira on a day — the evidence a day is rebuilt
+ *  from. See `day.rs`. */
+export interface DayEvidence {
+  kind: "comment" | "status" | "created" | "assigned";
+  issueKey: string;
+  issueSummary: string;
+  /** RFC3339, local time. */
+  at: string;
+  detail: string;
+}
+
 export interface MissingWorklog {
   issueKey: string;
   issueSummary: string;
@@ -747,6 +758,13 @@ export const api = {
     return logged(`delete_issue_link(linkId=${linkId})`, () =>
       invoke("delete_issue_link", { linkId }),
     ).then(invalidateCachedReads);
+  },
+  dayActivity(date: string): Promise<DayEvidence[]> {
+    return logged(
+      `day_activity(${date})`,
+      () => invoke("day_activity", { date }),
+      (r) => `${r.length} item(s)`,
+    );
   },
   missingWorklogs(): Promise<MissingWorklog[]> {
     return logged(

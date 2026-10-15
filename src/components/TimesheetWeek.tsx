@@ -4,7 +4,9 @@ import { api, WorklogEntry } from "../api";
 import { useResetOn } from "../resetOn";
 import { useShortcut } from "../shortcuts";
 import { useRowSelected, useSelectionScope } from "../selection";
-import { formatDayLabel, formatDuration, weekRange } from "../time";
+import { eachDate, formatDayLabel, formatDuration, weekRange } from "../time";
+import { canRebuild } from "../rebuild";
+import DayRebuild from "./DayRebuild";
 import { useWorklogsFiled } from "../worklogEvents";
 import WeekChart from "./WeekChart";
 import RepeatModal from "./RepeatModal";
@@ -40,6 +42,8 @@ export default function TimesheetWeek({ site }: Props) {
   const [editing, setEditing] = useState<WorklogEntry | null>(null);
   const [repeating, setRepeating] = useState<WorklogEntry | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  /** The day being rebuilt, if one is. */
+  const [rebuilding, setRebuilding] = useState<string | null>(null);
 
   const { start, end } = weekRange(offset);
   const filed = useWorklogsFiled();
@@ -151,6 +155,28 @@ export default function TimesheetWeek({ site }: Props) {
         Total: <strong>{formatDuration(total)}</strong>
       </div>
 
+      {/* Every past day of the week, empty ones included — an empty day is
+          the one most worth rebuilding, and the list below only has rows for
+          days with something on them. */}
+      {eachDate(start, end).some((d) => canRebuild(d)) && (
+        <div className="rebuild-strip">
+          <span className="hint">Rebuild a day:</span>
+          {eachDate(start, end)
+            .filter((d) => canRebuild(d))
+            .map((d) => (
+              <button
+                key={d}
+                type="button"
+                className="secondary"
+                title={`Rebuild ${formatDayLabel(d, DAY_FORMAT)} from what you did in Jira`}
+                onClick={() => setRebuilding(d)}
+              >
+                {formatDayLabel(d, { weekday: "short" }).replace(/ · .*/, "")}
+              </button>
+            ))}
+        </div>
+      )}
+
       {error && <p className="error">{error}</p>}
       {loading && <p className="muted">Loading…</p>}
       {!loading && entries.length === 0 && (
@@ -182,6 +208,15 @@ export default function TimesheetWeek({ site }: Props) {
           </div>
         );
       })}
+
+      {rebuilding && (
+        <DayRebuild
+          date={rebuilding}
+          worklogs={entries}
+          onClose={() => setRebuilding(null)}
+          onLogged={() => void load()}
+        />
+      )}
 
       {editing && (
         <WorklogEditModal
