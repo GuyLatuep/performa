@@ -41,7 +41,7 @@ roughly **5–10 MB**.
 | 🔎 **Issue picker** | Finding the issue to log against: assigned to you by default, or by text / issue key — pin favourites to the top. |
 | 🗂️ **Command palette** | ⌘P for everything the app can do, by name — open an issue by typing its key, search Jira by text, or run a search of your own written as JQL with a `%SEARCHTERM%` placeholder for what you type (Settings → Searches). |
 | ⏱️ **Log work** | Jira-style durations (`1h 30m`), date, optional comment, and a non-billable flag (ActivityTimeline's `~` convention). |
-| 🍱 **Tray timer** | Per-issue timer with 15-minute round-up, mirrored live in the system tray / menu bar — pause, resume, stop and log straight from there. Starting a timer also nudges the issue to Jira's "In Arbeit" status, best-effort. |
+| 🍱 **Tray timer** | Per-issue timer with 15-minute round-up, mirrored live in the system tray / menu bar — pause, resume, stop and log straight from there. **Switch** to another issue in one click. Starting a timer also nudges the issue to Jira's "In Arbeit" status, best-effort. |
 | 📅 **Timesheet** | **Week** — per-day totals and target charts; edit, delete, and repeat worklogs, or save them as templates. **Month** — the whole month as a matrix, day by day. |
 | 🔔 **Missing-worklog watcher** | Flags recent Jira comments / status changes without logged time nearby and raises a desktop notification. |
 | 💬 **Mentions** | Comments that name you, in one list, with the issue one click away. |

@@ -6,7 +6,7 @@ import { priorityClass, shortStatus } from "../issueLabels";
 import { today } from "../time";
 import { togglePin } from "../pins";
 import TypeIcon from "./TypeIcon";
-import { startTimer, useTimer } from "../timer";
+import { isPaused, startTimer, switchTimer, useTimer } from "../timer";
 import { useShortcut } from "../shortcuts";
 
 interface Props {
@@ -32,6 +32,9 @@ function IssueRow({
 }: Props) {
   const activeTimer = useTimer();
   const isRunning = activeTimer?.issueKey === issue.key;
+  // Another issue holds the timer: this row's button switches to itself,
+  // handing that one's time to the log form.
+  const switching = !!activeTimer && !isRunning;
 
   // Nothing calls `.focus()` on a row — it holds four buttons of its own and the
   // focus ring around the lot of them would compete with the selection wash for
@@ -51,8 +54,9 @@ function IssueRow({
     () => openExternal(`${site}/browse/${issue.key}`),
     selected,
   );
-  // Starting a timer is the other half of ⌘T, and only available on the same
-  // terms the button is: not while another timer is already running.
+  // Starting a timer is the other half of ⌘T, so the row takes the key only
+  // while no timer exists: with one running or paused, ⌘T is the bar's Stop.
+  // Switching stays with the button — one key cannot mean both.
   const timerKeys = useShortcut(
     "timer",
     () => startTimer(issue.key, issue.summary),
@@ -121,15 +125,17 @@ function IssueRow({
       <button
         {...timerKeys}
         className={`timer-start${isRunning ? " running" : ""}`}
-        disabled={!!activeTimer}
+        disabled={isRunning}
         title={
           isRunning
-            ? "Timer running"
-            : activeTimer
-              ? "Stop the running timer first"
+            ? activeTimer && isPaused(activeTimer)
+              ? "Timer paused"
+              : "Timer running"
+            : switching
+              ? `Switch the timer to ${issue.key}`
               : `Start timer for ${issue.key}`
         }
-        onClick={() => startTimer(issue.key, issue.summary)}
+        onClick={() => switchTimer(issue.key, issue.summary)}
       >
         {isRunning ? (
           <>
@@ -139,7 +145,7 @@ function IssueRow({
         ) : (
           <>
             <Play size={11} strokeWidth={0} fill="currentColor" aria-hidden />
-            start
+            {switching ? "switch" : "start"}
           </>
         )}
       </button>

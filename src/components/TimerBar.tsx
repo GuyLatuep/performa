@@ -4,19 +4,19 @@ import { api } from "../api";
 import { useShortcut } from "../shortcuts";
 import { formatDuration, toDateInput, toTimeInput } from "../time";
 import {
-  ActiveTimer,
-  elapsedSeconds,
+  doneLogging,
   formatClock,
   getTimer,
   isPaused,
   isPlayfulClock,
   pauseTimer,
   resumeTimer,
-  roundUpToQuarterHour,
-  stopTimer,
+  StoppedTimer,
+  stopForLogging,
   timerStartedAt,
   useElapsedSeconds,
   useTimer,
+  useTimersToLog,
 } from "../timer";
 import IssueHistory from "./IssueHistory";
 import {
@@ -26,21 +26,13 @@ import {
   WorklogFields,
 } from "./WorklogFields";
 
-interface StopData {
-  timer: ActiveTimer;
-  seconds: number; // rounded-up elapsed
-}
-
 export default function TimerBar() {
   const timer = useTimer();
   const elapsed = useElapsedSeconds(timer);
-  const [stopping, setStopping] = useState<StopData | null>(null);
-
-  function onStop() {
-    if (!timer) return;
-    setStopping({ timer, seconds: roundUpToQuarterHour(elapsed) });
-    stopTimer(); // freeze the clock; the captured data lives in `stopping`
-  }
+  // Stopping, the tray's stop and switching to another issue all queue the
+  // old timer here; the log form works through them oldest first.
+  const toLog = useTimersToLog();
+  const stopping = toLog[0] ?? null;
 
   const paused = !!timer && isPaused(timer);
 
@@ -56,13 +48,7 @@ export default function TimerBar() {
     const unlistens: (() => void)[] = [];
     let gone = false;
     const subscriptions = [
-      listen("stop-timer", () => {
-        const t = getTimer();
-        if (!t) return;
-        const secs = elapsedSeconds(t, Date.now());
-        setStopping({ timer: t, seconds: roundUpToQuarterHour(secs) });
-        stopTimer();
-      }),
+      listen("stop-timer", stopForLogging),
       listen("toggle-pause-timer", () => {
         const t = getTimer();
         if (!t) return;
@@ -87,7 +73,7 @@ export default function TimerBar() {
   // the bar is on screen. Starting one is per issue row — a different shortcut
   // on a different thing, and step 6's business.
   const live = !!timer && !stopping;
-  const stopKeys = useShortcut("timer", onStop, live);
+  const stopKeys = useShortcut("timer", stopForLogging, live);
   const pauseKeys = useShortcut("pauseTimer", onPauseToggle, live);
 
   if (!timer && !stopping) return null;
@@ -113,13 +99,19 @@ export default function TimerBar() {
           >
             {paused ? "Resume" : "Pause"}
           </button>
-          <button className="timer-stop" {...stopKeys} onClick={onStop}>
+          <button className="timer-stop" {...stopKeys} onClick={stopForLogging}>
             Stop
           </button>
         </div>
       )}
       {stopping && (
-        <StopModal data={stopping} onClose={() => setStopping(null)} />
+        // Keyed by the timer it is about, so the next one in the queue gets a
+        // fresh form rather than the last one's leftovers.
+        <StopModal
+          key={`${stopping.timer.issueKey}@${timerStartedAt(stopping.timer)}`}
+          data={stopping}
+          onClose={doneLogging}
+        />
       )}
     </>
   );
@@ -127,7 +119,13 @@ export default function TimerBar() {
 
 /** `onClose` runs after a worklog is filed as well as on a discard: either way
  *  the tracked time has been dealt with. */
-function StopModal({ data, onClose }: { data: StopData; onClose: () => void }) {
+function StopModal({
+  data,
+  onClose,
+}: {
+  data: StoppedTimer;
+  onClose: () => void;
+}) {
   // When the work began, however often it was paused since.
   const started = new Date(timerStartedAt(data.timer));
   const { draft, patch, seconds } = useWorklogDraft({

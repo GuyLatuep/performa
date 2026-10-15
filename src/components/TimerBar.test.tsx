@@ -37,7 +37,15 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: events.listen }));
 
 import { apiMock, resetApiMock, worklogEntry } from "../test-support/api";
 import { ShortcutKeys } from "../test-support/shortcuts";
-import { getTimer, isPaused, startTimer, stopTimer } from "../timer";
+import {
+  doneLogging,
+  getTimer,
+  getTimersToLog,
+  isPaused,
+  startTimer,
+  stopTimer,
+  switchTimer,
+} from "../timer";
 import TimerBar from "./TimerBar";
 
 const NOW = new Date(2026, 2, 18, 12, 0, 0);
@@ -72,6 +80,9 @@ beforeEach(() => {
   resetApiMock();
   localStorage.clear();
   stopTimer();
+  // The queue of stopped timers lives as long as the module; a form one test
+  // left open must not greet the next.
+  while (getTimersToLog().length > 0) doneLogging();
   events.listen.mockClear();
   events.unlisten.mockClear();
   events.reset();
@@ -330,5 +341,51 @@ describe("discarding", () => {
 
     expect(screen.queryByText("Log time — ABC-1")).toBeNull();
     expect(apiMock.logWork).not.toHaveBeenCalled();
+  });
+});
+
+describe("switching to another issue", () => {
+  it("opens the old timer's form while the new one runs", async () => {
+    runningFor(20);
+    renderBar();
+
+    act(() => switchTimer("XYZ-2", "Something urgent"));
+
+    // The form is about the old issue, with its time and its start…
+    expect(await screen.findByText("Log time — ABC-1")).toBeDefined();
+    expect(screen.getByLabelText(/Time spent/)).toHaveProperty("value", "30m");
+    expect(screen.getByLabelText(/Start/)).toHaveProperty("value", "11:40");
+    // …while the bar already shows the new one.
+    expect(screen.getByText("XYZ-2")).toBeDefined();
+  });
+
+  it("logs the old issue and keeps the new timer running", async () => {
+    runningFor(20);
+    renderBar();
+    act(() => switchTimer("XYZ-2", "Something urgent"));
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Log work" }),
+    );
+
+    await waitFor(() => expect(screen.queryByText(/Log time/)).toBeNull());
+    expect(apiMock.logWork).toHaveBeenCalledWith(
+      "ABC-1",
+      expect.objectContaining({ timeSpentSeconds: 1800 }),
+    );
+    expect(getTimer()?.issueKey).toBe("XYZ-2");
+  });
+
+  it("works through two switches one form at a time", async () => {
+    runningFor(20);
+    renderBar();
+    act(() => switchTimer("XYZ-2", "Second"));
+    act(() => switchTimer("XYZ-3", "Third"));
+
+    expect(await screen.findByText("Log time — ABC-1")).toBeDefined();
+    await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+    await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    expect(await screen.findByText("Log time — XYZ-2")).toBeDefined();
   });
 });

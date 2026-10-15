@@ -319,3 +319,78 @@ describe("pausing", () => {
     });
   });
 });
+
+describe("switching", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function timerAt(start: number) {
+    vi.useFakeTimers({ now: start });
+    const mod = await freshTimer();
+    mod.startTimer("ABC-1", "Fix the thing");
+    return mod;
+  }
+
+  it("starts the new timer at once and queues the old one's time", async () => {
+    const t = await timerAt(0);
+    vi.setSystemTime(20 * 60_000);
+
+    t.switchTimer("XYZ-2", "Something urgent");
+
+    const now = t.getTimer()!;
+    expect(now.issueKey).toBe("XYZ-2");
+    expect(t.timerStartedAt(now)).toBe(20 * 60_000);
+    const [old] = t.getTimersToLog();
+    expect(old.timer.issueKey).toBe("ABC-1");
+    // Rounded at the moment of the switch: 20 minutes is half an hour booked.
+    expect(old.seconds).toBe(30 * 60);
+  });
+
+  it("hands over a paused timer without its paused time", async () => {
+    const t = await timerAt(0);
+    vi.setSystemTime(40 * 60_000);
+    t.pauseTimer();
+    vi.setSystemTime(3 * 3600_000);
+
+    t.switchTimer("XYZ-2", "Something urgent");
+
+    expect(t.getTimersToLog()[0].seconds).toBe(45 * 60);
+  });
+
+  it("is a plain start when nothing is running", async () => {
+    const t = await freshTimer();
+    t.switchTimer("XYZ-2", "Something urgent");
+
+    expect(t.getTimer()?.issueKey).toBe("XYZ-2");
+    expect(t.getTimersToLog()).toEqual([]);
+  });
+
+  it("leaves a timer alone that is already on that issue", async () => {
+    const t = await timerAt(0);
+    const before = t.getTimer();
+
+    t.switchTimer("ABC-1", "Fix the thing");
+
+    expect(t.getTimer()).toBe(before);
+    expect(t.getTimersToLog()).toEqual([]);
+  });
+
+  it("keeps every switched-away timer, oldest first", async () => {
+    // A second switch while the first one's form is still open must not
+    // push that earlier time out.
+    const t = await timerAt(0);
+    vi.setSystemTime(10 * 60_000);
+    t.switchTimer("XYZ-2", "Second");
+    vi.setSystemTime(70 * 60_000);
+    t.switchTimer("XYZ-3", "Third");
+
+    expect(t.getTimersToLog().map((s) => s.timer.issueKey)).toEqual([
+      "ABC-1",
+      "XYZ-2",
+    ]);
+
+    t.doneLogging();
+    expect(t.getTimersToLog().map((s) => s.timer.issueKey)).toEqual(["XYZ-2"]);
+  });
+});

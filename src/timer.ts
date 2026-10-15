@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { api } from "./api";
 import { logDebug, logInfo } from "./log";
 import { persisted } from "./persist";
+import { createStore } from "./store";
 
 /** One stretch of running time. `to` is null while it is still running. */
 export interface TimerSegment {
@@ -164,6 +165,55 @@ export function resumeTimer(): void {
     segments: [...timer.segments, { from: Date.now(), to: null }],
   });
   logInfo(`timer resumed on ${timer.issueKey}`);
+}
+
+/** A timer taken off the clock whose time has yet to be logged or discarded,
+ *  with its running time already rounded up for the log form. */
+export interface StoppedTimer {
+  timer: ActiveTimer;
+  seconds: number;
+}
+
+// Oldest first. In memory only, like the log form it feeds: the form allows no
+// way out but logging or a confirmed discard, so nothing in here is ever
+// dropped silently. A queue rather than one slot so a switch made while an
+// earlier form is still open cannot push that earlier time out.
+const toLog = createStore<StoppedTimer[]>([]);
+
+/** Take the timer off the clock and queue its time for the log form. */
+export function stopForLogging(): void {
+  const timer = store.get();
+  if (!timer) return;
+  const seconds = roundUpToQuarterHour(elapsedSeconds(timer, Date.now()));
+  stopTimer();
+  toLog.set([...toLog.get(), { timer, seconds }]);
+}
+
+/** Start timing `issueKey`, handing any timer already there — running or
+ *  paused — to the log form rather than refusing. The new clock starts at
+ *  once, so filling in the old one's form costs the new one nothing. */
+export function switchTimer(issueKey: string, issueSummary: string): void {
+  const current = store.get();
+  if (current?.issueKey === issueKey) return;
+  if (current) {
+    logInfo(`timer switched from ${current.issueKey} to ${issueKey}`);
+    stopForLogging();
+  }
+  startTimer(issueKey, issueSummary);
+}
+
+/** The stopped timers waiting on the log form, oldest first. */
+export function getTimersToLog(): StoppedTimer[] {
+  return toLog.get();
+}
+
+export function useTimersToLog(): StoppedTimer[] {
+  return toLog.use();
+}
+
+/** The oldest waiting timer has been logged or discarded. */
+export function doneLogging(): void {
+  toLog.set(toLog.get().slice(1));
 }
 
 export function stopTimer(): void {
