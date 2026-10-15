@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { api } from "./api";
 import { logDebug, logInfo } from "./log";
 import { persisted } from "./persist";
-import { createStore } from "./store";
 import { addDraft } from "./drafts";
 import { toDateInput, toTimeInput } from "./time";
 
@@ -25,6 +24,7 @@ export interface ActiveTimer {
 }
 
 const STORAGE_KEY = "performa-active-timer";
+const TO_LOG_KEY = "performa-timers-to-log";
 
 const isTime = (v: unknown): v is number =>
   typeof v === "number" && Number.isFinite(v);
@@ -47,7 +47,7 @@ function parseSegments(raw: unknown): TimerSegment[] | null {
 // clock and stays correct even if the app was closed while a timer was
 // running. Timers stored before pausing existed carry a bare `startedAt`:
 // that reads as one stretch still running, so an update never loses one.
-const store = persisted<ActiveTimer | null>(STORAGE_KEY, (stored) => {
+function parseTimer(stored: unknown): ActiveTimer | null {
   const t = stored as
     | {
         issueKey?: unknown;
@@ -68,7 +68,9 @@ const store = persisted<ActiveTimer | null>(STORAGE_KEY, (stored) => {
   if (!segments) return null;
   const issueSummary = typeof t.issueSummary === "string" ? t.issueSummary : "";
   return { issueKey: t.issueKey, issueSummary, segments };
-});
+}
+
+const store = persisted<ActiveTimer | null>(STORAGE_KEY, parseTimer);
 
 /** When the work began: the start of the first stretch. This, not the latest
  *  resume, is the start time a worklog for the timer carries. */
@@ -186,11 +188,26 @@ export interface StoppedTimer {
   seconds: number;
 }
 
-// Oldest first. In memory only, like the log form it feeds: the form allows no
-// way out but logging or a confirmed discard, so nothing in here is ever
-// dropped silently. A queue rather than one slot so a switch made while an
-// earlier form is still open cannot push that earlier time out.
-const toLog = createStore<StoppedTimer[]>([]);
+// Oldest first. A queue rather than one slot so a switch made while an earlier
+// form is still open cannot push that earlier time out. Persisted like the
+// running timer: the form allows no way out but logging or a confirmed
+// discard, and quitting must not be a third one — after a restart the forms
+// are simply still there.
+const toLog = persisted<StoppedTimer[]>(TO_LOG_KEY, (stored) =>
+  Array.isArray(stored)
+    ? stored.flatMap((entry) => {
+        const e = (entry ?? {}) as { timer?: unknown; seconds?: unknown };
+        const timer = parseTimer(e.timer);
+        // Only timers with an issue ever wait here; one without is parked.
+        return timer?.issueKey &&
+          typeof e.seconds === "number" &&
+          Number.isFinite(e.seconds) &&
+          e.seconds > 0
+          ? [{ timer, seconds: e.seconds }]
+          : [];
+      })
+    : [],
+);
 
 /** Take the timer off the clock and queue its time for the log form. A timer
  *  with no issue has nowhere to log to, so its time is parked as a draft
@@ -201,7 +218,7 @@ export function stopForLogging(): void {
   const seconds = roundUpToQuarterHour(elapsedSeconds(timer, Date.now()));
   stopTimer();
   if (timer.issueKey === null) parkStopped({ timer, seconds });
-  else toLog.set([...toLog.get(), { timer, seconds }]);
+  else toLog.save([...toLog.get(), { timer, seconds }]);
 }
 
 /** Park a stopped timer's time as a draft rather than logging it now — the
@@ -333,7 +350,7 @@ export function useTimersToLog(): StoppedTimer[] {
 
 /** The oldest waiting timer has been logged or discarded. */
 export function doneLogging(): void {
-  toLog.set(toLog.get().slice(1));
+  toLog.save(toLog.get().slice(1));
 }
 
 export function stopTimer(): void {

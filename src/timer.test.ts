@@ -596,3 +596,68 @@ describe("cutting idle time out", () => {
     expect(t.getTimersToLog()[0].seconds).toBe(45 * 60);
   });
 });
+
+describe("the log queue across a restart", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("keeps a switched-away timer's form waiting", async () => {
+    // Switch A → B, quit with A's form still open: after the restart A's
+    // time is still waiting to be logged rather than gone.
+    vi.useFakeTimers({ now: 0 });
+    const t = await freshTimer();
+    t.startTimer("ABC-1", "Fix the thing");
+    vi.setSystemTime(20 * 60_000);
+    t.switchTimer("XYZ-2", "Something urgent");
+
+    vi.resetModules();
+    const again = await import("./timer");
+
+    expect(again.getTimersToLog()).toEqual([
+      expect.objectContaining({
+        timer: expect.objectContaining({ issueKey: "ABC-1" }),
+        seconds: 30 * 60,
+      }),
+    ]);
+    expect(again.getTimer()?.issueKey).toBe("XYZ-2");
+  });
+
+  it("forgets it once logged or discarded", async () => {
+    const t = await freshTimer();
+    t.startTimer("ABC-1", "Fix the thing");
+    t.stopForLogging();
+    t.doneLogging();
+
+    vi.resetModules();
+    const again = await import("./timer");
+    expect(again.getTimersToLog()).toEqual([]);
+  });
+
+  it("drops entries it cannot read and keeps the rest", async () => {
+    const good = {
+      timer: {
+        issueKey: "ABC-1",
+        issueSummary: "",
+        segments: [{ from: 0, to: 60_000 }],
+      },
+      seconds: 900,
+    };
+    localStorage.clear();
+    localStorage.setItem(
+      "performa-timers-to-log",
+      JSON.stringify([
+        good,
+        { timer: { issueKey: "ABC-2" }, seconds: 900 },
+        { timer: good.timer, seconds: "lots" },
+        // Ticket-less timers are parked, never queued.
+        { timer: { ...good.timer, issueKey: null }, seconds: 900 },
+        null,
+      ]),
+    );
+    vi.resetModules();
+    const t = await import("./timer");
+
+    expect(t.getTimersToLog()).toEqual([good]);
+  });
+});
