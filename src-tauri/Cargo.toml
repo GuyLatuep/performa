@@ -21,7 +21,10 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
-tauri-plugin-updater = "2"
+# No `zip` feature: it only unpacks the legacy v1 zip bundles, and with
+# `createUpdaterArtifacts: true` Windows updates are the bare NSIS .exe. It also
+# pulls in zip 4.x (Windows only), which RUSTSEC-2026-0367..0369 flag.
+tauri-plugin-updater = { version = "2", default-features = false, features = ["rustls-tls", "system-proxy"] }
 tauri-plugin-process = "2"
 tauri-plugin-notification = "2"
 serde = { version = "1", features = ["derive"] }
