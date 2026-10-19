@@ -608,6 +608,22 @@ Which fields an **issue** shows is not here — that lives on the issue itself, 
 
 **Sign out** (in the header, with confirmation) deletes the token from the OS keychain and returns to the connect screen.
 
+### Moving to another computer
+
+**Settings → General → Transfer settings** copies your settings from one computer to another — between Windows and macOS too.
+
+1. On the old computer, press **Export…** and save the file (`performa-settings-YYYY-MM-DD.json`) somewhere you can reach from the new one.
+2. On the new computer, install performa and **sign in first** — the file does not contain your Jira login.
+3. Press **Import…**, pick the file, and confirm with **Replace**. performa restarts with the imported settings.
+
+What travels: theme, accent, text size and the other display switches, work hours per weekday, holiday state, days off, idle time, Todo sorting and hidden statuses, templates, pins, saved searches, the issue field layout, parked time (drafts) and fun-mode achievements. Each setting in the file replaces yours; settings the file does not carry stay as they are.
+
+What stays behind: your Jira login, a running timer, the log level, and which mentions and missing worklogs you have already seen.
+
+- **Parked time** is copied, not moved: the old computer keeps its drafts too, so book each one in one place only.
+- **Another Jira account** — if the file was exported from a different account (or doesn't say which), the confirmation warns you: saved searches, the field layout and hidden Todo statuses name that site's fields, projects and statuses and may not fit. You can still import.
+- A file that isn't a performa settings file, or one saved by a newer performa than yours, is refused and nothing changes.
+
 ## Close protection
 
 Quitting with unfinished business triggers a warning instead of silently losing data:
@@ -662,6 +678,7 @@ The log is local-only — see [Data & privacy](#data--privacy) — and is never 
 | Site & email | With the token in the keychain entry |
 | Worklogs | In Jira — performa stores no copy |
 | Pins, templates, settings (theme, accent, type icons, hours, weekends, log level) | Locally in the app's storage |
+| Settings export (see [Moving to another computer](#moving-to-another-computer)) | Only where you save it — holds your settings plus your site and email, never the token |
 | Issue type icons | Locally in the app's storage — fetched from your Jira site once and kept so lists don't flicker on every launch |
 | Timer state, seen/notified markers, dismissed update version | Locally in the app's storage |
 | Debug log (see [Debug log](#debug-log)) | `performa-logs` folder in your system's temp directory |

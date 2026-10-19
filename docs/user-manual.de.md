@@ -628,6 +628,22 @@ Welche Felder ein **Vorgang** zeigt, steht nicht hier — das liegt am Vorgang s
 
 **Sign out** (in der Kopfzeile, mit Bestätigung) löscht das Token aus dem Schlüsselbund des Betriebssystems und kehrt zum Verbindungsbildschirm zurück.
 
+### Umzug auf einen anderen Computer
+
+**Settings → General → Transfer settings** überträgt deine Einstellungen von einem Computer auf einen anderen — auch zwischen Windows und macOS.
+
+1. Auf dem alten Computer **Export…** drücken und die Datei (`performa-settings-JJJJ-MM-TT.json`) dort speichern, wo du sie vom neuen aus erreichst.
+2. Auf dem neuen Computer performa installieren und **zuerst anmelden** — die Datei enthält deine Jira-Zugangsdaten nicht.
+3. **Import…** drücken, die Datei wählen und mit **Replace** bestätigen. performa startet mit den importierten Einstellungen neu.
+
+Was mitkommt: Theme, Akzentfarbe, Textgröße und die übrigen Anzeige-Schalter, Arbeitsstunden je Wochentag, Bundesland für Feiertage, freie Tage, Leerlaufzeit, Sortierung und ausgeblendete Status im Todo-Tab, Vorlagen, Pins, gespeicherte Suchen, die Feldanordnung von Issues, geparkte Zeit (Entwürfe) und die Erfolge des Spaßmodus. Jede Einstellung aus der Datei ersetzt deine; Einstellungen, die nicht in der Datei stehen, bleiben, wie sie sind.
+
+Was zurückbleibt: deine Jira-Anmeldung, ein laufender Timer, die Log-Stufe und welche Erwähnungen und fehlenden Worklogs du schon gesehen hast.
+
+- **Geparkte Zeit** wird kopiert, nicht verschoben: Der alte Computer behält seine Entwürfe ebenfalls — buche jeden nur an einer Stelle.
+- **Anderes Jira-Konto** — stammt die Datei von einem anderen Konto (oder sagt sie nicht, von welchem), warnt die Bestätigung: Gespeicherte Suchen, Feldanordnung und ausgeblendete Todo-Status nennen Felder, Projekte und Status jener Seite und passen womöglich nicht. Importieren kannst du trotzdem.
+- Eine Datei, die keine performa-Einstellungsdatei ist oder von einer neueren performa-Version stammt, wird abgelehnt, und nichts ändert sich.
+
 ## Schutz beim Beenden
 
 Beim Beenden mit unerledigten Dingen erscheint eine Warnung, statt still Daten zu verlieren:
@@ -682,6 +698,7 @@ Das Log ist rein lokal — siehe [Daten & Datenschutz](#daten--datenschutz) — 
 | Site & E-Mail | Zusammen mit dem Token im Schlüsselbund-Eintrag |
 | Worklogs | In Jira — performa speichert keine Kopie |
 | Pins, Vorlagen, Einstellungen (Theme, Akzentfarbe, Typ-Symbole, Stunden, Wochenenden, Log-Level) | Lokal im Speicher der App |
+| Einstellungs-Export (siehe [Umzug auf einen anderen Computer](#umzug-auf-einen-anderen-computer)) | Nur dort, wo du ihn speicherst — enthält deine Einstellungen sowie Seite und E-Mail, nie das Token |
 | Vorgangstyp-Symbole | Lokal im Speicher der App — einmal von deiner Jira-Site geholt und behalten, damit die Listen nicht bei jedem Start flackern |
 | Timer-Zustand, Gesehen-/Benachrichtigt-Markierungen, ausgeblendete Update-Version | Lokal im Speicher der App |
 | Debug-Log (siehe [Debug-Log](#debug-log)) | Ordner `performa-logs` im temporären Verzeichnis deines Systems |

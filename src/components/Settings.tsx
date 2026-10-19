@@ -32,6 +32,7 @@ import SettingsSearches from "./SettingsSearches";
 import SettingsTodo from "./SettingsTodo";
 import SettingsLogging from "./SettingsLogging";
 import SettingsUpdates from "./SettingsUpdates";
+import SettingsTransfer from "./SettingsTransfer";
 
 interface Props {
   existing: CredentialsMeta | null;
@@ -168,6 +169,8 @@ export default function Settings({
           />
           <SettingsFun />
           <SettingsUpdates />
+          {/* Signed-in only: an import lands on the account it is made in. */}
+          {existing && onCancel && <SettingsTransfer account={existing} />}
         </>
       )}
       {tab === "appearance" && <SettingsAppearance />}

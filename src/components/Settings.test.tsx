@@ -26,6 +26,9 @@ vi.mock("./SettingsTimesheet", () => ({
 vi.mock("./SettingsTodo", () => ({ default: () => <div>todo tab</div> }));
 vi.mock("./SettingsLogging", () => ({ default: () => <div>logging tab</div> }));
 vi.mock("./SettingsFun", () => ({ default: () => <div>fun tab</div> }));
+vi.mock("./SettingsTransfer", () => ({
+  default: () => <div>transfer section</div>,
+}));
 vi.mock("./SettingsConnection", () => ({
   default: ({ onCancel }: { onCancel?: () => void }) => (
     <div>
@@ -146,6 +149,25 @@ describe("which tab opens", () => {
     await renderSettings({ existing: null, initialTab: "logging" });
 
     expect(screen.getByText("logging tab")).toBeDefined();
+  });
+});
+
+describe("transferring settings", () => {
+  it("is offered on General once signed in", async () => {
+    await renderSettings({
+      existing,
+      initialTab: "connection",
+      onCancel: vi.fn(),
+    });
+
+    expect(screen.getByText("transfer section")).toBeTruthy();
+  });
+
+  // The file carries no login: the new machine is connected first.
+  it("is not offered on the first-run connect screen", async () => {
+    await renderSettings({ existing: null });
+
+    expect(screen.queryByText("transfer section")).toBeNull();
   });
 });
 

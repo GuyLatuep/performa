@@ -6,6 +6,7 @@ mod idle;
 mod jira;
 mod logging;
 mod session;
+mod transfer;
 mod tray;
 
 use creds::{Credentials, CredentialsMeta};
@@ -779,6 +780,8 @@ pub fn run() {
             open_log_folder,
             frontend_log,
             set_badge,
+            transfer::write_settings_file,
+            transfer::read_settings_file,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
