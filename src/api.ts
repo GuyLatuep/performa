@@ -803,4 +803,18 @@ export const api = {
   setBadge(count: number | null): Promise<void> {
     return invoke("set_badge", { count });
   },
+  /** Save an exported settings file to the path picked in the save dialog. */
+  writeSettingsFile(path: string, contents: string): Promise<void> {
+    return logged("write_settings_file", () =>
+      invoke("write_settings_file", { path, contents }),
+    );
+  },
+  /** The text of the settings file picked in the open dialog. */
+  readSettingsFile(path: string): Promise<string> {
+    return logged(
+      "read_settings_file",
+      () => invoke("read_settings_file", { path }),
+      (text) => `${text.length} chars`,
+    );
+  },
 };
