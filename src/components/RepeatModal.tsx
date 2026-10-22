@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import { useBackdropDismiss } from "../dismiss";
 import { useShortcut } from "../shortcuts";
 import { addTemplate } from "../templates";
 import IssueHistory from "./IssueHistory";
@@ -43,6 +44,7 @@ export default function RepeatModal({
   // Not while the request is in flight, which is the same bound the button
   // carries.
   const submitKeys = useShortcut("submit", () => save(), !busy);
+  const backdrop = useBackdropDismiss(onClose);
 
   async function save() {
     if (seconds === null) {
@@ -70,8 +72,8 @@ export default function RepeatModal({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" {...backdrop}>
+      <div className="modal">
         <h3>{title ?? `Log again — ${issueKey}`}</h3>
         <p className="muted modal-sub">{issueSummary}</p>
         <WorklogFields draft={draft} patch={patch} seconds={seconds} />

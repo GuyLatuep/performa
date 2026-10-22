@@ -1,5 +1,5 @@
 /** @vitest-environment happy-dom */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../test-support/dom";
@@ -169,5 +169,15 @@ describe("closing", () => {
 
     await userEvent.click(document.querySelector(".modal-backdrop")!);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays open when a drag starts inside and is let go over the backdrop", () => {
+    const { onClose } = renderModal();
+
+    // What the browser dispatches for a text selection released outside the
+    // dialog: mousedown inside, then click on the common ancestor.
+    fireEvent.mouseDown(screen.getByText("Replace the pump"));
+    fireEvent.click(document.querySelector(".modal-backdrop")!);
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

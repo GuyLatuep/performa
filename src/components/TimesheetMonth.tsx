@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { api, IssueSummary, WorklogEntry } from "../api";
+import { useBackdropDismiss } from "../dismiss";
 import { openExternal } from "../external";
 import { useResetOn } from "../resetOn";
 import { useShortcut } from "../shortcuts";
@@ -576,6 +577,7 @@ function CellWorklogsModal({
   const [adding, setAdding] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const backdrop = useBackdropDismiss(onClose);
   const entries = row.cells.get(date)?.entries ?? [];
 
   async function remove(entry: WorklogEntry) {
@@ -589,8 +591,8 @@ function CellWorklogsModal({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal wide" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" {...backdrop}>
+      <div className="modal wide">
         <h3>
           {row.issueKey} · {formatDayLabel(date, DAY_FORMAT)}
         </h3>
@@ -679,6 +681,7 @@ function QuickLogModal({
   onSaved: () => void;
 }) {
   const [issue, setIssue] = useState<IssueSummary | null>(null);
+  const backdrop = useBackdropDismiss(onClose);
 
   if (issue)
     return (
@@ -695,8 +698,8 @@ function QuickLogModal({
     );
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal wide" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" {...backdrop}>
+      <div className="modal wide">
         <h3>Log time · {formatDayLabel(date, DAY_FORMAT)}</h3>
         <IssuePicker site={site} onSelect={setIssue} />
         <div className="row">
