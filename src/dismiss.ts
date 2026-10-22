@@ -1,4 +1,4 @@
-import { RefObject, useEffect } from "react";
+import { MouseEvent, RefObject, useEffect, useRef } from "react";
 
 /**
  * Close something floating when the next click lands outside it.
@@ -26,4 +26,27 @@ export function useDismissOnOutside(
     window.addEventListener("pointerdown", onPointerDown);
     return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [ref, onDismiss, active]);
+}
+
+/**
+ * Props for a `.modal-backdrop`: close on a click that starts and ends on the
+ * backdrop itself.
+ *
+ * A plain `onClick` on the backdrop is not enough. A drag that starts inside
+ * the modal — selecting comment text, say — and is let go over the backdrop
+ * still fires `click`, on the nearest element under both ends, which is the
+ * backdrop; the modal's own `stopPropagation` never sees it. WebView2 does
+ * exactly this, so on Windows the selection would close the dialog.
+ */
+export function useBackdropDismiss(onDismiss: () => void) {
+  const pressedHere = useRef(false);
+  return {
+    onMouseDown: (e: MouseEvent) => {
+      pressedHere.current = e.target === e.currentTarget;
+    },
+    onClick: (e: MouseEvent) => {
+      if (pressedHere.current && e.target === e.currentTarget) onDismiss();
+      pressedHere.current = false;
+    },
+  };
 }

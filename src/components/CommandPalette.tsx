@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActionSpec, allActions, filterActions, typedAction } from "../actions";
+import { useBackdropDismiss } from "../dismiss";
 import { overlayOpen } from "../keys";
 import { matchShortcut } from "../shortcuts";
 
@@ -65,6 +66,7 @@ export default function CommandPalette() {
   useEffect(() => {
     activeItem.current?.scrollIntoView({ block: "nearest" });
   }, [at]);
+  const backdrop = useBackdropDismiss(() => setOpen(false));
 
   if (!open) return null;
 
@@ -138,12 +140,11 @@ export default function CommandPalette() {
   }
 
   return (
-    <div className="modal-backdrop" onClick={close}>
+    <div className="modal-backdrop" {...backdrop}>
       <div
         className="modal wide command-palette"
         role="dialog"
         aria-label="Command palette"
-        onClick={(e) => e.stopPropagation()}
       >
         <input
           type="text"

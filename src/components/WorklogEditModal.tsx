@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, WorklogEntry } from "../api";
+import { useBackdropDismiss } from "../dismiss";
 import { useShortcut } from "../shortcuts";
 import { formatDuration } from "../time";
 import {
@@ -33,6 +34,7 @@ export default function WorklogEditModal({
   // Not while the request is in flight, which is the same bound the button
   // carries.
   const submitKeys = useShortcut("submit", () => save(), !busy);
+  const backdrop = useBackdropDismiss(onClose);
 
   async function save() {
     if (seconds === null) {
@@ -56,8 +58,8 @@ export default function WorklogEditModal({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" {...backdrop}>
+      <div className="modal">
         <h3>Edit {entry.issueKey}</h3>
         <WorklogFields draft={draft} patch={patch} seconds={seconds} />
         {error && <p className="error">{error}</p>}
