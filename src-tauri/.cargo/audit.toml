@@ -1,0 +1,21 @@
+# Advisories judged not to apply. Each needs a reason, and an entry comes out
+# once the upstream fix lands; `cargo tree -i <crate> --target <triple>`
+# shows whether it still does.
+#
+# All five are Linux-only: pulled in by Tauri's GTK3 webview/tray stack and by
+# zbus for D-Bus notifications. Releases build macOS and Windows only, and
+# `cargo tree` finds none of them on either target.
+[advisories]
+ignore = [
+  # glib 0.18 VariantStrIter unsound. Fixed in glib >= 0.20 (gtk4-rs), which
+  # Tauri 2 can't use: it is pinned to GTK3 (gtk 0.18). Goes with Tauri's GTK4 move.
+  "RUSTSEC-2024-0429",
+  # proc-macro-error unmaintained, via glib-macros 0.18. Same chain as above.
+  "RUSTSEC-2024-0370",
+  # zvariant, zvariant_derive, zbus_names unmaintained: merged into zbus 6.
+  # Via zbus 5 in notify-rust (tauri-plugin-notification) and
+  # tauri-plugin-opener; goes once those move to zbus 6.
+  "RUSTSEC-2026-0370",
+  "RUSTSEC-2026-0372",
+  "RUSTSEC-2026-0371",
+]
