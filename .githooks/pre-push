@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Run CI's dependency audit before anything leaves the machine. Wired up by
+# `pnpm install` (the `prepare` script sets core.hooksPath to this directory).
+exec "$(git rev-parse --show-toplevel)/scripts/audit.sh"
