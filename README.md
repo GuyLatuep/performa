@@ -174,3 +174,9 @@ updater artifacts. Trigger it by pushing a tag:
 git tag v0.4.1 && git push origin v0.4.1
 ```
 
+The same bundles, release notes and manuals are then uploaded to
+[performa.polz.in](https://performa.polz.in) (needs the repo secret
+`PERFORMA_UPLOAD_TOKEN`), where they land as a draft and are published on
+`/admin`. The app asks that site for updates first and falls back to the
+GitHub release's `latest.json` when it cannot be reached.
+

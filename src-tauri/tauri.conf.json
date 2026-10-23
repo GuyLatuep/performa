@@ -40,8 +40,8 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/polzinmalte/performa/releases/latest/download/latest.json",
-        "https://github.com/GuyLatuep/performa/releases/latest/download/latest.json"
+        "https://performa.polz.in/api/update/{{target}}/{{arch}}/{{current_version}}",
+        "https://github.com/polzinmalte/performa/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEzQjYzOUQxOEYxMTM4NkIKUldSck9CR1AwVG0yRTRLR2hHMyszQkNJKzQrbi8zdHBoS0VhV21CRzlHY2JBSE5uK3l0VXZvZEEK",
       "windows": {
