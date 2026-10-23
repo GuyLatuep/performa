@@ -34,6 +34,12 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
 
+  // Node, not the browser: CI runs these.
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: globals.node },
+  },
+
   // Must stay last — switches off every rule Prettier already decides.
   prettier,
 );
