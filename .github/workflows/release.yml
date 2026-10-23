@@ -19,8 +19,48 @@ jobs:
     # that step with an empty token.
     secrets: inherit
 
+  # Draft release notes: every commit since the previous version tag. Its own
+  # job, so the GitHub release and the upload to performa.polz.in share them.
+  notes:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      body: ${{ steps.notes.outputs.body }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history + tags, needed to diff commits against the last release.
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        run: |
+          PREV="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          if [ -n "$PREV" ]; then
+            RANGE="$PREV..$GITHUB_REF_NAME"
+          else
+            RANGE="$GITHUB_REF_NAME"
+          fi
+          {
+            echo "body<<NOTES_EOF"
+            echo "## Changes since ${PREV:-the beginning}"
+            echo
+            git log --no-merges --pretty=format:"- %s (%h)" "$RANGE"
+            echo
+            if [ -n "$PREV" ]; then
+              echo
+              echo "**Full changelog:** https://github.com/${GITHUB_REPOSITORY}/compare/${PREV}...${GITHUB_REF_NAME}"
+            fi
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
   build:
-    needs: test
+    needs: [test, notes]
+    # `notes` is skipped without a tag; build anyway on a manual run.
+    if: ${{ !cancelled() && needs.test.result == 'success' && needs.notes.result != 'failure' }}
     permissions:
       contents: write
     strategy:
@@ -29,15 +69,14 @@ jobs:
         include:
           - platform: macos-latest # Apple Silicon only
             args: "--target aarch64-apple-darwin"
+            artifact: darwin-aarch64
           - platform: windows-latest # NSIS installer only (no .msi)
             args: "--bundles nsis"
+            artifact: windows-x86_64
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          # Full history + tags, needed to diff commits against the last release.
-          fetch-depth: 0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -74,31 +113,6 @@ jobs:
           echo "Stamped version $VERSION"
           grep -m1 '^version' src-tauri/Cargo.toml
 
-      # Draft release notes: every commit since the previous version tag.
-      - name: Generate release notes
-        id: notes
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
-        run: |
-          PREV="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
-          if [ -n "$PREV" ]; then
-            RANGE="$PREV..$GITHUB_REF_NAME"
-          else
-            RANGE="$GITHUB_REF_NAME"
-          fi
-          {
-            echo "body<<NOTES_EOF"
-            echo "## Changes since ${PREV:-the beginning}"
-            echo
-            git log --no-merges --pretty=format:"- %s (%h)" "$RANGE"
-            echo
-            if [ -n "$PREV" ]; then
-              echo
-              echo "**Full changelog:** https://github.com/${GITHUB_REPOSITORY}/compare/${PREV}...${GITHUB_REF_NAME}"
-            fi
-            echo "NOTES_EOF"
-          } >> "$GITHUB_OUTPUT"
-
       - name: Build and release
         uses: tauri-apps/tauri-action@v1
         env:
@@ -116,7 +130,80 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "performa ${{ github.ref_name }}"
-          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseBody: ${{ needs.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # Hand the bundles to the `upload` job, under the names the GitHub
+      # release gives them: tauri-action renames the macOS updater tarball,
+      # which the bundler writes as plain `performa.app.tar.gz`.
+      - name: Collect bundles
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir dist-release
+          if [ "$RUNNER_OS" = macOS ]; then
+            BUNDLE=src-tauri/target/aarch64-apple-darwin/release/bundle
+            cp "$BUNDLE/dmg/performa_${VERSION}_aarch64.dmg" dist-release/
+            cp "$BUNDLE/macos/performa.app.tar.gz" "dist-release/performa_${VERSION}_aarch64.app.tar.gz"
+            cp "$BUNDLE/macos/performa.app.tar.gz.sig" "dist-release/performa_${VERSION}_aarch64.app.tar.gz.sig"
+          else
+            BUNDLE=src-tauri/target/release/bundle
+            cp "$BUNDLE/nsis/performa_${VERSION}_x64-setup.exe" dist-release/
+            cp "$BUNDLE/nsis/performa_${VERSION}_x64-setup.exe.sig" dist-release/
+          fi
+          ls -l dist-release
+
+      - name: Keep bundles for upload
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v7
+        with:
+          name: bundle-${{ matrix.artifact }}
+          path: dist-release/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Uploads the release to performa.polz.in, where it lands as a draft and is
+  # published on /admin. The GitHub release above stays: installed versions
+  # fall back to its latest.json when the site is unreachable.
+  upload:
+    needs: [notes, build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: bundle-*
+          path: dist-release
+          merge-multiple: true
+
+      # The script lives with the site, which owns the API it talks to. Pinned
+      # to a commit: this job holds the upload token.
+      - name: Fetch upload script
+        run: |
+          curl -fsSL --retry 3 -o upload-release.mjs \
+            https://raw.githubusercontent.com/polzinmalte/performa-site/f2d06fdc76523d8349d98debb0daebc4bd00d270/scripts/upload-release.mjs
+
+      - name: Upload to performa.polz.in
+        env:
+          PERFORMA_UPLOAD_TOKEN: ${{ secrets.PERFORMA_UPLOAD_TOKEN }}
+          NOTES: ${{ needs.notes.outputs.body }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          printf '%s\n' "$NOTES" > notes.md
+          cd dist-release
+          node ../upload-release.mjs --site https://performa.polz.in --version "$VERSION" --notes ../notes.md \
+            --manual-en ../docs/user-manual.en.md --manual-de ../docs/user-manual.de.md \
+            --file "performa_${VERSION}_aarch64.dmg:darwin-aarch64:installer" \
+            --file "performa_${VERSION}_aarch64.app.tar.gz:darwin-aarch64:updater" \
+            --file "performa_${VERSION}_x64-setup.exe:windows-x86_64:installer+updater"
